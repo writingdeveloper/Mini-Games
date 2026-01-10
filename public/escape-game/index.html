@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>도주 게임 - Snake Game Variation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div id="startScreen" class="screen">
+            <h1>🚗 도주 게임</h1>
+            <p>방향키로 자동차를 조종하세요</p>
+            <p>행인을 치면 경찰차가 뒤쫓아옵니다!</p>
+            <button id="startButton">게임 시작</button>
+        </div>
+
+        <div id="gameScreen" class="screen hidden">
+            <div class="score-board">
+                <div class="score">점수: <span id="score">0</span></div>
+                <div class="speed">속도: <span id="speed">1</span>x</div>
+            </div>
+            <canvas id="gameCanvas" width="600" height="600"></canvas>
+        </div>
+
+        <div id="gameOverScreen" class="screen hidden">
+            <h1>게임 오버!</h1>
+            <p class="final-score">최종 점수: <span id="finalScore">0</span></p>
+            <p id="gameOverReason"></p>
+            <button id="restartButton">다시 시작</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
