@@ -12,6 +12,10 @@ export class VehicleSystem {
     return this.game.scene;
   }
 
+  get modelManager() {
+    return this.game.modelManager;
+  }
+
   toggleVehicleMount() {
     if (this.isMounted && this.mountedVehicle) {
       this.dismountVehicle();
@@ -208,6 +212,80 @@ export class VehicleSystem {
   }
 
   createVehicle(position, type) {
+    // 3D 모델 사용 시도
+    this.createVehicleWithModel(position, type);
+  }
+
+  async createVehicleWithModel(position, type) {
+    const modelKey = `vehicle_${type}`;
+
+    // 모델 사용이 활성화되어 있고, 모델이 로드되었으면 3D 모델 사용
+    if (this.modelManager.useModels.vehicles && this.modelManager.isModelLoaded(modelKey)) {
+      const vehicleRoot = await this.modelManager.createModelInstance(
+        modelKey,
+        position,
+        0,
+        1
+      );
+
+      if (vehicleRoot) {
+        let vehicle = {
+          parent: vehicleRoot,
+          type,
+          canMount: true,
+          health: type === 'tank' ? 500 : (type === 'helicopter' ? 200 : 150),
+          speed: type === 'tank' ? 15 : (type === 'helicopter' ? 40 : 30),
+          canFly: type === 'helicopter',
+          canShoot: type === 'tank',
+          damage: type === 'tank' ? 100 : 0,
+          useModel: true
+        };
+
+        // 물리 충돌용 박스 추가
+        let colliderSize;
+        switch (type) {
+          case 'car':
+            colliderSize = { width: 2.5, height: 1.5, depth: 5 };
+            break;
+          case 'tank':
+            colliderSize = { width: 3.5, height: 2, depth: 6 };
+            break;
+          case 'helicopter':
+            colliderSize = { width: 2, height: 2.5, depth: 6 };
+            break;
+          default:
+            colliderSize = { width: 3, height: 2, depth: 5 };
+        }
+
+        const collider = BABYLON.MeshBuilder.CreateBox(`vehicleCollider_${Date.now()}`, colliderSize, this.scene);
+        collider.position = position.clone();
+        collider.position.y += colliderSize.height / 2;
+        collider.isVisible = false;
+        collider.parent = vehicleRoot;
+        new BABYLON.PhysicsAggregate(collider, BABYLON.PhysicsShapeType.BOX, { mass: 0 }, this.scene);
+
+        // 탑승 인디케이터
+        const indicator = BABYLON.MeshBuilder.CreateTorus('mountIndicator', {
+          diameter: 4, thickness: 0.1
+        }, this.scene);
+        indicator.position = position.clone();
+        indicator.position.y += 0.1;
+        const indicatorMat = new BABYLON.StandardMaterial('indicatorMat', this.scene);
+        indicatorMat.emissiveColor = new BABYLON.Color3(0, 1, 0.5);
+        indicatorMat.alpha = 0.5;
+        indicator.material = indicatorMat;
+        vehicle.indicator = indicator;
+
+        this.spawnedVehicles.push(vehicle);
+        return;
+      }
+    }
+
+    // 폴백: 프리미티브로 차량 생성
+    this.createVehiclePrimitive(position, type);
+  }
+
+  createVehiclePrimitive(position, type) {
     const vehicleParent = new BABYLON.TransformNode(`vehicle_${type}_${Date.now()}`, this.scene);
     vehicleParent.position = position.clone();
 

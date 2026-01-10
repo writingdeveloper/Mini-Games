@@ -335,7 +335,7 @@ export class UIManager {
         bottom: 20px;
         left: 50%;
         transform: translateX(-50%);
-        background: rgba(0,0,0,0.8);
+        background: rgba(0,0,0,0.7);
         color: #fff;
         padding: 12px 20px;
         border-radius: 10px;
@@ -343,7 +343,6 @@ export class UIManager {
         font-size: 11px;
         z-index: 100;
         border: 1px solid rgba(255,255,255,0.2);
-        max-width: 600px;
       `;
       document.body.appendChild(hints);
     }

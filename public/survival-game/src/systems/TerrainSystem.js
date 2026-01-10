@@ -11,8 +11,13 @@ export class TerrainSystem {
     this.jumpPads = [];
     this.turrets = [];
     this.buildings = [];
+    this.trees = []; // 나무 추적용
     this.loadedChunks = new Set();
     this.chunkSize = 50;
+  }
+
+  get modelManager() {
+    return this.game.modelManager;
   }
 
   get scene() {
@@ -76,14 +81,25 @@ export class TerrainSystem {
 
     new BABYLON.PhysicsAggregate(ground, BABYLON.PhysicsShapeType.MESH, { mass: 0, restitution: 0.2, friction: 0.8 }, this.scene);
 
+    // UV 좌표를 월드 좌표 기반으로 변경하여 청크 경계가 보이지 않게 함
+    const uvs = ground.getVerticesData(BABYLON.VertexBuffer.UVKind);
+    for (let i = 0; i < uvs.length / 2; i++) {
+      const worldX = positions[i * 3] + offsetX;
+      const worldZ = positions[i * 3 + 2] + offsetZ;
+      // 월드 좌표를 UV로 변환 (타일링 스케일 적용)
+      uvs[i * 2] = worldX / 6;     // U 좌표
+      uvs[i * 2 + 1] = worldZ / 6; // V 좌표
+    }
+    ground.updateVerticesData(BABYLON.VertexBuffer.UVKind, uvs);
+
     // 잔디 텍스처 로드
     const grassTexture = new BABYLON.Texture("/survival-game/textures/grass_path_2_diff_4k.jpg", this.scene);
-    grassTexture.uScale = 8;
-    grassTexture.vScale = 8;
+    grassTexture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+    grassTexture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
 
     const roughnessTexture = new BABYLON.Texture("/survival-game/textures/grass_path_2_rough_4k.jpg", this.scene);
-    roughnessTexture.uScale = 8;
-    roughnessTexture.vScale = 8;
+    roughnessTexture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+    roughnessTexture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
 
     const groundMat = new BABYLON.PBRMaterial(`groundMat_${chunkX}_${chunkZ}`, this.scene);
     groundMat.albedoTexture = grassTexture;
@@ -116,39 +132,8 @@ export class TerrainSystem {
 
       if (Math.abs(x) < 5 && Math.abs(z) < 5) continue;
 
-      const treeHeight = 4 + random(i * 3 + 2) * 4;
-      const trunk = BABYLON.MeshBuilder.CreateCylinder(`trunk_${x}_${z}`, {
-        height: treeHeight,
-        diameter: 0.4 + random(i) * 0.4,
-      }, this.scene);
-      trunk.position = new BABYLON.Vector3(x, y + treeHeight / 2, z);
-
-      const trunkMat = new BABYLON.PBRMaterial(`trunkMat_${x}_${z}`, this.scene);
-      trunkMat.albedoColor = new BABYLON.Color3(0.25, 0.15, 0.05);
-      trunkMat.roughness = 0.98;
-      trunk.material = trunkMat;
-
-      new BABYLON.PhysicsAggregate(trunk, BABYLON.PhysicsShapeType.CYLINDER, { mass: 0 }, this.scene);
-      this.game.shadowGenerator.addShadowCaster(trunk);
-
-      const leafCount = 2 + Math.floor(random(i + 100) * 3);
-      for (let j = 0; j < leafCount; j++) {
-        const leafSize = 2 + random(i * 10 + j) * 2;
-        const leaves = BABYLON.MeshBuilder.CreateSphere(`leaves_${x}_${z}_${j}`, {
-          diameter: leafSize,
-        }, this.scene);
-        leaves.position = new BABYLON.Vector3(
-          x + (random(i * 10 + j + 1) - 0.5) * 2,
-          y + treeHeight + random(i * 10 + j + 2) * 2,
-          z + (random(i * 10 + j + 3) - 0.5) * 2
-        );
-
-        const leavesMat = new BABYLON.PBRMaterial(`leavesMat_${x}_${z}_${j}`, this.scene);
-        leavesMat.albedoColor = new BABYLON.Color3(0.1, 0.35 + random(i + j) * 0.15, 0.08);
-        leavesMat.roughness = 0.9;
-        leaves.material = leavesMat;
-        this.game.shadowGenerator.addShadowCaster(leaves);
-      }
+      // 3D 모델 사용 시도
+      this.createTree(new BABYLON.Vector3(x, y, z), random(i * 3 + 2), i);
     }
 
     // 바위 생성
@@ -254,9 +239,142 @@ export class TerrainSystem {
 
       if (Math.abs(x) > 20 || Math.abs(z) > 20) {
         const buildingType = random(603) < 0.4 ? 'apartment' : (random(604) < 0.6 ? 'house' : 'tower');
-        this.createBuilding(new BABYLON.Vector3(x, y, z), buildingType, random(605));
+        this.createBuildingWithModel(new BABYLON.Vector3(x, y, z), buildingType, random(605));
       }
     }
+  }
+
+  /**
+   * 나무 생성 - 3D 모델 또는 프리미티브 폴백
+   */
+  async createTree(position, seedValue, index) {
+    // 사용 가능한 모델 선택 (tree_pine이 없으면 tree 사용)
+    let modelKey = 'tree';
+    if (seedValue > 0.5 && this.modelManager.isModelLoaded('tree_pine')) {
+      modelKey = 'tree_pine';
+    }
+
+    // 모델 사용이 활성화되어 있고, 모델이 로드되었으면 3D 모델 사용
+    if (this.modelManager.useModels.trees && this.modelManager.isModelLoaded(modelKey)) {
+      const treeScale = 0.5 + seedValue * 1.0; // 스케일 조정
+
+      // 팩에서 랜덤하게 하나의 나무만 선택하고, 지형 높이에 맞게 배치
+      const treeRoot = await this.modelManager.createModelInstance(
+        modelKey,
+        position,
+        Math.random() * Math.PI * 2,
+        treeScale,
+        { pickRandom: true, meshIndex: index } // 팩에서 하나만 선택
+      );
+
+      if (treeRoot) {
+        // 물리 충돌용 간단한 실린더 추가
+        const collider = BABYLON.MeshBuilder.CreateCylinder(`treeCollider_${index}`, {
+          height: 4 * treeScale,
+          diameter: 0.6 * treeScale
+        }, this.scene);
+        collider.position = position.clone();
+        collider.position.y += 2 * treeScale;
+        collider.isVisible = false;
+        new BABYLON.PhysicsAggregate(collider, BABYLON.PhysicsShapeType.CYLINDER, { mass: 0 }, this.scene);
+
+        this.trees.push({ root: treeRoot, collider });
+        return;
+      }
+    }
+
+    // 폴백: 프리미티브로 나무 생성
+    this.createTreePrimitive(position, seedValue, index);
+  }
+
+  /**
+   * 프리미티브로 나무 생성 (폴백)
+   */
+  createTreePrimitive(position, seedValue, index) {
+    const treeHeight = 4 + seedValue * 4;
+    const trunk = BABYLON.MeshBuilder.CreateCylinder(`trunk_${position.x}_${position.z}`, {
+      height: treeHeight,
+      diameter: 0.4 + seedValue * 0.4,
+    }, this.scene);
+    trunk.position = position.clone();
+    trunk.position.y += treeHeight / 2;
+
+    const trunkMat = new BABYLON.PBRMaterial(`trunkMat_${position.x}_${position.z}`, this.scene);
+    trunkMat.albedoColor = new BABYLON.Color3(0.25, 0.15, 0.05);
+    trunkMat.roughness = 0.98;
+    trunk.material = trunkMat;
+
+    new BABYLON.PhysicsAggregate(trunk, BABYLON.PhysicsShapeType.CYLINDER, { mass: 0 }, this.scene);
+    this.game.shadowGenerator.addShadowCaster(trunk);
+
+    const leafCount = 2 + Math.floor(seedValue * 3);
+    for (let j = 0; j < leafCount; j++) {
+      const leafSize = 2 + (seedValue + j * 0.1) * 2;
+      const leaves = BABYLON.MeshBuilder.CreateSphere(`leaves_${position.x}_${position.z}_${j}`, {
+        diameter: leafSize,
+      }, this.scene);
+      leaves.position = new BABYLON.Vector3(
+        position.x + (Math.random() - 0.5) * 2,
+        position.y + treeHeight + Math.random() * 2,
+        position.z + (Math.random() - 0.5) * 2
+      );
+
+      const leavesMat = new BABYLON.PBRMaterial(`leavesMat_${position.x}_${position.z}_${j}`, this.scene);
+      leavesMat.albedoColor = new BABYLON.Color3(0.1, 0.35 + seedValue * 0.15, 0.08);
+      leavesMat.roughness = 0.9;
+      leaves.material = leavesMat;
+      this.game.shadowGenerator.addShadowCaster(leaves);
+    }
+
+    this.trees.push({ trunk, type: 'primitive' });
+  }
+
+  /**
+   * 건물 생성 - 3D 모델 또는 프리미티브 폴백
+   */
+  async createBuildingWithModel(position, type, seed) {
+    const modelKey = `building_${type}`;
+
+    // 모델 사용이 활성화되어 있고, 모델이 로드되었으면 3D 모델 사용
+    if (this.modelManager.useModels.buildings && this.modelManager.isModelLoaded(modelKey)) {
+      const buildingScale = type === 'tower' ? 1.5 + seed : (type === 'apartment' ? 1 + seed * 0.5 : 1);
+      const buildingRoot = await this.modelManager.createModelInstance(
+        modelKey,
+        position,
+        Math.random() * Math.PI * 2,
+        buildingScale
+      );
+
+      if (buildingRoot) {
+        // 물리 충돌용 박스 추가
+        let colliderSize;
+        switch (type) {
+          case 'apartment':
+            colliderSize = { width: 12 + seed * 8, height: (5 + Math.floor(seed * 10)) * 3, depth: 10 + seed * 5 };
+            break;
+          case 'house':
+            colliderSize = { width: 8, height: 6, depth: 10 };
+            break;
+          case 'tower':
+            colliderSize = { width: 8, height: 20 + seed * 30, depth: 8 };
+            break;
+          default:
+            colliderSize = { width: 10, height: 10, depth: 10 };
+        }
+
+        const collider = BABYLON.MeshBuilder.CreateBox(`buildingCollider_${Date.now()}`, colliderSize, this.scene);
+        collider.position = position.clone();
+        collider.position.y += colliderSize.height / 2;
+        collider.isVisible = false;
+        new BABYLON.PhysicsAggregate(collider, BABYLON.PhysicsShapeType.BOX, { mass: 0 }, this.scene);
+
+        this.buildings.push({ root: buildingRoot, collider, type });
+        return;
+      }
+    }
+
+    // 폴백: 기존 프리미티브 건물 생성
+    this.createBuilding(position, type, seed);
   }
 
   createExplosiveBarrel(position) {

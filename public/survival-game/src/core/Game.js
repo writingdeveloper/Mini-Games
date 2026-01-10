@@ -3,6 +3,7 @@
 import { AudioManager } from '../managers/AudioManager.js';
 import { EffectManager } from '../managers/EffectManager.js';
 import { UIManager } from '../managers/UIManager.js';
+import { ModelManager } from '../managers/ModelManager.js';
 import { WeaponSystem } from '../systems/WeaponSystem.js';
 import { EnemySystem } from '../systems/EnemySystem.js';
 import { VehicleSystem } from '../systems/VehicleSystem.js';
@@ -41,6 +42,7 @@ export class Game {
     this.audioManager = new AudioManager();
     this.effectManager = new EffectManager(this);
     this.uiManager = new UIManager(this);
+    this.modelManager = new ModelManager(this);
 
     // 시스템 초기화
     this.weaponSystem = new WeaponSystem(this);
@@ -60,6 +62,10 @@ export class Game {
     this.audioManager.init();
 
     await this.createScene();
+
+    // 3D 모델 프리로드 (선택적 - 모델 파일이 있을 경우)
+    await this.preloadModels();
+
     this.terrainSystem.createProceduralTerrain();
     this.playerSystem.createPlayer();
     this.weaponSystem.createGun();
@@ -67,6 +73,21 @@ export class Game {
     this.setupControls();
     this.uiManager.hideLoading();
     this.startRenderLoop();
+  }
+
+  async preloadModels() {
+    // 사용할 모델들을 미리 로드 (실패해도 게임은 계속됨)
+    const modelsToLoad = [
+      'tree', 'tree_pine',
+      'building_house', 'building_apartment', 'building_tower',
+      'vehicle_car', 'vehicle_tank', 'vehicle_helicopter'
+    ];
+
+    try {
+      await this.modelManager.preloadModels(modelsToLoad);
+    } catch (error) {
+      console.log('일부 모델 로드 실패 - 기본 프리미티브 사용');
+    }
   }
 
   async createScene() {
