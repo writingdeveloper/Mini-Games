@@ -1,0 +1,32 @@
+# Dependencies
+node_modules
+
+# Build outputs
+.next
+out
+dist
+build
+
+# Cache
+.cache
+.turbo
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.*
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Public assets (게임 파일들은 원본 유지)
+public/escape-game
+public/survival-game
+
+# Generated files
+*.tsbuildinfo
+next-env.d.ts
