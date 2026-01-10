@@ -5,12 +5,14 @@
 ## 게임 목록
 
 ### 🚗 도주 게임
+
 - 2D 캔버스 기반 게임
 - 자동차를 조종해서 경찰차로부터 도주
 - 방향키로 조종
 - 점수 시스템
 
 ### 🌍 3D 서바이벌 게임
+
 - Babylon.js 기반 3D 오픈 월드
 - 서바이벌 시스템 (체력, 스태미나, 배고픔, 갈증)
 - 캐릭터 커스터마이징
@@ -63,6 +65,7 @@ Mini-Games/
 ## Vercel 배포
 
 1. GitHub에 푸시:
+
 ```bash
 git add .
 git commit -m "Setup Mini Games Hub with Next.js"
@@ -100,14 +103,14 @@ MIT License
 \`\`\`tsx
 // app/new-game/page.tsx
 export default function NewGame() {
-  return (
-    <div className="h-screen w-screen overflow-hidden">
-      <iframe
+return (
+<div className="h-screen w-screen overflow-hidden">
+<iframe
         src="/new-game/index.html"
         className="h-full w-full border-0"
         title="새 게임"
       />
-    </div>
-  );
+</div>
+);
 }
 \`\`\`
