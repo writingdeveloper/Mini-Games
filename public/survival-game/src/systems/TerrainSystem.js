@@ -76,33 +76,20 @@ export class TerrainSystem {
 
     new BABYLON.PhysicsAggregate(ground, BABYLON.PhysicsShapeType.MESH, { mass: 0, restitution: 0.2, friction: 0.8 }, this.scene);
 
-    const grassTexture = new BABYLON.DynamicTexture(`grassTex_${chunkX}_${chunkZ}`, 256, this.scene);
-    const ctx = grassTexture.getContext();
+    // 잔디 텍스처 로드
+    const grassTexture = new BABYLON.Texture("/survival-game/textures/grass_path_2_diff_4k.jpg", this.scene);
+    grassTexture.uScale = 8;
+    grassTexture.vScale = 8;
 
-    ctx.fillStyle = '#2d5a1d';
-    ctx.fillRect(0, 0, 256, 256);
-
-    for (let i = 0; i < 1000; i++) {
-      const x = Math.random() * 256;
-      const y = Math.random() * 256;
-      const length = 2 + Math.random() * 6;
-      const shade = Math.random();
-
-      ctx.strokeStyle = shade < 0.3 ? '#1a4010' : (shade < 0.6 ? '#3d7a2d' : '#4a8a3a');
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + (Math.random() - 0.5) * 2, y - length);
-      ctx.stroke();
-    }
-
-    grassTexture.update();
+    const roughnessTexture = new BABYLON.Texture("/survival-game/textures/grass_path_2_rough_4k.jpg", this.scene);
+    roughnessTexture.uScale = 8;
+    roughnessTexture.vScale = 8;
 
     const groundMat = new BABYLON.PBRMaterial(`groundMat_${chunkX}_${chunkZ}`, this.scene);
     groundMat.albedoTexture = grassTexture;
-    groundMat.albedoTexture.uScale = 5;
-    groundMat.albedoTexture.vScale = 5;
-    groundMat.roughness = 0.95;
+    groundMat.metallicTexture = roughnessTexture;
+    groundMat.useRoughnessFromMetallicTextureGreen = true;
+    groundMat.roughness = 1;
     groundMat.metallic = 0;
     ground.material = groundMat;
     ground.receiveShadows = true;
