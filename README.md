@@ -18,6 +18,16 @@
 - 캐릭터 커스터마이징
 - WASD 이동 및 마우스 시점 조작
 
+### ✈️ Sky Explorer (비행 게임)
+
+- CesiumJS 기반 3D 비행 시뮬레이터
+- 실제 지구 위성 지도 위를 비행
+- 6개 도시 시작 위치 선택 (서울, 뉴욕, 파리, 도쿄, 두바이, 시드니)
+- 3가지 게임 모드 (자유 비행, 체크포인트 레이스, 서바이벌)
+- 리얼한 비행 물리 (양력, 항력, 스톨)
+- HUD 시스템 (속도계, 고도계, 연료 게이지, 나침반)
+- 조작: W/S (피치), A/D (롤), Q/E (요), Shift/Ctrl (스로틀)
+
 ## 시작하기
 
 ### 개발 서버 실행
@@ -48,17 +58,23 @@ Mini-Games/
 │   ├── page.tsx              # 메인 허브 페이지
 │   ├── escape-game/
 │   │   └── page.tsx          # 도주 게임 라우트
-│   └── survival-game/
-│       └── page.tsx          # 서바이벌 게임 라우트
+│   ├── survival-game/
+│   │   └── page.tsx          # 서바이벌 게임 라우트
+│   └── flight-game/
+│       └── page.tsx          # 비행 게임 라우트
 ├── public/
 │   ├── escape-game/          # 도주 게임 파일들
 │   │   ├── index.html
 │   │   ├── game.js
 │   │   └── style.css
-│   └── survival-game/        # 서바이벌 게임 파일들
+│   ├── survival-game/        # 서바이벌 게임 파일들
+│   │   ├── index.html
+│   │   └── src/
+│   │       └── main.ts
+│   └── flight-game/          # 비행 게임 파일들
 │       ├── index.html
-│       └── src/
-│           └── main.ts
+│       ├── style.css
+│       └── game.js
 └── package.json
 ```
 
@@ -88,6 +104,7 @@ git push origin main
 - **Game Engines**:
   - 도주 게임: HTML Canvas
   - 서바이벌 게임: Babylon.js
+  - 비행 게임: CesiumJS (3D 지구본 렌더링)
 
 ## 라이선스
 

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky Explorer - 3D Flight Game</title>
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.104/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.104/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Start Menu -->
+    <div id="start-menu" class="menu-overlay">
+        <div class="menu-container">
+            <!-- Language Toggle -->
+            <div class="lang-toggle">
+                <button class="lang-btn selected" data-lang="ko">한국어</button>
+                <button class="lang-btn" data-lang="en">English</button>
+            </div>
+
+            <h1 id="game-title" class="game-title">SKY EXPLORER</h1>
+            <p id="game-subtitle" class="game-subtitle">3D 비행 시뮬레이터</p>
+
+            <div class="location-select">
+                <h3 id="select-location-title">출발 위치 선택</h3>
+                <div class="location-grid">
+                    <button class="location-btn selected" data-lat="37.5665" data-lon="126.9780" data-name="Seoul">
+                        <span class="flag">🇰🇷</span>
+                        <span class="city">Seoul</span>
+                    </button>
+                    <button class="location-btn" data-lat="40.7128" data-lon="-74.0060" data-name="New York">
+                        <span class="flag">🇺🇸</span>
+                        <span class="city">New York</span>
+                    </button>
+                    <button class="location-btn" data-lat="48.8566" data-lon="2.3522" data-name="Paris">
+                        <span class="flag">🇫🇷</span>
+                        <span class="city">Paris</span>
+                    </button>
+                    <button class="location-btn" data-lat="35.6762" data-lon="139.6503" data-name="Tokyo">
+                        <span class="flag">🇯🇵</span>
+                        <span class="city">Tokyo</span>
+                    </button>
+                    <button class="location-btn" data-lat="25.2048" data-lon="55.2708" data-name="Dubai">
+                        <span class="flag">🇦🇪</span>
+                        <span class="city">Dubai</span>
+                    </button>
+                    <button class="location-btn" data-lat="-33.8688" data-lon="151.2093" data-name="Sydney">
+                        <span class="flag">🇦🇺</span>
+                        <span class="city">Sydney</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="game-modes">
+                <h3 id="game-mode-title">게임 모드</h3>
+                <div class="mode-buttons">
+                    <button class="mode-btn selected" data-mode="free">
+                        <span class="mode-icon">🌍</span>
+                        <span class="mode-text" data-i18n="freeMode">자유 비행</span>
+                    </button>
+                    <button class="mode-btn" data-mode="checkpoint">
+                        <span class="mode-icon">🎯</span>
+                        <span class="mode-text" data-i18n="checkpointMode">체크포인트</span>
+                    </button>
+                    <button class="mode-btn" data-mode="survival">
+                        <span class="mode-icon">⛽</span>
+                        <span class="mode-text" data-i18n="survivalMode">서바이벌</span>
+                    </button>
+                </div>
+            </div>
+
+            <button id="start-btn" class="start-button">비행 시작</button>
+
+            <div class="controls-info">
+                <h4 id="controls-title">조작법</h4>
+                <div class="controls-grid">
+                    <span>W/S</span><span data-i18n="controlsHelp.pitchUpDown">상승/하강</span>
+                    <span>A/D</span><span data-i18n="controlsHelp.rollLeftRight">좌/우 기울기</span>
+                    <span>Q/E</span><span data-i18n="controlsHelp.yawLeftRight">좌/우 회전</span>
+                    <span>Shift/Ctrl</span><span data-i18n="controlsHelp.throttle">스로틀</span>
+                    <span>C</span><span data-i18n="controlsHelp.camera">카메라 전환</span>
+                    <span>H</span><span data-i18n="controlsHelp.controls">조작법 토글</span>
+                    <span>M</span><span data-i18n="controlsHelp.minimap">미니맵</span>
+                    <span>Space</span><span data-i18n="controlsHelp.shoot">기관총 발사</span>
+                    <span>F</span><span data-i18n="controlsHelp.missile">미사일 발사</span>
+                    <span>G</span><span data-i18n="controlsHelp.flare">플레어 방어</span>
+                    <span>N</span><span data-i18n="controlsHelp.nuke">핵폭탄 투하</span>
+                    <span>ESC</span><span data-i18n="controlsHelp.pause">일시정지</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="pause-menu" class="menu-overlay hidden">
+        <div class="menu-container small">
+            <h2 id="pause-title">일시정지</h2>
+            <button id="resume-btn" class="menu-button">계속하기</button>
+            <button id="restart-btn" class="menu-button">다시 시작</button>
+            <button id="quit-btn" class="menu-button">메뉴로</button>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameover-screen" class="menu-overlay hidden">
+        <div class="menu-container small">
+            <h2 id="gameover-title">게임 오버</h2>
+            <div id="final-stats" class="final-stats">
+                <p><span data-i18n="score">점수</span>: <span id="final-score">0</span></p>
+                <p><span data-i18n="distance">거리</span>: <span id="final-distance">0</span> km</p>
+                <p><span data-i18n="flightTime">비행 시간</span>: <span id="final-time">0:00</span></p>
+            </div>
+            <button id="retry-btn" class="menu-button">다시 도전</button>
+            <button id="menu-btn" class="menu-button">메인 메뉴</button>
+        </div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+        <!-- Top Bar -->
+        <div class="hud-top">
+            <div class="hud-speed">
+                <span class="hud-icon">⚡</span>
+                <span id="speed-value">0</span>
+                <span class="hud-unit">km/h</span>
+            </div>
+            <div class="hud-vertical-speed">
+                <span id="vertical-speed">+0 m/s</span>
+            </div>
+            <div class="hud-score">
+                <span class="hud-icon">🏆</span>
+                <span id="score-value">0</span>
+            </div>
+        </div>
+
+        <!-- Left Panel - Altitude -->
+        <div class="hud-left">
+            <div class="altitude-gauge">
+                <div class="gauge-label">ALT</div>
+                <div class="gauge-value" id="altitude-value">0</div>
+                <div class="gauge-unit">m</div>
+                <div class="altitude-bar">
+                    <div class="altitude-fill" id="altitude-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel - Compass & Minimap -->
+        <div class="hud-right">
+            <div class="compass">
+                <div class="compass-ring" id="compass-ring">
+                    <span class="compass-n">N</span>
+                    <span class="compass-e">E</span>
+                    <span class="compass-s">S</span>
+                    <span class="compass-w">W</span>
+                </div>
+                <div class="compass-needle"></div>
+            </div>
+            <div id="minimap" class="minimap">
+                <canvas id="minimap-canvas" width="150" height="150"></canvas>
+                <div class="minimap-plane" id="minimap-plane">▲</div>
+            </div>
+        </div>
+
+        <!-- Bottom Panel -->
+        <div class="hud-bottom">
+            <div class="fuel-gauge">
+                <span class="fuel-icon">⛽</span>
+                <div class="fuel-bar">
+                    <div class="fuel-fill" id="fuel-fill"></div>
+                </div>
+                <span class="fuel-percent" id="fuel-percent">100%</span>
+            </div>
+            <div class="ammo-gauge">
+                <span class="ammo-icon">🔫</span>
+                <div class="ammo-bar">
+                    <div class="ammo-fill" id="ammo-fill"></div>
+                </div>
+                <span class="ammo-value" id="ammo-value">100</span>
+            </div>
+            <div class="missile-gauge">
+                <span class="missile-icon">🚀</span>
+                <div class="missile-count" id="missile-count">6</div>
+                <span class="missile-key">[F]</span>
+            </div>
+            <div class="flare-gauge">
+                <span class="flare-icon">🔥</span>
+                <div class="flare-count" id="flare-count">10</div>
+                <span class="flare-key">[G]</span>
+            </div>
+            <div class="nuke-gauge">
+                <span class="nuke-icon">☢️</span>
+                <div class="nuke-count" id="nuke-count">3</div>
+                <span class="nuke-key">[N]</span>
+            </div>
+            <div class="throttle-gauge">
+                <span class="throttle-label">THR</span>
+                <div class="throttle-bar">
+                    <div class="throttle-fill" id="throttle-fill"></div>
+                </div>
+                <span class="throttle-percent" id="throttle-percent">50%</span>
+            </div>
+            <div class="objective" id="objective">
+                <span class="objective-icon">📍</span>
+                <span id="objective-text">자유 비행 모드</span>
+            </div>
+        </div>
+
+        <!-- Center - Crosshair & Warnings -->
+        <div class="hud-center">
+            <div class="crosshair">✛</div>
+            <div id="stall-warning" class="warning hidden">⚠️ STALL WARNING</div>
+            <div id="fuel-warning" class="warning hidden">⚠️ LOW FUEL</div>
+            <div id="altitude-warning" class="warning hidden">⚠️ PULL UP</div>
+            <div id="missile-warning" class="warning missile-warning hidden">🚀 MISSILE INCOMING!</div>
+            <div id="enemy-warning" class="warning enemy-warning hidden">⚠️ ENEMY DETECTED</div>
+        </div>
+
+        <!-- Speed Overlay -->
+        <div id="speed-overlay" class="speed-overlay"></div>
+
+        <!-- Game Messages -->
+        <div id="game-message" class="game-message hidden"></div>
+
+        <!-- Checkpoint Indicator -->
+        <div id="checkpoint-indicator" class="checkpoint-indicator hidden">
+            <div class="checkpoint-arrow" id="checkpoint-arrow">➤</div>
+            <div class="checkpoint-distance" id="checkpoint-distance">0.0 km</div>
+        </div>
+
+        <!-- Camera Mode Indicator -->
+        <div class="camera-mode" id="camera-mode">📷 3인칭</div>
+
+        <!-- Controls Help Button -->
+        <div class="controls-help-btn" id="controls-help-btn">
+            <span>H</span>
+            <span data-i18n="showControls">조작법</span>
+        </div>
+
+        <!-- Flight Time -->
+        <div class="flight-time">
+            <span class="time-icon">⏱️</span>
+            <span id="flight-time">0:00</span>
+        </div>
+    </div>
+
+    <!-- Cesium Container -->
+    <div id="cesiumContainer"></div>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p data-i18n="loading">로딩 중...</p>
+            <div class="loading-bar">
+                <div class="loading-progress" id="loading-progress"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>

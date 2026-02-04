@@ -13,7 +13,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-2">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {/* 도주 게임 카드 */}
           <Link href="/escape-game">
             <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 p-8 shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-orange-500/50 cursor-pointer">
@@ -56,6 +56,31 @@ export default function Home() {
                   <li>✓ 3D 오픈 월드</li>
                   <li>✓ 서바이벌 시스템</li>
                   <li>✓ 캐릭터 커스터마이징</li>
+                </ul>
+                <div className="inline-block rounded-full bg-white/20 px-6 py-2 font-semibold text-white backdrop-blur-sm transition-colors group-hover:bg-white/30">
+                  플레이하기 →
+                </div>
+              </div>
+            </div>
+          </Link>
+
+          {/* 비행 게임 카드 */}
+          <Link href="/flight-game">
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-700 p-8 shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-cyan-500/50 cursor-pointer">
+              <div className="absolute -right-8 -top-8 text-9xl opacity-20">
+                ✈️
+              </div>
+              <div className="relative z-10">
+                <h2 className="mb-3 text-3xl font-bold text-white">
+                  Sky Explorer
+                </h2>
+                <p className="mb-4 text-white/90">
+                  실제 지구 위를 자유롭게 비행하세요!
+                </p>
+                <ul className="mb-6 space-y-2 text-sm text-white/80">
+                  <li>✓ 3D 비행 시뮬레이터</li>
+                  <li>✓ 실제 지구 위성 지도</li>
+                  <li>✓ 다양한 게임 모드</li>
                 </ul>
                 <div className="inline-block rounded-full bg-white/20 px-6 py-2 font-semibold text-white backdrop-blur-sm transition-colors group-hover:bg-white/30">
                   플레이하기 →
