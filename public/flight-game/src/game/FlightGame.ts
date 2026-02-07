@@ -496,12 +496,11 @@ export class FlightGame {
         }
     }
 
-    private onNetworkGameEnd(data: any): void {
+    private onNetworkGameEnd(_data: any): void {
         this.isRunning = false;
         cancelAnimationFrame(this.animationFrameId);
         this.hud.hide();
 
-        const isWinner = data.winner === this.networkClient?.playerId;
         this.menu.showGameOver(
             this.hud.getScore(),
             this.hud.getDistanceTraveled(),

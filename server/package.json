@@ -6,7 +6,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "vitest run",
+    "test": "tsc --noEmit",
+    "test:unit": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
