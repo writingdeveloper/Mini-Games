@@ -3,6 +3,7 @@ import { GameMode, KEYS, GAME } from '../utils/Constants';
 import { Aircraft } from './Aircraft';
 import { CameraController } from './CameraController';
 import { CheckpointSystem } from './CheckpointSystem';
+import { RemoteAircraftManager } from './RemoteAircraftManager';
 import { HUD } from '../ui/HUD';
 import { Minimap } from '../ui/Minimap';
 import { Menu } from '../ui/Menu';
@@ -15,9 +16,15 @@ export class FlightGame {
     private physics: FlightPhysics;
     private camera: CameraController | null = null;
     private checkpoints: CheckpointSystem | null = null;
+    private remoteAircraft: RemoteAircraftManager | null = null;
     private hud: HUD;
     private minimap: Minimap;
     private menu: Menu;
+
+    // Multiplayer
+    private isMultiplayer: boolean = false;
+    private networkClient: any = null; // GameClient instance
+    private networkSendInterval: ReturnType<typeof setInterval> | null = null;
 
     private isRunning: boolean = false;
     private isPaused: boolean = false;
@@ -103,8 +110,22 @@ export class FlightGame {
         // Set CESIUM_TOKEN in .env.local or Vercel environment variables
         Cesium.Ion.defaultAccessToken = '__CESIUM_TOKEN_PLACEHOLDER__';
 
+        // Terrain loading with timeout fallback
+        let terrainProvider;
+        try {
+            terrainProvider = await Promise.race([
+                Cesium.createWorldTerrainAsync(),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Terrain loading timeout')), 15000)
+                ),
+            ]);
+        } catch (e) {
+            console.warn('Terrain loading failed, using ellipsoid terrain:', e);
+            terrainProvider = new Cesium.EllipsoidTerrainProvider();
+        }
+
         this.viewer = new Cesium.Viewer('cesiumContainer', {
-            terrainProvider: await Cesium.createWorldTerrainAsync(),
+            terrainProvider,
             baseLayerPicker: false,
             geocoder: false,
             homeButton: false,
@@ -243,6 +264,11 @@ export class FlightGame {
         // Fly camera to starting position
         await this.camera?.flyTo(lon, lat, this.startingAltitude, 2);
 
+        // Start multiplayer sync if applicable
+        if (this.isMultiplayer) {
+            this.startNetworkSync();
+        }
+
         // Start game loop
         this.isRunning = true;
         this.isPaused = false;
@@ -324,6 +350,11 @@ export class FlightGame {
             }
         }
 
+        // Interpolate remote aircraft (multiplayer)
+        if (this.isMultiplayer && this.remoteAircraft) {
+            this.remoteAircraft.interpolate(deltaTime);
+        }
+
         // Check game over conditions
         if (state.altitude <= 10) {
             // Crashed into ground
@@ -391,9 +422,90 @@ export class FlightGame {
 
         this.aircraft?.destroy();
         this.checkpoints?.reset();
+        this.remoteAircraft?.destroy();
+        this.stopMultiplayer();
 
         if (this.viewer) {
             this.viewer.destroy();
         }
+    }
+
+    // ---- Multiplayer ----
+
+    public initMultiplayer(gameClient: any): void {
+        this.isMultiplayer = true;
+        this.networkClient = gameClient;
+
+        gameClient.on('gameState', (data: any) => this.onNetworkState(data));
+        gameClient.on('gameEvent', (data: any) => this.onNetworkEvent(data));
+        gameClient.on('gameEnd', (data: any) => this.onNetworkGameEnd(data));
+    }
+
+    public stopMultiplayer(): void {
+        if (this.networkSendInterval) {
+            clearInterval(this.networkSendInterval);
+            this.networkSendInterval = null;
+        }
+        if (this.networkClient) {
+            this.networkClient.off('gameState');
+            this.networkClient.off('gameEvent');
+            this.networkClient.off('gameEnd');
+        }
+        this.isMultiplayer = false;
+        this.networkClient = null;
+    }
+
+    private startNetworkSync(): void {
+        if (!this.isMultiplayer || !this.networkClient) return;
+
+        // Initialize remote aircraft manager
+        this.remoteAircraft = new RemoteAircraftManager(
+            this.viewer,
+            this.networkClient.playerId
+        );
+
+        // Send state to server at 20Hz
+        this.networkSendInterval = setInterval(() => {
+            if (!this.isRunning || this.isPaused) return;
+            const state = this.physics.getState();
+            this.networkClient.sendInput({
+                lon: this.currentLon,
+                lat: this.currentLat,
+                altitude: state.altitude,
+                heading: state.heading,
+                pitch: state.pitch,
+                roll: state.roll,
+                speed: state.speed,
+                fuel: state.fuel,
+            });
+        }, 50);
+    }
+
+    private onNetworkState(data: any): void {
+        if (!data.players || !this.remoteAircraft) return;
+        this.remoteAircraft.updateFromServerState(data.players);
+    }
+
+    private onNetworkEvent(data: any): void {
+        if (data.type === 'checkpoint_passed' && data.playerId !== this.networkClient?.playerId) {
+            // Show notification that another player passed a checkpoint
+            this.hud.updateObjective(`Player ${data.playerId.substring(0, 6)} passed checkpoint ${data.checkpoint}`);
+        }
+        if (data.type === 'player_crashed' && data.playerId !== this.networkClient?.playerId) {
+            this.hud.updateObjective(`Player ${data.playerId.substring(0, 6)} crashed!`);
+        }
+    }
+
+    private onNetworkGameEnd(data: any): void {
+        this.isRunning = false;
+        cancelAnimationFrame(this.animationFrameId);
+        this.hud.hide();
+
+        const isWinner = data.winner === this.networkClient?.playerId;
+        this.menu.showGameOver(
+            this.hud.getScore(),
+            this.hud.getDistanceTraveled(),
+            this.hud.getFlightTime()
+        );
     }
 }

@@ -9,11 +9,18 @@ export class AudioManager {
     this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
     const resumeAudio = () => {
-      if (this.audioContext.state === 'suspended') {
+      if (this.audioContext && this.audioContext.state === 'suspended') {
         this.audioContext.resume();
       }
     };
     document.addEventListener('click', resumeAudio, { once: true });
+  }
+
+  destroy() {
+    if (this.audioContext) {
+      this.audioContext.close();
+      this.audioContext = null;
+    }
   }
 
   playGunSound() {

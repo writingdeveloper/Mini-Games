@@ -4,6 +4,8 @@ import { AudioManager } from '../managers/AudioManager.js';
 import { EffectManager } from '../managers/EffectManager.js';
 import { UIManager } from '../managers/UIManager.js';
 import { ModelManager } from '../managers/ModelManager.js';
+import { RemotePlayerManager } from '../managers/RemotePlayerManager.js';
+import { NetworkEnemySync } from '../managers/NetworkEnemySync.js';
 import { WeaponSystem } from '../systems/WeaponSystem.js';
 import { EnemySystem } from '../systems/EnemySystem.js';
 import { VehicleSystem } from '../systems/VehicleSystem.js';
@@ -37,6 +39,14 @@ export class Game {
     this.inputMap = {};
     this.isFirstPerson = true;
     this.isMouseDown = false;
+
+    // Multiplayer state
+    this.isMultiplayer = false;
+    this.networkClient = null;
+    this.networkPlayerId = null;
+    this.networkSendInterval = null;
+    this.remotePlayerManager = null;
+    this.networkEnemySync = null;
 
     // 매니저 초기화
     this.audioManager = new AudioManager();
@@ -264,12 +274,158 @@ export class Game {
       // 탈것 조작
       this.vehicleSystem.updateVehicleControls(deltaTime);
 
-      // 적 AI
-      this.enemySystem.update(deltaTime);
+      // 적 AI (only in singleplayer; multiplayer uses server-authoritative enemies)
+      if (!this.isMultiplayer) {
+        this.enemySystem.update(deltaTime);
+      } else {
+        // Interpolate remote players and server enemies
+        if (this.remotePlayerManager) this.remotePlayerManager.interpolate(deltaTime);
+        if (this.networkEnemySync) this.networkEnemySync.interpolate(deltaTime);
+      }
+
+      // Send shoot action to server in multiplayer
+      if (this.isMultiplayer && this.isMouseDown && this.networkClient) {
+        const forward = this.camera.getDirection(BABYLON.Vector3.Forward());
+        this.networkClient.sendAction('shoot', {
+          origin: {
+            x: this.camera.position.x,
+            y: this.camera.position.y,
+            z: this.camera.position.z,
+          },
+          direction: { x: forward.x, y: forward.y, z: forward.z },
+          weaponType: this.weaponSystem.currentWeapon?.name || 'pistol',
+        });
+      }
 
       // UI
       this.uiManager.updateUI();
     });
+  }
+
+  // ---- Multiplayer ----
+
+  initMultiplayer(gameClient) {
+    this.isMultiplayer = true;
+    this.networkClient = gameClient;
+    this.networkPlayerId = gameClient.playerId;
+
+    // Initialize remote player and enemy sync managers
+    this.remotePlayerManager = new RemotePlayerManager(this);
+    this.networkEnemySync = new NetworkEnemySync(this);
+
+    // Listen for server events
+    gameClient.on('gameState', (data) => this.onNetworkState(data));
+    gameClient.on('gameEvent', (data) => this.onNetworkEvent(data));
+    gameClient.on('gameEnd', (data) => this.onNetworkGameEnd(data));
+
+    // Send local state to server at 15Hz
+    this.networkSendInterval = setInterval(() => {
+      if (!this.collisionCapsule || !this.networkClient) return;
+      const pos = this.collisionCapsule.position;
+      const rot = this.camera ? this.camera.rotation : { x: 0, y: 0, z: 0 };
+      const isMoving = this.inputMap['w'] || this.inputMap['a'] || this.inputMap['s'] || this.inputMap['d'];
+      const isRunning = isMoving && this.inputMap['shift'];
+
+      this.networkClient.sendInput({
+        position: { x: pos.x, y: pos.y, z: pos.z },
+        rotation: { x: rot.x, y: rot.y, z: rot.z },
+        animation: isRunning ? 'run' : isMoving ? 'walk' : 'idle',
+        stamina: this.playerStats.stamina,
+      });
+    }, 66); // ~15Hz
+  }
+
+  onNetworkState(data) {
+    if (!data) return;
+
+    // Update remote players
+    if (data.players && this.remotePlayerManager) {
+      this.remotePlayerManager.updateFromServer(data.players);
+    }
+
+    // In multiplayer, enemies come from server
+    if (data.enemies && this.networkEnemySync) {
+      this.networkEnemySync.updateFromServer(data.enemies);
+    }
+
+    // Update local player stats from server
+    if (data.players && data.players[this.networkPlayerId]) {
+      const myState = data.players[this.networkPlayerId];
+      this.playerStats.health = myState.health;
+      this.playerStats.hunger = myState.hunger;
+      this.playerStats.thirst = myState.thirst;
+    }
+
+    // Update day time
+    if (typeof data.dayTime === 'number') {
+      this.dayTime = data.dayTime;
+    }
+  }
+
+  onNetworkEvent(data) {
+    if (!data) return;
+
+    if (data.type === 'player_shoot' && data.playerId !== this.networkPlayerId) {
+      // Show remote player's shot effect
+      if (data.origin && data.direction) {
+        const origin = new BABYLON.Vector3(data.origin.x, data.origin.y, data.origin.z);
+        const dir = new BABYLON.Vector3(data.direction.x, data.direction.y, data.direction.z);
+        this.weaponSystem.createMatrixBullet(origin, dir, 'remote');
+      }
+    }
+
+    if (data.type === 'enemy_killed') {
+      // Play kill effect
+      if (this.networkEnemySync) {
+        const entry = this.networkEnemySync.serverEnemies.get(data.enemyId);
+        if (entry && entry.mesh) {
+          this.effectManager.createBulletImpact(entry.mesh.position);
+        }
+      }
+    }
+
+    if (data.type === 'enemy_shoot' && data.targetId === this.networkPlayerId) {
+      this.effectManager.showDamageEffect();
+      this.effectManager.createShootShake();
+    }
+
+    if (data.type === 'player_died' && data.playerId === this.networkPlayerId) {
+      this.uiManager.gameOver();
+    }
+
+    if (data.type === 'grenade' && data.position) {
+      const pos = new BABYLON.Vector3(data.position.x, data.position.y, data.position.z);
+      this.effectManager.createExplosion(
+        pos, data.radius || 8, 0, [], this.playerStats, this.collisionCapsule,
+        () => this.uiManager.gameOver(),
+      );
+    }
+  }
+
+  onNetworkGameEnd(data) {
+    this.uiManager.gameOver();
+  }
+
+  stopMultiplayer() {
+    if (this.networkSendInterval) {
+      clearInterval(this.networkSendInterval);
+      this.networkSendInterval = null;
+    }
+    if (this.networkClient) {
+      this.networkClient.off('gameState');
+      this.networkClient.off('gameEvent');
+      this.networkClient.off('gameEnd');
+    }
+    if (this.remotePlayerManager) {
+      this.remotePlayerManager.destroy();
+      this.remotePlayerManager = null;
+    }
+    if (this.networkEnemySync) {
+      this.networkEnemySync.destroy();
+      this.networkEnemySync = null;
+    }
+    this.isMultiplayer = false;
+    this.networkClient = null;
   }
 
   startRenderLoop() {

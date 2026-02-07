@@ -30,7 +30,7 @@ export default function Home() {
                 <ul className="mb-6 space-y-2 text-sm text-white/80">
                   <li>✓ 2D 캔버스 게임</li>
                   <li>✓ 방향키로 조종</li>
-                  <li>✓ 점수 시스템</li>
+                  <li>✓ 2-4인 경쟁 멀티플레이어</li>
                 </ul>
                 <div className="inline-block rounded-full bg-white/20 px-6 py-2 font-semibold text-white backdrop-blur-sm transition-colors group-hover:bg-white/30">
                   플레이하기 →
@@ -55,7 +55,7 @@ export default function Home() {
                 <ul className="mb-6 space-y-2 text-sm text-white/80">
                   <li>✓ 3D 오픈 월드</li>
                   <li>✓ 서바이벌 시스템</li>
-                  <li>✓ 캐릭터 커스터마이징</li>
+                  <li>✓ 2-4인 협동 멀티플레이어</li>
                 </ul>
                 <div className="inline-block rounded-full bg-white/20 px-6 py-2 font-semibold text-white backdrop-blur-sm transition-colors group-hover:bg-white/30">
                   플레이하기 →
@@ -80,7 +80,7 @@ export default function Home() {
                 <ul className="mb-6 space-y-2 text-sm text-white/80">
                   <li>✓ 3D 비행 시뮬레이터</li>
                   <li>✓ 실제 지구 위성 지도</li>
-                  <li>✓ 다양한 게임 모드</li>
+                  <li>✓ 2-4인 멀티플레이어 레이스</li>
                 </ul>
                 <div className="inline-block rounded-full bg-white/20 px-6 py-2 font-semibold text-white backdrop-blur-sm transition-colors group-hover:bg-white/30">
                   플레이하기 →

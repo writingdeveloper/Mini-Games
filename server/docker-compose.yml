@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  game-server:
+    build: .
+    container_name: minigames-server
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - CORS_ORIGIN=*
+      - NODE_ENV=production
+    volumes:
+      - game-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  game-data:

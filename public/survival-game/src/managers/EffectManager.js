@@ -38,6 +38,12 @@ export class EffectManager {
     impactLight.intensity = 3;
 
     const animateImpact = () => {
+      if (!this.scene || this.scene.isDisposed) {
+        impactParticles.forEach(p => { if (!p.mesh.isDisposed()) p.mesh.dispose(); });
+        if (!impactLight.isDisposed()) impactLight.dispose();
+        return;
+      }
+
       let allDone = true;
 
       impactParticles.forEach(p => {
@@ -55,7 +61,7 @@ export class EffectManager {
       if (!allDone) {
         requestAnimationFrame(animateImpact);
       } else {
-        impactParticles.forEach(p => p.mesh.dispose());
+        impactParticles.forEach(p => { p.mesh.dispose(); p.mat.dispose(); });
         impactLight.dispose();
       }
     };
@@ -154,6 +160,14 @@ export class EffectManager {
 
     let time = 0;
     const animateExplosion = () => {
+      if (!this.scene || this.scene.isDisposed) {
+        if (!explosion.isDisposed()) explosion.dispose();
+        if (!explosionLight.isDisposed()) explosionLight.dispose();
+        particles.forEach(p => { if (!p.mesh.isDisposed()) p.mesh.dispose(); p.mat.dispose(); });
+        smokeParticles.forEach(s => { if (!s.mesh.isDisposed()) s.mesh.dispose(); s.mat.dispose(); });
+        return;
+      }
+
       time += 0.016;
 
       const scale = 1 + time * 20;
@@ -180,10 +194,10 @@ export class EffectManager {
       if (time < 1.5) {
         requestAnimationFrame(animateExplosion);
       } else {
-        explosion.dispose();
+        explosion.dispose(); explosionMat.dispose();
         explosionLight.dispose();
-        particles.forEach(p => p.mesh.dispose());
-        smokeParticles.forEach(s => s.mesh.dispose());
+        particles.forEach(p => { p.mesh.dispose(); p.mat.dispose(); });
+        smokeParticles.forEach(s => { s.mesh.dispose(); s.mat.dispose(); });
       }
     };
 
@@ -218,12 +232,13 @@ export class EffectManager {
   }
 
   createShootShake() {
-    if (!this.camera) return;
+    if (!this.camera || !this.scene || this.scene.isDisposed) return;
 
     const shakeIntensity = 0.015;
     let shakeTime = 0;
 
     const shake = () => {
+      if (!this.scene || this.scene.isDisposed) return;
       shakeTime += 0.016;
       if (shakeTime < 0.06) {
         this.camera.rotation.x += (Math.random() - 0.5) * shakeIntensity;
@@ -370,6 +385,11 @@ export class EffectManager {
 
     let flashScale = 1;
     const animateFlash = () => {
+      if (!this.scene || this.scene.isDisposed) {
+        if (!flash.isDisposed()) flash.dispose();
+        flashMat.dispose();
+        return;
+      }
       flashScale -= 0.18;
       flash.scaling = new BABYLON.Vector3(flashScale, flashScale, flashScale);
       flashMat.alpha = flashScale * 0.75;
@@ -378,6 +398,7 @@ export class EffectManager {
         requestAnimationFrame(animateFlash);
       } else {
         flash.dispose();
+        flashMat.dispose();
       }
     };
     animateFlash();
@@ -403,6 +424,11 @@ export class EffectManager {
 
       let life = 0;
       const animate = () => {
+        if (!this.scene || this.scene.isDisposed) {
+          if (!particle.isDisposed()) particle.dispose();
+          mat.dispose();
+          return;
+        }
         life += 0.016;
         particle.position.addInPlace(vel.scale(0.016));
         vel.y -= 5 * 0.016;
@@ -412,6 +438,7 @@ export class EffectManager {
           requestAnimationFrame(animate);
         } else {
           particle.dispose();
+          mat.dispose();
         }
       };
       animate();
@@ -443,11 +470,12 @@ export class EffectManager {
       damageOverlay.style.opacity = '0';
     }, 120);
 
-    if (this.camera) {
+    if (this.camera && this.scene && !this.scene.isDisposed) {
       const shakeIntensity = 0.12;
       let shakeTime = 0;
 
       const shake = () => {
+        if (!this.scene || this.scene.isDisposed) return;
         shakeTime += 0.016;
         if (shakeTime < 0.15) {
           this.camera.rotation.x += (Math.random() - 0.5) * shakeIntensity;

@@ -171,29 +171,38 @@ export class EnemySystem {
 
     const deathPos = enemy.mesh.position.clone();
 
-    const explosion = new BABYLON.ParticleSystem('explosion', 40, this.scene);
-    explosion.emitter = deathPos;
-    explosion.minSize = 0.08;
-    explosion.maxSize = 0.25;
-    explosion.minLifeTime = 0.25;
-    explosion.maxLifeTime = 0.7;
-    explosion.emitRate = 180;
-    explosion.manualEmitCount = 35;
-    explosion.direction1 = new BABYLON.Vector3(-1.5, 1.5, -1.5);
-    explosion.direction2 = new BABYLON.Vector3(1.5, 4, 1.5);
-    explosion.minEmitPower = 1.5;
-    explosion.maxEmitPower = 5;
-    explosion.color1 = new BABYLON.Color4(1, 0.35, 0.1, 1);
-    explosion.color2 = new BABYLON.Color4(1, 0.55, 0.2, 1);
-    explosion.colorDead = new BABYLON.Color4(0.25, 0.1, 0.05, 0);
-    explosion.gravity = new BABYLON.Vector3(0, -4, 0);
-    explosion.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
-    explosion.start();
+    if (this.scene && !this.scene.isDisposed) {
+      const explosion = new BABYLON.ParticleSystem('explosion', 40, this.scene);
+      explosion.emitter = deathPos;
+      explosion.minSize = 0.08;
+      explosion.maxSize = 0.25;
+      explosion.minLifeTime = 0.25;
+      explosion.maxLifeTime = 0.7;
+      explosion.emitRate = 180;
+      explosion.manualEmitCount = 35;
+      explosion.direction1 = new BABYLON.Vector3(-1.5, 1.5, -1.5);
+      explosion.direction2 = new BABYLON.Vector3(1.5, 4, 1.5);
+      explosion.minEmitPower = 1.5;
+      explosion.maxEmitPower = 5;
+      explosion.color1 = new BABYLON.Color4(1, 0.35, 0.1, 1);
+      explosion.color2 = new BABYLON.Color4(1, 0.55, 0.2, 1);
+      explosion.colorDead = new BABYLON.Color4(0.25, 0.1, 0.05, 0);
+      explosion.gravity = new BABYLON.Vector3(0, -4, 0);
+      explosion.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+      explosion.start();
 
-    setTimeout(() => {
-      explosion.stop();
-      setTimeout(() => explosion.dispose(), 800);
-    }, 180);
+      setTimeout(() => {
+        explosion.stop();
+        setTimeout(() => explosion.dispose(), 800);
+      }, 180);
+    }
+
+    // Dispose materials from child meshes before disposing parent
+    if (enemy.mesh.getChildMeshes) {
+      enemy.mesh.getChildMeshes().forEach(child => {
+        if (child.material) child.material.dispose();
+      });
+    }
 
     if (enemy.aggregate) {
       enemy.aggregate.dispose();
