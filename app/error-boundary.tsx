@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -49,12 +50,12 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               >
                 새로고침
               </button>
-              <a
+              <Link
                 href="/"
                 className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
               >
                 홈으로
-              </a>
+              </Link>
             </div>
             {this.state.error && (
               <details className="mt-4 text-left">
