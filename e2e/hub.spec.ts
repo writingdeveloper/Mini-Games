@@ -35,8 +35,8 @@ test.describe('Mini Games Hub', () => {
 test.describe('게임 페이지 - 모드 선택', () => {
   test('도주 게임에 모드 선택 화면이 표시된다', async ({ page }) => {
     await page.goto('/escape-game');
-    await expect(page.locator('text=싱글플레이어')).toBeVisible();
-    await expect(page.locator('text=멀티플레이어')).toBeVisible();
+    await expect(page.getByRole('button', { name: '싱글플레이어' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '멀티플레이어' })).toBeVisible();
     await expect(page.locator('text=홈으로')).toBeVisible();
   });
 
