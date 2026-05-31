@@ -1,6 +1,6 @@
 # 🎮 Mini Games Hub
 
-여러 브라우저 게임을 한곳에서 즐기는 게임 허브입니다. **Next.js 프론트엔드 + 독립 Socket.io 멀티플레이어 서버**로 구성된 풀스택 프로젝트로, 서로 다른 3개의 렌더링 엔진(2D Canvas / Babylon.js / CesiumJS)으로 만든 게임을 제공합니다.
+여러 브라우저 게임을 한곳에서 즐기는 게임 허브입니다. **Next.js 프론트엔드 + 독립 Socket.io 멀티플레이어 서버**로 구성된 풀스택 프로젝트로, 서로 다른 4개의 렌더링 엔진(2D Canvas / Babylon.js / CesiumJS / Three.js)으로 만든 게임을 제공합니다.
 
 [![CI](https://github.com/writingdeveloper/Mini-Games/actions/workflows/ci.yml/badge.svg)](https://github.com/writingdeveloper/Mini-Games/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
@@ -26,7 +26,7 @@
 ## ✨ 주요 특징
 
 - **풀스택 실시간 멀티플레이어** — Socket.io 기반 룸 매칭/로비 시스템과 권위 서버(authoritative server) 구조
-- **3개의 독립 게임 엔진** — 2D Canvas, Babylon.js(3D), CesiumJS(실제 지구본) 통합
+- **4개의 독립 게임 엔진** — 2D Canvas, Babylon.js(3D), CesiumJS(실제 지구본), Three.js(로우폴리 3D) 통합
 - **모노레포 구조** — Next.js 앱과 게임 서버를 한 저장소에서 관리, 각각 독립 배포
 - **테스트 & CI** — Vitest 단위/통합 테스트 + Playwright E2E + GitHub Actions 자동화
 - **타입 안전성** — TypeScript, ESLint, Prettier 일관 적용
@@ -58,6 +58,14 @@
 - 리얼한 비행 물리 (양력 · 항력 · 스톨) + HUD (속도/고도/연료/나침반)
 - 조작: `W/S` 피치 · `A/D` 롤 · `Q/E` 요 · `Shift/Ctrl` 스로틀
 - > _현재 싱글플레이어. 멀티플레이어 넷코드는 소스(`public/flight-game/src/`)에 구현되어 있으며 런타임 통합은 로드맵 참고._
+
+### 🏜️ Dust Drifter (사막 자유 주행)
+
+- Three.js 기반 3D 로우폴리 사막 오픈 월드 (싱글플레이어)
+- 자유 주행 + 신기루 탐험(7) + 빛나는 수집물(20) + 낮↔밤 순환
+- 먼지 파티클 드리프트 · 듄 빅에어 · 3인칭/하늘뷰 카메라
+- 빌드 없는 자체완결형 ESM (Three.js를 importmap CDN으로 로드)
+- 조작: `↑↓←→`/`WASD` 주행 · `Space` 드리프트 · `C` 카메라 · `R` 리셋
 
 ---
 
@@ -91,7 +99,7 @@
 | 프레임워크   | Next.js 16 (App Router) · React 19   |
 | 언어         | TypeScript 5                         |
 | 스타일       | Tailwind CSS 4                       |
-| 게임 엔진    | HTML5 Canvas · Babylon.js · CesiumJS |
+| 게임 엔진    | HTML5 Canvas · Babylon.js · CesiumJS · Three.js |
 | 멀티플레이어 | Socket.io (서버/클라이언트)          |
 | 서버         | Node.js · better-sqlite3 · Docker    |
 | 테스트       | Vitest · Playwright                  |
@@ -179,11 +187,13 @@ Mini-Games/
 │   ├── error-boundary.tsx     # 게임 로드 에러 처리
 │   ├── escape-game/page.tsx   # 도주 게임 라우트 (모드 선택)
 │   ├── survival-game/page.tsx # 서바이벌 라우트 (모드 선택)
-│   └── flight-game/page.tsx   # 비행 게임 라우트
+│   ├── flight-game/page.tsx   # 비행 게임 라우트
+│   └── desert-game/page.tsx   # Dust Drifter 라우트
 ├── public/
 │   ├── escape-game/           # 2D Canvas 게임
 │   ├── survival-game/         # Babylon.js 3D (game-modular.js + src/)
 │   ├── flight-game/           # CesiumJS 3D (game.js + src/)
+│   ├── desert-game/           # Three.js 3D 로우폴리 (src/ ESM, importmap)
 │   └── shared/                # 멀티플레이어 공유 클라이언트
 │       ├── networking/        # GameClient · State/InputBuffer · MessageTypes
 │       └── lobby/             # LobbyUI

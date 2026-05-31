@@ -144,5 +144,11 @@ vite.config.ts.timestamp-*
 # Superpowers brainstorm scratch files
 .superpowers/
 
+# Playwright test output
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 .vercel
 .env*.local
