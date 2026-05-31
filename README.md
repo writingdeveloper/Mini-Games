@@ -7,7 +7,7 @@
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 
-> **🔗 라이브 데모:** https://your-deployment.vercel.app _(← 실제 Vercel 배포 URL로 교체하세요)_
+> **🔗 라이브 데모:** https://mini-games-dun.vercel.app
 
 ---
 
