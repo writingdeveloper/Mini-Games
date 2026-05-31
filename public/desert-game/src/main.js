@@ -1,14 +1,28 @@
 import { Game } from './core/Game.js';
+import { CONFIG } from './logic/config.js';
 import { Terrain } from './world/Terrain.js';
 import { Sky } from './world/Sky.js';
 import { Input } from './core/Input.js';
 import { Car } from './vehicle/Car.js';
+import { DustEmitter } from './vehicle/DustEmitter.js';
 import { ChaseCamera } from './camera/ChaseCamera.js';
+import { Landmarks } from './world/Landmarks.js';
+import { Collectibles } from './world/Collectibles.js';
+import { HUD } from './ui/HUD.js';
 
 const canvas = document.getElementById('game');
 const menu = document.getElementById('menu');
-const hud = document.getElementById('hud');
+const hudEl = document.getElementById('hud');
 const startBtn = document.getElementById('start-btn');
+const toast = document.getElementById('toast');
+
+let toastTimer = 0;
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.add('hidden'), 2200);
+}
 
 let game = null;
 try {
@@ -30,12 +44,24 @@ if (game) {
   const car = game.add(new Car(terrain, input));
   game.car = car;
 
+  game.add(new DustEmitter(car, sky));
+
   const chase = new ChaseCamera(game.camera, car, input);
   game.systems.push(chase);
 
+  const landmarks = game.add(
+    new Landmarks(terrain, (_it, count) => showToast(`✨ 신기루 발견!  ${count} / ${CONFIG.landmarks.count}`))
+  );
+  game.landmarks = landmarks;
+
+  const collectibles = game.add(new Collectibles(terrain, () => {}));
+  game.collectibles = collectibles;
+
+  game.systems.push(new HUD(game));
+
   startBtn.addEventListener('click', () => {
     menu.classList.add('hidden');
-    hud.classList.remove('hidden');
+    hudEl.classList.remove('hidden');
     game.start();
   });
   console.log('[desert-game] ready');
