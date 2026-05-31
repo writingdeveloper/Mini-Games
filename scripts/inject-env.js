@@ -4,78 +4,95 @@
  * This script runs before build to replace placeholder tokens
  */
 
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 // Load environment variables from .env.local if exists (for local development)
-const envPath = path.join(__dirname, '..', '.env.local');
+const envPath = path.join(__dirname, "..", ".env.local");
 if (fs.existsSync(envPath)) {
-    const envContent = fs.readFileSync(envPath, 'utf8');
-    envContent.split('\n').forEach(line => {
-        const trimmedLine = line.trim();
-        if (!trimmedLine || trimmedLine.startsWith('#')) return;
+  const envContent = fs.readFileSync(envPath, "utf8");
+  envContent.split("\n").forEach((line) => {
+    const trimmedLine = line.trim();
+    if (!trimmedLine || trimmedLine.startsWith("#")) return;
 
-        const equalIndex = trimmedLine.indexOf('=');
-        if (equalIndex === -1) return;
+    const equalIndex = trimmedLine.indexOf("=");
+    if (equalIndex === -1) return;
 
-        const key = trimmedLine.substring(0, equalIndex).trim();
-        let value = trimmedLine.substring(equalIndex + 1).trim();
+    const key = trimmedLine.substring(0, equalIndex).trim();
+    let value = trimmedLine.substring(equalIndex + 1).trim();
 
-        // Remove surrounding quotes if present
-        if ((value.startsWith('"') && value.endsWith('"')) ||
-            (value.startsWith("'") && value.endsWith("'"))) {
-            value = value.slice(1, -1);
-        }
+    // Remove surrounding quotes if present
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
 
-        // Remove escaped newlines
-        value = value.replace(/\\n/g, '').trim();
+    // Remove escaped newlines
+    value = value.replace(/\\n/g, "").trim();
 
-        if (key && value) {
-            process.env[key] = value;
-        }
-    });
+    if (key && value) {
+      process.env[key] = value;
+    }
+  });
 }
 
 // Get token from environment (Vercel sets this directly)
 let CESIUM_TOKEN = process.env.CESIUM_TOKEN;
 
 if (!CESIUM_TOKEN) {
-    console.error('ERROR: CESIUM_TOKEN environment variable is not set');
-    console.error('Please set CESIUM_TOKEN in .env.local or as environment variable');
-    process.exit(1);
+  // Don't fail the build/dev server. Only the flight game (Sky Explorer) needs
+  // this token; the hub and the other games run fine without it.
+  console.warn("⚠ CESIUM_TOKEN is not set — skipping token injection.");
+  console.warn(
+    "  The flight game needs a free Cesium Ion token to load the 3D globe."
+  );
+  console.warn(
+    "  Get one at https://cesium.com/ion/tokens and add it to .env.local:"
+  );
+  console.warn("    CESIUM_TOKEN=your_token_here");
+  process.exit(0);
 }
 
 // Clean token value (remove quotes, newlines, extra whitespace)
-CESIUM_TOKEN = CESIUM_TOKEN
-    .replace(/^["']|["']$/g, '')  // Remove surrounding quotes
-    .replace(/\\n/g, '')          // Remove escaped newlines
-    .replace(/\n/g, '')           // Remove actual newlines
-    .trim();
+CESIUM_TOKEN = CESIUM_TOKEN.replace(/^["']|["']$/g, "") // Remove surrounding quotes
+  .replace(/\\n/g, "") // Remove escaped newlines
+  .replace(/\n/g, "") // Remove actual newlines
+  .trim();
 
-console.log('CESIUM_TOKEN found:', CESIUM_TOKEN.substring(0, 20) + '...');
+console.log("CESIUM_TOKEN found:", CESIUM_TOKEN.substring(0, 20) + "...");
 
 // Files to update
-const gameJsPath = path.join(__dirname, '..', 'public', 'flight-game', 'game.js');
+const gameJsPath = path.join(
+  __dirname,
+  "..",
+  "public",
+  "flight-game",
+  "game.js"
+);
 
-console.log('Injecting environment variables...');
+console.log("Injecting environment variables...");
 
 if (fs.existsSync(gameJsPath)) {
-    let content = fs.readFileSync(gameJsPath, 'utf8');
+  let content = fs.readFileSync(gameJsPath, "utf8");
 
-    // Replace placeholder or existing token
-    const newContent = content.replace(
-        /Cesium\.Ion\.defaultAccessToken\s*=\s*['"][^'"]*['"]/,
-        `Cesium.Ion.defaultAccessToken = '${CESIUM_TOKEN}'`
+  // Replace placeholder or existing token
+  const newContent = content.replace(
+    /Cesium\.Ion\.defaultAccessToken\s*=\s*['"][^'"]*['"]/,
+    `Cesium.Ion.defaultAccessToken = '${CESIUM_TOKEN}'`
+  );
+
+  if (newContent !== content) {
+    fs.writeFileSync(gameJsPath, newContent, "utf8");
+    console.log("✓ Updated: game.js");
+  } else {
+    console.log(
+      "⚠ No changes made to game.js (pattern not found or already updated)"
     );
-
-    if (newContent !== content) {
-        fs.writeFileSync(gameJsPath, newContent, 'utf8');
-        console.log('✓ Updated: game.js');
-    } else {
-        console.log('⚠ No changes made to game.js (pattern not found or already updated)');
-    }
+  }
 } else {
-    console.log('⚠ File not found: game.js');
+  console.log("⚠ File not found: game.js");
 }
 
-console.log('Environment injection complete!');
+console.log("Environment injection complete!");

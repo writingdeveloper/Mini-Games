@@ -121,6 +121,7 @@ MIT License
 // app/new-game/page.tsx
 export default function NewGame() {
 return (
+
 <div className="h-screen w-screen overflow-hidden">
 <iframe
         src="/new-game/index.html"

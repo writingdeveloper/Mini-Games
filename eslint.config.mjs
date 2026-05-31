@@ -32,8 +32,6 @@ const eslintConfig = defineConfig([
     // Game files - only ignore compiled JS, lint TypeScript source
     "public/escape-game/**",
     "public/survival-game/*.js",
-    "public/survival-game/game-modular.js",
-    "public/survival-game/assets/**",
     "public/survival-game/src/**",
     "public/shared/**",
     "public/flight-game/game.js",

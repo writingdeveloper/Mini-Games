@@ -80,7 +80,7 @@ export default function Home() {
                 <ul className="mb-6 space-y-2 text-sm text-white/80">
                   <li>✓ 3D 비행 시뮬레이터</li>
                   <li>✓ 실제 지구 위성 지도</li>
-                  <li>✓ 2-4인 멀티플레이어 레이스</li>
+                  <li>✓ 6개 도시 · 3가지 비행 모드</li>
                 </ul>
                 <div className="inline-block rounded-full bg-white/20 px-6 py-2 font-semibold text-white backdrop-blur-sm transition-colors group-hover:bg-white/30">
                   플레이하기 →
