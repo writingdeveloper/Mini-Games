@@ -12,6 +12,7 @@ export default defineConfig({
         'public/flight-game/src/**',
         'public/escape-game/**',
         'public/survival-game/src/**',
+        'public/desert-game/src/**',
         'server/src/**',
       ],
     },

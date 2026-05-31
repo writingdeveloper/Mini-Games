@@ -88,6 +88,31 @@ export default function Home() {
               </div>
             </div>
           </Link>
+
+          {/* 사막 드라이빙 카드 */}
+          <Link href="/desert-game">
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 to-orange-700 p-8 shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-orange-500/50 cursor-pointer">
+              <div className="absolute -right-8 -top-8 text-9xl opacity-20">
+                🏜️
+              </div>
+              <div className="relative z-10">
+                <h2 className="mb-3 text-3xl font-bold text-white">
+                  Dust Drifter
+                </h2>
+                <p className="mb-4 text-white/90">
+                  황혼의 사막을 자유롭게 누비세요!
+                </p>
+                <ul className="mb-6 space-y-2 text-sm text-white/80">
+                  <li>✓ 3D 로우폴리 사막 오픈 월드</li>
+                  <li>✓ 먼지 휘날리는 드리프트 · 빅에어</li>
+                  <li>✓ 신기루 탐험 · 낮↔밤 순환</li>
+                </ul>
+                <div className="inline-block rounded-full bg-white/20 px-6 py-2 font-semibold text-white backdrop-blur-sm transition-colors group-hover:bg-white/30">
+                  플레이하기 →
+                </div>
+              </div>
+            </div>
+          </Link>
         </div>
 
         <div className="mt-8 text-center">

@@ -35,6 +35,7 @@ const eslintConfig = defineConfig([
     "public/survival-game/src/**",
     "public/shared/**",
     "public/flight-game/game.js",
+    "public/desert-game/**",
     // Server and scripts have their own config
     "server/**",
     "scripts/**",
