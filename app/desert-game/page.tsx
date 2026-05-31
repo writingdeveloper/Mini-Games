@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { LoadingOverlay } from "@/app/_components/LoadingOverlay";
 
 export default function DesertGame() {
+  const [loading, setLoading] = useState(true);
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <Link
@@ -19,11 +22,13 @@ export default function DesertGame() {
         </svg>
         홈으로
       </Link>
+      {loading && <LoadingOverlay />}
       <iframe
         src="/desert-game/index.html"
         className="h-full w-full border-0"
         title="Dust Drifter - 사막 자유 주행"
         allow="fullscreen"
+        onLoad={() => setLoading(false)}
       />
     </div>
   );

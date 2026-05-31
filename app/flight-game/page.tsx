@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { LoadingOverlay } from "@/app/_components/LoadingOverlay";
 
 export default function FlightGame() {
+  const [loading, setLoading] = useState(true);
   return (
     <div className="h-screen w-screen overflow-hidden relative">
       <div className="absolute top-4 left-4 z-[1001] flex gap-2">
@@ -21,11 +24,13 @@ export default function FlightGame() {
           홈으로
         </Link>
       </div>
+      {loading && <LoadingOverlay />}
       <iframe
         src="/flight-game/index.html"
         className="h-full w-full border-0"
         title="Sky Explorer - 3D Flight Game"
         allow="fullscreen"
+        onLoad={() => setLoading(false)}
       />
     </div>
   );

@@ -15,9 +15,9 @@ export default function Home() {
 
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {/* 도주 게임 카드 */}
-          <Link href="/escape-game">
+          <Link href="/escape-game" aria-label="도주 게임 플레이하기">
             <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 p-8 shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-orange-500/50 cursor-pointer">
-              <div className="absolute -right-8 -top-8 text-9xl opacity-20">
+              <div aria-hidden="true" className="absolute -right-8 -top-8 text-9xl opacity-20">
                 🚗
               </div>
               <div className="relative z-10">
@@ -40,9 +40,9 @@ export default function Home() {
           </Link>
 
           {/* 3D 서바이벌 게임 카드 */}
-          <Link href="/survival-game">
+          <Link href="/survival-game" aria-label="3D 서바이벌 게임 플레이하기">
             <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-600 to-teal-700 p-8 shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-green-500/50 cursor-pointer">
-              <div className="absolute -right-8 -top-8 text-9xl opacity-20">
+              <div aria-hidden="true" className="absolute -right-8 -top-8 text-9xl opacity-20">
                 🌍
               </div>
               <div className="relative z-10">
@@ -65,9 +65,9 @@ export default function Home() {
           </Link>
 
           {/* 비행 게임 카드 */}
-          <Link href="/flight-game">
+          <Link href="/flight-game" aria-label="Sky Explorer 비행 게임 플레이하기">
             <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-700 p-8 shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-cyan-500/50 cursor-pointer">
-              <div className="absolute -right-8 -top-8 text-9xl opacity-20">
+              <div aria-hidden="true" className="absolute -right-8 -top-8 text-9xl opacity-20">
                 ✈️
               </div>
               <div className="relative z-10">
@@ -90,9 +90,9 @@ export default function Home() {
           </Link>
 
           {/* 사막 드라이빙 카드 */}
-          <Link href="/desert-game">
+          <Link href="/desert-game" aria-label="Dust Drifter 사막 게임 플레이하기">
             <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 to-orange-700 p-8 shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-orange-500/50 cursor-pointer">
-              <div className="absolute -right-8 -top-8 text-9xl opacity-20">
+              <div aria-hidden="true" className="absolute -right-8 -top-8 text-9xl opacity-20">
                 🏜️
               </div>
               <div className="relative z-10">

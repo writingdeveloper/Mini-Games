@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { LoadingOverlay } from "@/app/_components/LoadingOverlay";
 
 const GAME_SERVER_URL = process.env.NEXT_PUBLIC_GAME_SERVER_URL || '';
 
 export default function EscapeGame() {
   const [mode, setMode] = useState<'select' | 'single' | 'multi'>('select');
+  const [loading, setLoading] = useState(true);
 
   const iframeSrc = mode === 'multi' && GAME_SERVER_URL
     ? `/escape-game/index.html?mode=multi&server=${encodeURIComponent(GAME_SERVER_URL)}`
@@ -69,10 +71,12 @@ export default function EscapeGame() {
           모드 선택
         </button>
       </div>
+      {loading && <LoadingOverlay />}
       <iframe
         src={iframeSrc}
         className="h-full w-full border-0"
         title="도주 게임"
+        onLoad={() => setLoading(false)}
       />
     </div>
   );
