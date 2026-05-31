@@ -13,6 +13,7 @@ export class Game {
     this.camera.position.set(0, 12, 18);
     this.clock = new THREE.Clock();
     this.running = false;
+    this.started = false; // becomes true on first start(), stays true through pause
     this.systems = []; // { update(dt, game) } objects
 
     this._onResize = () => {
@@ -30,6 +31,7 @@ export class Game {
   }
 
   start() {
+    this.started = true;
     if (this.running) return;
     this.running = true;
     this.clock.start();

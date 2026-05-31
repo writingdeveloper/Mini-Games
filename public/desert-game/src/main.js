@@ -9,6 +9,8 @@ import { ChaseCamera } from './camera/ChaseCamera.js';
 import { Landmarks } from './world/Landmarks.js';
 import { Collectibles } from './world/Collectibles.js';
 import { HUD } from './ui/HUD.js';
+import { AudioManager } from './audio/AudioManager.js';
+import { Menu } from './ui/Menu.js';
 
 const canvas = document.getElementById('game');
 const menu = document.getElementById('menu');
@@ -49,19 +51,29 @@ if (game) {
   const chase = new ChaseCamera(game.camera, car, input);
   game.systems.push(chase);
 
+  const audio = new AudioManager();
+
   const landmarks = game.add(
-    new Landmarks(terrain, (_it, count) => showToast(`✨ 신기루 발견!  ${count} / ${CONFIG.landmarks.count}`))
+    new Landmarks(terrain, (_it, count) => {
+      showToast(`✨ 신기루 발견!  ${count} / ${CONFIG.landmarks.count}`);
+      audio.discover();
+    })
   );
   game.landmarks = landmarks;
 
-  const collectibles = game.add(new Collectibles(terrain, () => {}));
+  const collectibles = game.add(new Collectibles(terrain, () => audio.collect()));
   game.collectibles = collectibles;
 
   game.systems.push(new HUD(game));
+  game.systems.push(audio);
+
+  new Menu(game, car, sky);
 
   startBtn.addEventListener('click', () => {
     menu.classList.add('hidden');
     hudEl.classList.remove('hidden');
+    audio.init();
+    audio.resume();
     game.start();
   });
   console.log('[desert-game] ready');
