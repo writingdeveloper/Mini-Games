@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dust Drifter — 사막 자유 주행</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="webgl-error" class="overlay hidden">
+    <div class="panel"><h1>WebGL을 사용할 수 없습니다</h1><p>WebGL을 지원하는 최신 브라우저에서 실행해 주세요.</p></div>
+  </div>
+
+  <div id="menu" class="overlay">
+    <div class="panel">
+      <h1 class="title">DUST DRIFTER</h1>
+      <p class="subtitle">황혼의 사막을 자유롭게 누비세요</p>
+      <button id="start-btn" class="btn-primary">주행 시작</button>
+      <div class="controls">
+        <span>↑ / W</span><span>가속</span>
+        <span>↓ / S</span><span>감속·후진</span>
+        <span>← → / A D</span><span>조향</span>
+        <span>Space</span><span>드리프트(핸드브레이크)</span>
+        <span>C</span><span>카메라 전환</span>
+        <span>R</span><span>차량 리셋</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="hud" class="hidden">
+    <div id="hud-speed"><span id="speed-val">0</span><small>km/h</small></div>
+    <div id="hud-discovery">🗺️ <span id="disc-val">0</span> / <span id="disc-total">7</span></div>
+    <div id="hud-time">🌅 <span id="time-label">낮</span></div>
+    <div id="hud-collect">💎 <span id="collect-val">0</span> / <span id="collect-total">20</span></div>
+    <div id="hud-pointer">➤ <span id="pointer-dist">--</span></div>
+    <div id="hud-hint">↑↓←→ / WASD · Space 드리프트 · C 카메라 · R 리셋</div>
+  </div>
+
+  <div id="pause" class="overlay hidden">
+    <div class="panel">
+      <h1 class="title" style="font-size:34px">일시정지</h1>
+      <button id="resume-btn" class="btn-primary">계속하기</button>
+      <button id="restart-btn" class="btn-primary" style="margin-top:12px;background:linear-gradient(135deg,#bbb,#888)">처음으로</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
