@@ -141,5 +141,8 @@ vite.config.ts.timestamp-*
 # Claude Code
 .claude/
 
+# Superpowers brainstorm scratch files
+.superpowers/
+
 .vercel
 .env*.local
