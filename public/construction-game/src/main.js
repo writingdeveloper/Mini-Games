@@ -81,9 +81,16 @@ if (game) {
     });
   });
 
-  // remove an entity from both the scene graph and the systems update list
+  // remove an entity from the scene + systems list, disposing its GPU resources
   function removeEntity(e) {
-    if (e.object3d) game.scene.remove(e.object3d);
+    if (e.object3d) {
+      game.scene.remove(e.object3d);
+      e.object3d.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+        const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+        for (const m of mats) { if (m.map) m.map.dispose(); m.dispose(); }
+      });
+    }
     const i = game.systems.indexOf(e);
     if (i >= 0) game.systems.splice(i, 1);
   }
@@ -119,6 +126,9 @@ if (game) {
     game.combo = 0;
     game.incidents = 0;
     game.crewRemaining = CONFIG.workerCount;
+    if (game.diorama) { game.diorama.mode = 'overseer'; game.diorama.focus = null; }
+    clearTimeout(toastTimer);
+    toast.classList.add('hidden');
     buildWorld();
     applyRetroToObject(game.scene, { snap: 160, affine: false });
     menuEl.classList.add('hidden');
