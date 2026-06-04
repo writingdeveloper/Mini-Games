@@ -19,4 +19,12 @@ export const CONFIG = {
   riotInciteRadius: 7,
   riotIncitePerSec: 10,
   scoring: { floorPoints: 1000, timeBonusPerSec: 10, comboStep: 0.1, noIncidentBonus: 2000 },
+  slackMult: 1.0,
+  economy: {
+    startFunds: 4000,
+    floorReward: 1000,
+    buildingBonus: 2000,
+    fireCooldownSec: 3,
+    managerCap: 6,
+  },
 };
