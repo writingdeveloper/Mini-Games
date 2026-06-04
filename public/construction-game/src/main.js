@@ -24,6 +24,7 @@ import { createEconomy, earn, tickEconomy, spend } from './logic/economy.js';
 import { Manager } from './entities/Manager.js';
 import { HireMenu } from './ui/HireMenu.js';
 import { getManagerArchetype } from './logic/managers.js';
+import { AssetLoader } from './assets/AssetLoader.js';
 
 const canvas = document.getElementById('game');
 const menuEl = document.getElementById('menu');
@@ -75,11 +76,20 @@ if (game) {
   game.audio = audio;
   game.managers = [];
 
+  const WORKER_MODEL_URL = './assets/worker.glb';
+  const assets = new AssetLoader(showToast);
+  game.assets = assets;
+  game.workerModelEntry = null; // cached glTF entry once loaded
+
   const hireMenu = new HireMenu(game, (id) => {
     const a = getManagerArchetype(id);
     if (game.managers.length >= CONFIG.economy.managerCap || !game.economy || !spend(game.economy, a.hireCost)) return;
     const m = game.add(new Manager(id));
     game.managers.push(m);
+    if (game.workerModelEntry) {
+      const inst = assets.instance(game.workerModelEntry);
+      if (inst) m.setModel(inst.obj);
+    }
     if (game.audio) game.audio.combo();
     hireMenu.refresh();
   });
@@ -144,6 +154,18 @@ if (game) {
     clearTimeout(toastTimer);
     toast.classList.add('hidden');
     buildWorld();
+    assets.load(WORKER_MODEL_URL).then((entry) => {
+      if (!entry) return;
+      game.workerModelEntry = entry;
+      for (const w of game.workers) {
+        const inst = assets.instance(entry);
+        if (inst) { w.setModel(inst.obj); w.mixer = inst.mixer; if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play(); }
+      }
+      for (const m of game.managers) {
+        const inst = assets.instance(entry);
+        if (inst) m.setModel(inst.obj);
+      }
+    });
     game.economy = createEconomy(CONFIG.economy.startFunds);
     applyRetroToObject(game.scene, { snap: 160, affine: false });
     menuEl.classList.add('hidden');

@@ -33,8 +33,15 @@ export class Manager {
   }
 
   setModel(obj) {
-    this.object3d.clear();
-    obj.position.y = 0;
+    // keep only the sprite child(ren), drop the placeholder primitives
+    this.object3d.children = this.object3d.children.filter((c) => c.isSprite);
+    const box = new THREE.Box3().setFromObject(obj);
+    const size = new THREE.Vector3(); box.getSize(size);
+    const target = 2.2; // ~worker height in world units
+    const s = size.y > 0 ? target / size.y : 1;
+    obj.scale.setScalar(s);
+    const box2 = new THREE.Box3().setFromObject(obj);
+    obj.position.y = -box2.min.y; // feet on the ground
     this.object3d.add(obj);
   }
 
