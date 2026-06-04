@@ -4,7 +4,7 @@ All committed 3D assets are CC0 (public domain) unless noted otherwise.
 
 | File | Source | Author | License |
 |------|--------|--------|---------|
-| _(none committed yet)_ | — | — | — |
+| `worker.glb` | https://poly.pizza/m/Yg2bQZO6Hj | Quaternius | CC0 |
 
 The game currently renders entirely with Three.js primitives (boxes/capsules/cylinders)
 and synthesises all audio at runtime via the Web Audio API — no external asset files are
