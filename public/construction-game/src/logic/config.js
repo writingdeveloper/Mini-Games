@@ -1,0 +1,20 @@
+export const CONFIG = {
+  seed: 7777,
+  shiftSeconds: 180,
+  targetFloors: 5,
+  workerCount: 8,
+  site: { width: 44, depth: 44 },
+  exit: { x: 0, z: 22 },
+  rage: { max: 100, sabotage: 60, flee: 80, riot: 95, decayPerSec: 4 },
+  tactics: {
+    bark:   { id: 'bark',   key: 1, label: '윽박', icon: '💢', rageDelta: 28,  boost: 2.0, boostSeconds: 5 },
+    taunt:  { id: 'taunt',  key: 2, label: '비꼬기', icon: '😏', rageDelta: 15, boost: 1.6, boostSeconds: 5 },
+    soothe: { id: 'soothe', key: 3, label: '달래기', icon: '🤝', rageDelta: -25, boost: 1.3, boostSeconds: 5 },
+  },
+  production: { baseRatePerWorker: 1.0, floorProgress: 100, sabotageRate: 0.2 },
+  worker: { confrontRadius: 4.5, wanderRadius: 2.2, moveSpeed: 3.2, fleeSpeed: 6 },
+  crewCollapseThreshold: 2,
+  chatterSpreadRadius: 6,
+  chatterSpreadFactor: 2.0,
+  scoring: { floorPoints: 1000, timeBonusPerSec: 10, comboStep: 0.1, noIncidentBonus: 2000 },
+};
