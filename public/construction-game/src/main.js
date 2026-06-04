@@ -15,6 +15,8 @@ import { spawnWorkers, mulberry32 } from './logic/spawn.js';
 import { crewOutputPerSecond, advanceProgress } from './logic/production.js';
 import { applyTactic, tacticByKey } from './logic/tactics.js';
 import { evaluate } from './logic/scoring.js';
+import { RetroPipeline } from './render/RetroPipeline.js';
+import { applyRetro, applyRetroToObject } from './render/retroMaterial.js';
 
 const canvas = document.getElementById('game');
 const menuEl = document.getElementById('menu');
@@ -44,6 +46,8 @@ if (game) {
   const dir = new THREE.DirectionalLight(0xfff0d0, 0.7);
   dir.position.set(20, 40, 10);
   game.scene.add(dir);
+
+  game.pipeline = new RetroPipeline(320, 240, 16);
 
   const input = new Input();
   game.input = input;
@@ -156,6 +160,8 @@ if (game) {
     menuEl.classList.add('hidden');
     hudEl.classList.remove('hidden');
     game.status = 'playing';
+    applyRetroToObject(game.scene, { snap: 160, affine: false });
+    applyRetro(game.building.floorMat, { snap: 160, affine: false });
     game.start();
   });
 
