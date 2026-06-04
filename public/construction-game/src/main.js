@@ -20,6 +20,7 @@ import { RetroPipeline } from './render/RetroPipeline.js';
 import { applyRetro, applyRetroToObject } from './render/retroMaterial.js';
 import { AudioManager } from './audio/AudioManager.js';
 import { applyDifficulty } from './logic/difficulty.js';
+import { createEconomy, earn, tickEconomy } from './logic/economy.js';
 
 const canvas = document.getElementById('game');
 const menuEl = document.getElementById('menu');
@@ -130,6 +131,7 @@ if (game) {
     clearTimeout(toastTimer);
     toast.classList.add('hidden');
     buildWorld();
+    game.economy = createEconomy(CONFIG.economy.startFunds);
     applyRetroToObject(game.scene, { snap: 160, affine: false });
     menuEl.classList.add('hidden');
     hudEl.classList.remove('hidden');
@@ -184,7 +186,10 @@ if (game) {
     const res = advanceProgress(g.build, output, dt);
     g.build = { progress: res.progress, floorsBuilt: res.floorsBuilt };
     g.building.sync(res.floorsBuilt, res.progress / CONFIG.production.floorProgress);
-    if (res.floorsCompletedThisStep > 0 && g.audio) g.audio.floorUp();
+    if (res.floorsCompletedThisStep > 0) {
+      if (g.economy) earn(g.economy, res.floorsCompletedThisStep * CONFIG.economy.floorReward);
+      if (g.audio) g.audio.floorUp();
+    }
 
     // incidents + combo reset
     for (const w of workers) {
@@ -193,6 +198,14 @@ if (game) {
     }
     if (active.some((w) => w.logic.state === 'sabotage' || w.logic.state === 'fleeing' || w.logic.state === 'riot')) g.combo = 0;
     g.crewRemaining = active.length;
+    if (g.economy) {
+      const fireIdx = tickEconomy(g.economy, g.managers, dt);
+      if (fireIdx >= 0 && g.managers[fireIdx]) {
+        const fired = g.managers.splice(fireIdx, 1)[0];
+        removeEntity(fired);
+        showToast(`💸 적자 — ${fired.label} 해고`);
+      }
+    }
 
     // win / lose
     const verdict = evaluate({

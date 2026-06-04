@@ -11,6 +11,8 @@ export class HUD {
     this.score = document.getElementById('score-val');
     this.combo = document.getElementById('combo-val');
     this.comboBox = document.getElementById('hud-combo');
+    this.funds = document.getElementById('funds-val');
+    this.payroll = document.getElementById('payroll-val');
     document.getElementById('floor-total').textContent = CONFIG.targetFloors;
     this._acc = 0;
   }
@@ -32,5 +34,9 @@ export class HUD {
     });
     if (g.combo >= 2) { this.comboBox.classList.remove('hidden'); this.combo.textContent = g.combo; }
     else this.comboBox.classList.add('hidden');
+    if (g.economy) {
+      this.funds.textContent = Math.max(0, Math.floor(g.economy.funds));
+      this.payroll.textContent = Math.round((g.managers || []).reduce((s, m) => s + m.salary, 0));
+    }
   }
 }
