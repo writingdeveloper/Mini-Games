@@ -23,6 +23,7 @@ test.describe("Tantrum Tower construction game", () => {
     page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto("/construction-game/index.html");
+    await page.locator('#difficulty .diff-btn[data-mode="easy"]').click();
     await page.locator("#start-btn").click();
     // drive movement, every tactic, and a pause/resume cycle
     for (const key of ["KeyW", "Digit1", "KeyD", "Digit2", "KeyA", "Digit3", "Escape", "Escape"]) {
