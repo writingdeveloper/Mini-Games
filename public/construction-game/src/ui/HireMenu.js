@@ -13,10 +13,10 @@ export class HireMenu {
     this.open = false;
 
     this._renderList();
-    this.toggle.addEventListener('click', () => this.setOpen(!this.open));
+    this.toggle.addEventListener('click', () => { if (!this.game.running) return; this.setOpen(!this.open); });
     document.getElementById('hire-close').addEventListener('click', () => this.setOpen(false));
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'KeyH' && this.game.status === 'playing') this.setOpen(!this.open);
+      if (e.code === 'KeyH' && this.game.running) this.setOpen(!this.open);
     });
   }
 

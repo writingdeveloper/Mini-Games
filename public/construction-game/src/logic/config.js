@@ -23,7 +23,7 @@ export const CONFIG = {
   economy: {
     startFunds: 4000,
     floorReward: 1000,
-    buildingBonus: 2000,
+    buildingBonus: 2000, // awarded per completed building (S4 multi-building)
     fireCooldownSec: 3,
     managerCap: 6,
   },

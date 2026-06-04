@@ -13,6 +13,7 @@ export class HUD {
     this.comboBox = document.getElementById('hud-combo');
     this.funds = document.getElementById('funds-val');
     this.payroll = document.getElementById('payroll-val');
+    this.fundsBox = document.getElementById('hud-funds');
     document.getElementById('floor-total').textContent = CONFIG.targetFloors;
     this._acc = 0;
   }
@@ -35,7 +36,9 @@ export class HUD {
     if (g.combo >= 2) { this.comboBox.classList.remove('hidden'); this.combo.textContent = g.combo; }
     else this.comboBox.classList.add('hidden');
     if (g.economy) {
-      this.funds.textContent = Math.max(0, Math.floor(g.economy.funds));
+      const f = g.economy.funds;
+      this.fundsBox.classList.toggle('warn', f < 0);
+      this.funds.textContent = Math.floor(f);
       this.payroll.textContent = Math.round((g.managers || []).reduce((s, m) => s + m.salary, 0));
     }
   }

@@ -55,3 +55,4 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #14181d; f
   background: linear-gradient(135deg,#ffd24a,#ff9d2e); color: #2a1c08; }
 .hire-card button:disabled { background: #555; color: #999; cursor: not-allowed; }
 #hire-close { width: 100%; margin-top: 4px; padding: 8px 0; border: none; border-radius: 8px; background: #444; color: #fff; cursor: pointer; }
+#hud-funds.warn { background: rgba(200,40,20,.85); color: #fff; }
