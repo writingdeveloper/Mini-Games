@@ -18,6 +18,7 @@ import { evaluate } from './logic/scoring.js';
 import { RetroPipeline } from './render/RetroPipeline.js';
 import { applyRetro, applyRetroToObject } from './render/retroMaterial.js';
 import { AssetLoader } from './assets/AssetLoader.js';
+import { AudioManager } from './audio/AudioManager.js';
 
 const canvas = document.getElementById('game');
 const menuEl = document.getElementById('menu');
@@ -97,6 +98,9 @@ if (game) {
     }
   })();
 
+  const audio = new AudioManager();
+  game.audio = audio;
+
   const prompt = new ConfrontationPrompt();
 
   function resetState() {
@@ -115,6 +119,7 @@ if (game) {
       workers[i].object3d.visible = true;
       workers[i].position.set(p.x, 0, p.z);
       workers[i]._lastKey = '';
+      if (workers[i].mixer) workers[i].mixer.setTime(0);
     });
     for (const f of game.building.floors) {
       game.building.object3d.remove(f);
@@ -122,6 +127,9 @@ if (game) {
     }
     game.building.floors = [];
     game.building.sync(0, 0);
+    if (game.diorama) { game.diorama.mode = 'overseer'; game.diorama.focus = null; }
+    toast.classList.add('hidden');
+    clearTimeout(toastTimer);
     hudEl.classList.remove('hidden');
   }
 
@@ -145,6 +153,7 @@ if (game) {
     }
 
     prompt.update(g.foreman, workers);
+    // tactic was populated this frame by Foreman.update()'s input.sample() call
     const tacticKey = g.input.state.tactic;
     if (tacticKey) {
       const target = prompt.current;
@@ -155,6 +164,10 @@ if (game) {
         target._lastKey = '';
         if (wasSlacking) g.combo += 1;
         if (g.diorama) g.diorama.pushIn(target.object3d, 1.2);
+        if (g.audio) {
+          g.audio.shout(tacticId);
+          if (wasSlacking && g.combo >= 2) g.audio.combo();
+        }
       }
     }
 
@@ -163,9 +176,10 @@ if (game) {
     const res = advanceProgress(g.build, output, dt);
     g.build = { progress: res.progress, floorsBuilt: res.floorsBuilt };
     g.building.sync(res.floorsBuilt, res.progress / CONFIG.production.floorProgress);
+    if (res.floorsCompletedThisStep > 0 && g.audio) g.audio.floorUp();
 
     for (const w of workers) {
-      if (w.justEscaped) { w.justEscaped = false; g.incidents += 1; g.combo = 0; }
+      if (w.justEscaped) { w.justEscaped = false; g.incidents += 1; g.combo = 0; if (g.audio) g.audio.alarm(); }
     }
     if (active.some((w) => w.logic.state === 'sabotage' || w.logic.state === 'fleeing' || w.logic.state === 'riot')) {
       g.combo = 0;
@@ -189,6 +203,8 @@ if (game) {
     game.status = 'playing';
     applyRetroToObject(game.scene, { snap: 160, affine: false });
     applyRetro(game.building.floorMat, { snap: 160, affine: false });
+    audio.init();
+    audio.resume();
     game.start();
   });
 
