@@ -49,9 +49,9 @@ try {
 
 if (game) {
   // ---- static setup (once) ----
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x556070, 1.0);
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x6a7888, 1.5);
   game.scene.add(hemi);
-  const dir = new THREE.DirectionalLight(0xfff0d0, 0.7);
+  const dir = new THREE.DirectionalLight(0xfff0d0, 1.15);
   dir.position.set(20, 40, 10);
   game.scene.add(dir);
 

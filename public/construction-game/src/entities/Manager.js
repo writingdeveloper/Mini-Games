@@ -81,6 +81,6 @@ function makeTagSprite(emoji) {
   const tex = new THREE.CanvasTexture(canvas);
   tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
-  sprite.scale.set(1.4, 1.4, 1); sprite.position.y = 2.7;
+  sprite.scale.set(2.2, 2.2, 1); sprite.position.y = 3.1;
   return sprite;
 }
