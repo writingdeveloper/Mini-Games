@@ -17,6 +17,7 @@ import { applyTactic, tacticByKey } from './logic/tactics.js';
 import { evaluate } from './logic/scoring.js';
 import { RetroPipeline } from './render/RetroPipeline.js';
 import { applyRetro, applyRetroToObject } from './render/retroMaterial.js';
+import { AssetLoader } from './assets/AssetLoader.js';
 
 const canvas = document.getElementById('game');
 const menuEl = document.getElementById('menu');
@@ -69,6 +70,32 @@ if (game) {
     game.add(new Worker(createWorker(p.id, p.archetypeId, rng), p.x, p.z, CONFIG.exit))
   );
   game.workers = workers;
+
+  // Optional glTF enhancement. Entries stay null until CC0 .glb files are added to
+  // public/construction-game/assets/ — with them null, nothing is fetched (no 404) and
+  // the game renders with primitives. AssetLoader.load() also falls back gracefully if a
+  // listed file fails to load.
+  const assets = new AssetLoader(showToast);
+  const ASSET_URLS = { worker: null, foreman: null }; // e.g. './assets/worker.glb', './assets/foreman.glb'
+  (async () => {
+    if (ASSET_URLS.worker) {
+      const entry = await assets.load(ASSET_URLS.worker);
+      if (entry) {
+        for (const w of workers) {
+          const inst = assets.instance(entry);
+          if (!inst) continue;
+          w.setModel(inst.obj);
+          w.mixer = inst.mixer;
+          if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play();
+        }
+      }
+    }
+    if (ASSET_URLS.foreman) {
+      const entry = await assets.load(ASSET_URLS.foreman);
+      const inst = entry && assets.instance(entry);
+      if (inst) foreman.setModel(inst.obj);
+    }
+  })();
 
   const prompt = new ConfrontationPrompt();
 

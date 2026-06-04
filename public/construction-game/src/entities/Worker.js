@@ -32,6 +32,7 @@ export class Worker {
     this.position = this.object3d.position;
     this.justEscaped = false;
     this.enteredRiot = false;
+    this.mixer = null;
 
     this.bodyMat = new THREE.MeshLambertMaterial({ color: this.archetype.color, flatShading: true });
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.5, 1.0, 3, 6), this.bodyMat);
@@ -48,7 +49,9 @@ export class Worker {
   }
 
   setModel(obj) {
-    this.object3d.children = this.object3d.children.filter((c) => c === this.statusSprite);
+    for (const c of this.object3d.children.filter((c) => c !== this.statusSprite)) {
+      this.object3d.remove(c);
+    }
     obj.position.y = 0;
     this.object3d.add(obj);
   }
@@ -69,6 +72,7 @@ export class Worker {
   update(dt) {
     const w = this.logic;
     if (w.escaped) { this.object3d.visible = false; return; }
+    if (this.mixer) this.mixer.update(dt);
 
     stepWorker(w, dt);
     this.bodyMat.color.setHex(STATE_COLOR[w.state]);
