@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { workerOutput, crewOutputPerSecond, advanceProgress } from "../../../public/construction-game/src/logic/production.js";
 
-const wk = (over: any) => ({ archetypeId: "phone", state: "working", boostMul: 1, ...over });
+const wk = (over: Record<string, unknown>) => ({ archetypeId: "phone", state: "working", boostMul: 1, ...over });
 
 describe("production", () => {
   it("working worker outputs baseRate*workRate*boost", () => {
