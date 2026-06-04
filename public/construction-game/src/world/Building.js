@@ -5,7 +5,8 @@ const FLOOR_H = 2.4;
 const FOOTPRINT = 10;
 
 export class Building {
-  constructor() {
+  constructor(maxFloors = CONFIG.targetFloors) {
+    this.maxFloors = maxFloors;
     this.object3d = new THREE.Group();
     this.object3d.position.set(0, 0, -6);
     this.floors = [];
@@ -30,7 +31,7 @@ export class Building {
     const y = 0.5 + floorsBuilt * FLOOR_H + (FLOOR_H * progress01) / 2;
     this.ghost.position.set(0, y, 0);
     this.ghost.scale.y = Math.max(0.05, progress01);
-    this.ghost.visible = floorsBuilt < CONFIG.targetFloors;
+    this.ghost.visible = floorsBuilt < this.maxFloors;
   }
 
   sync(floorsBuilt, progress01) {

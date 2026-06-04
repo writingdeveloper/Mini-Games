@@ -4,6 +4,7 @@ import { Input } from './core/Input.js';
 import { CONFIG } from './logic/config.js';
 import { Site } from './world/Site.js';
 import { Building } from './world/Building.js';
+import { Buildings } from './world/Buildings.js';
 import { Foreman } from './entities/Foreman.js';
 import { DioramaCamera } from './camera/DioramaCamera.js';
 import { Worker } from './entities/Worker.js';
@@ -128,9 +129,9 @@ if (game) {
 
   function buildWorld() {
     if (building) removeEntity(building);
-    building = game.add(new Building());
+    building = game.add(new Buildings(CONFIG.targetBuildings, CONFIG.production.floorsPerBuilding));
     game.building = building;
-    applyRetro(game.building.floorMat, { snap: 160, affine: false });
+    for (const fm of building.floorMats) applyRetro(fm, { snap: 160, affine: false });
 
     for (const w of workers) removeEntity(w);
     for (const m of (game.managers || [])) removeEntity(m);
@@ -230,8 +231,12 @@ if (game) {
     g.build = { progress: res.progress, floorsBuilt: res.floorsBuilt };
     g.building.sync(res.floorsBuilt, res.progress / CONFIG.production.floorProgress);
     if (res.floorsCompletedThisStep > 0) {
-      if (g.economy) earn(g.economy, res.floorsCompletedThisStep * CONFIG.economy.floorReward);
-      if (g.audio) g.audio.floorUp();
+      const F = CONFIG.production.floorsPerBuilding;
+      const before = res.floorsBuilt - res.floorsCompletedThisStep;
+      const buildingsDone = Math.floor(res.floorsBuilt / F) - Math.floor(before / F);
+      if (g.economy) earn(g.economy, res.floorsCompletedThisStep * CONFIG.economy.floorReward + buildingsDone * CONFIG.economy.buildingBonus);
+      if (g.audio) { g.audio.floorUp(); if (buildingsDone > 0) g.audio.combo(); }
+      if (buildingsDone > 0) showToast(`🏢 건물 완공! +${buildingsDone * CONFIG.economy.buildingBonus}`);
     }
 
     // incidents + combo reset

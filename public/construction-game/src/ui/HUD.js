@@ -5,7 +5,10 @@ export class HUD {
   constructor(game) {
     this.game = game;
     this.time = document.getElementById('time-val');
+    this.bld = document.getElementById('bld-val');
+    this.bldTotal = document.getElementById('bld-total');
     this.floor = document.getElementById('floor-val');
+    this.floorPb = document.getElementById('floor-pb');
     this.progressFill = document.getElementById('progress-fill');
     this.crew = document.getElementById('crew-val');
     this.score = document.getElementById('score-val');
@@ -14,7 +17,6 @@ export class HUD {
     this.funds = document.getElementById('funds-val');
     this.payroll = document.getElementById('payroll-val');
     this.fundsBox = document.getElementById('hud-funds');
-    document.getElementById('floor-total').textContent = CONFIG.targetFloors;
     this._acc = 0;
   }
 
@@ -25,7 +27,11 @@ export class HUD {
     const g = this.game;
     const remaining = Math.max(0, Math.ceil(CONFIG.shiftSeconds - g.elapsed));
     this.time.textContent = remaining;
-    this.floor.textContent = g.build.floorsBuilt;
+    const F = CONFIG.production.floorsPerBuilding;
+    this.bld.textContent = Math.floor(g.build.floorsBuilt / F);
+    this.bldTotal.textContent = CONFIG.targetBuildings;
+    this.floor.textContent = g.build.floorsBuilt % F;
+    this.floorPb.textContent = F;
     this.progressFill.style.width = `${(g.build.progress / CONFIG.production.floorProgress) * 100}%`;
     this.crew.textContent = g.crewRemaining;
     this.score.textContent = computeScore({
