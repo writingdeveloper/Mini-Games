@@ -12,7 +12,7 @@ export const CONFIG = {
     soothe: { id: 'soothe', key: 3, label: '달래기', icon: '🤝', rageDelta: -25, boost: 1.3, boostSeconds: 5 },
   },
   production: { baseRatePerWorker: 1.0, floorProgress: 100, sabotageRate: 0.2 },
-  worker: { confrontRadius: 4.5, wanderRadius: 2.2, moveSpeed: 3.2, fleeSpeed: 6 },
+  worker: { confrontRadius: 4.5, wanderRadius: 2.2, moveSpeed: 3.2, fleeSpeed: 6, minSlackSeconds: 2 },
   crewCollapseThreshold: 2,
   chatterSpreadRadius: 6,
   chatterSpreadFactor: 2.0,

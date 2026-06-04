@@ -13,7 +13,7 @@ export function applyTactic(worker, tacticId, sensitivity = 1) {
   if (!t) throw new Error(`unknown tactic: ${tacticId}`);
   addRage(worker, t.rageDelta, sensitivity);
   worker.activity = 'working';
-  worker.slackTimer = 0;
+  worker.slackTimer = t.boostSeconds; // work burst: stay on task for the boost window
   worker.boostMul = t.boost;
   worker.boostTimer = t.boostSeconds;
   return worker;

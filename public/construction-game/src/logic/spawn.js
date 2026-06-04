@@ -11,6 +11,8 @@ export function mulberry32(seed) {
   };
 }
 
+const PROPS_SEED_OFFSET = 555; // keeps the prop RNG stream uncorrelated with workers
+
 const PROP_KINDS = ['barrel', 'crate', 'cone', 'pipe', 'scaffold'];
 
 export function spawnWorkers(seed, count) {
@@ -28,7 +30,7 @@ export function spawnWorkers(seed, count) {
 }
 
 export function spawnProps(seed, count) {
-  const rng = mulberry32(seed + 555);
+  const rng = mulberry32(seed + PROPS_SEED_OFFSET);
   const halfW = CONFIG.site.width / 2 - 1;
   const halfD = CONFIG.site.depth / 2 - 1;
   const out = [];

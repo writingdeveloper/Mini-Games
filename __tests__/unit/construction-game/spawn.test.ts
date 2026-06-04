@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { mulberry32, spawnWorkers, spawnProps } from "../../../public/construction-game/src/logic/spawn.js";
+import { CONFIG } from "../../../public/construction-game/src/logic/config.js";
 
 describe("spawn", () => {
   it("mulberry32 is deterministic for a seed", () => {
@@ -17,8 +18,8 @@ describe("spawn", () => {
     expect(r1).toEqual(r2);
     for (const w of r1) {
       expect(["dozer", "phone", "chatter", "hothead"]).toContain(w.archetypeId);
-      expect(Math.abs(w.x)).toBeLessThanOrEqual(22);
-      expect(Math.abs(w.z)).toBeLessThanOrEqual(22);
+      expect(Math.abs(w.x)).toBeLessThanOrEqual(CONFIG.site.width / 2 - 2);
+      expect(Math.abs(w.z)).toBeLessThanOrEqual(CONFIG.site.depth / 2 - 2);
     }
   });
   it("different seeds give different layouts", () => {

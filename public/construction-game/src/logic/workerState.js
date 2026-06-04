@@ -1,3 +1,4 @@
+import { CONFIG } from './config.js';
 import { getArchetype } from './archetypes.js';
 import { decayRage, rageStage } from './rage.js';
 
@@ -12,7 +13,7 @@ export function createWorker(id, archetypeId, rng) {
     state: 'working',
     activity: 'working',
     rage: 0,
-    slackTimer: Math.max(2, slackTimer),
+    slackTimer: Math.max(CONFIG.worker.minSlackSeconds, slackTimer),
     boostMul: 1,
     boostTimer: 0,
     escaped: false,
