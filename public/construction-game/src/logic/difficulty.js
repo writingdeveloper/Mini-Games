@@ -4,6 +4,7 @@ export const DIFFICULTY_MODES = {
   hard:   { workerCount: 10, shiftSeconds: 150, targetFloors: 6, rageDecayPerSec: 3.2, slackMult: 0.8,  startFunds: 2500, floorReward: 700 },
 };
 
+/** Mutates `config` in place (modules read the live CONFIG singleton) and returns it. */
 export function applyDifficulty(config, mode) {
   const d = DIFFICULTY_MODES[mode];
   if (!d) throw new Error(`unknown difficulty: ${mode}`);

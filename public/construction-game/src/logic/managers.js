@@ -13,6 +13,7 @@ export function getManagerArchetype(id) {
   return a;
 }
 
+// Nearest non-escaped slacking/sabotage worker within archetype.radius (inclusive); -1 if none.
 export function pickManagerTarget(managerPos, archetype, workers) {
   let best = -1, bestD = archetype.radius * archetype.radius;
   for (let i = 0; i < workers.length; i++) {

@@ -21,9 +21,10 @@ export function payrollPerSec(managers) {
 }
 
 export function tickEconomy(econ, managers, dt) {
+  const wasReady = econ.fireCooldown === 0;
   econ.funds -= payrollPerSec(managers) * dt;
   if (econ.fireCooldown > 0) econ.fireCooldown = Math.max(0, econ.fireCooldown - dt);
-  if (econ.funds < 0 && econ.fireCooldown === 0 && managers.length > 0) {
+  if (econ.funds < 0 && wasReady && managers.length > 0) {
     let best = 0;
     for (let i = 1; i < managers.length; i++) {
       if (managers[i].salary > managers[best].salary) best = i;

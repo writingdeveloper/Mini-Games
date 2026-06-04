@@ -18,9 +18,11 @@ describe("economy", () => {
     expect(e.funds).toBe(3800);
     expect(spend(e, 9999)).toBe(false);
     expect(e.funds).toBe(3800);
+    expect(spend(createEconomy(100), 100)).toBe(true); // exact-funds boundary
   });
   it("payrollPerSec sums manager salaries", () => {
     expect(payrollPerSec([{ salary: 6 }, { salary: 12 }, { salary: 3 }])).toBe(21);
+    expect(payrollPerSec([])).toBe(0);
   });
   it("tickEconomy deducts payroll; no fire while solvent", () => {
     const e = createEconomy(100);
@@ -31,6 +33,7 @@ describe("economy", () => {
   it("tickEconomy fires the highest-salary manager when insolvent, then respects cooldown", () => {
     const e = { funds: -5, fireCooldown: 0 };
     const fi = tickEconomy(e, [{ salary: 6 }, { salary: 12 }, { salary: 3 }], 1);
+    expect(e.funds).toBeCloseTo(-26, 5); // payroll (21) deducted even while insolvent
     expect(fi).toBe(1);
     expect(e.fireCooldown).toBeCloseTo(CONFIG.economy.fireCooldownSec, 5);
     const fi2 = tickEconomy(e, [{ salary: 6 }, { salary: 3 }], 1);
