@@ -14,6 +14,7 @@ import { createWorker, applySlackPressure } from './logic/workerState.js';
 import { spawnWorkers, mulberry32 } from './logic/spawn.js';
 import { crewOutputPerSecond, advanceProgress } from './logic/production.js';
 import { applyTactic, tacticByKey } from './logic/tactics.js';
+import { addRage } from './logic/rage.js';
 import { evaluate } from './logic/scoring.js';
 import { RetroPipeline } from './render/RetroPipeline.js';
 import { applyRetro, applyRetroToObject } from './render/retroMaterial.js';
@@ -115,6 +116,7 @@ if (game) {
       const fresh = createWorker(p.id, p.archetypeId, rng2);
       Object.assign(workers[i].logic, fresh);
       workers[i].enteredRiot = false;
+      workers[i].justRiotted = false;
       workers[i].justEscaped = false;
       workers[i].object3d.visible = true;
       workers[i].position.set(p.x, 0, p.z);
@@ -152,6 +154,19 @@ if (game) {
       }
     }
 
+
+    // riot incitement: a rioting worker inflames nearby workers' rage (spec §3②/§6.4)
+    for (const rw of workers) {
+      if (rw.logic.state !== 'riot' || rw.logic.escaped) continue;
+      for (const ow of workers) {
+        if (ow === rw || ow.logic.escaped) continue;
+        const dx = ow.position.x - rw.position.x, dz = ow.position.z - rw.position.z;
+        if (dx * dx + dz * dz <= CONFIG.riotInciteRadius ** 2) {
+          addRage(ow.logic, CONFIG.riotIncitePerSec * dt, ow.archetype.rageSensitivity);
+        }
+      }
+    }
+
     prompt.update(g.foreman, workers);
     // tactic was populated this frame by Foreman.update()'s input.sample() call
     const tacticKey = g.input.state.tactic;
@@ -180,6 +195,7 @@ if (game) {
 
     for (const w of workers) {
       if (w.justEscaped) { w.justEscaped = false; g.incidents += 1; g.combo = 0; if (g.audio) g.audio.alarm(); }
+      if (w.justRiotted) { w.justRiotted = false; g.incidents += 1; g.combo = 0; if (g.audio) g.audio.alarm(); }
     }
     if (active.some((w) => w.logic.state === 'sabotage' || w.logic.state === 'fleeing' || w.logic.state === 'riot')) {
       g.combo = 0;

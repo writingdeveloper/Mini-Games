@@ -16,5 +16,7 @@ export const CONFIG = {
   crewCollapseThreshold: 2,
   chatterSpreadRadius: 6,
   chatterSpreadFactor: 2.0,
+  riotInciteRadius: 7,
+  riotIncitePerSec: 10,
   scoring: { floorPoints: 1000, timeBonusPerSec: 10, comboStep: 0.1, noIncidentBonus: 2000 },
 };

@@ -32,6 +32,7 @@ export class Worker {
     this.position = this.object3d.position;
     this.justEscaped = false;
     this.enteredRiot = false;
+    this.justRiotted = false;
     this.mixer = null;
 
     this.bodyMat = new THREE.MeshLambertMaterial({ color: this.archetype.color, flatShading: true });
@@ -79,13 +80,14 @@ export class Worker {
 
     const p = this.position;
     if (w.state === 'fleeing') {
+      this.object3d.position.y = 0;
       const dx = this.exit.x - p.x, dz = this.exit.z - p.z;
       const d = Math.hypot(dx, dz);
       if (d < 0.8) { w.escaped = true; this.justEscaped = true; }
       else { p.x += (dx / d) * CONFIG.worker.fleeSpeed * dt; p.z += (dz / d) * CONFIG.worker.fleeSpeed * dt; }
       this.object3d.rotation.y = Math.atan2(dx, dz);
     } else if (w.state === 'riot') {
-      if (!this.enteredRiot) this.enteredRiot = true;
+      if (!this.enteredRiot) { this.enteredRiot = true; this.justRiotted = true; }
       this.object3d.position.y = Math.abs(Math.sin(performance.now() / 90)) * 0.3;
     } else {
       this.object3d.position.y = 0;
