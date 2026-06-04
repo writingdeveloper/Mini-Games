@@ -25,6 +25,11 @@ export class Input {
     return s;
   }
 
+  clearTactics() {
+    this._tacticQueue.length = 0;
+    this.state.tactic = 0;
+  }
+
   dispose() {
     window.removeEventListener('keydown', this._down);
     window.removeEventListener('keyup', this._up);

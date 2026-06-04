@@ -24,7 +24,12 @@ test.describe("Tantrum Tower construction game", () => {
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto("/construction-game/index.html");
     await page.locator("#start-btn").click();
-    await page.waitForTimeout(2500); // let the game loop run several hundred frames
+    // drive movement, every tactic, and a pause/resume cycle
+    for (const key of ["KeyW", "Digit1", "KeyD", "Digit2", "KeyA", "Digit3", "Escape", "Escape"]) {
+      await page.keyboard.press(key);
+      await page.waitForTimeout(300);
+    }
+    await page.waitForTimeout(1000);
     expect(errors, errors.join("\n")).toHaveLength(0);
   });
 });
