@@ -20,7 +20,10 @@ import { RetroPipeline } from './render/RetroPipeline.js';
 import { applyRetro, applyRetroToObject } from './render/retroMaterial.js';
 import { AudioManager } from './audio/AudioManager.js';
 import { applyDifficulty } from './logic/difficulty.js';
-import { createEconomy, earn, tickEconomy } from './logic/economy.js';
+import { createEconomy, earn, tickEconomy, spend } from './logic/economy.js';
+import { Manager } from './entities/Manager.js';
+import { HireMenu } from './ui/HireMenu.js';
+import { getManagerArchetype } from './logic/managers.js';
 
 const canvas = document.getElementById('game');
 const menuEl = document.getElementById('menu');
@@ -71,6 +74,16 @@ if (game) {
   const audio = new AudioManager();
   game.audio = audio;
   game.managers = [];
+
+  const hireMenu = new HireMenu(game, (id) => {
+    const a = getManagerArchetype(id);
+    if (game.managers.length >= CONFIG.economy.managerCap || !game.economy || !spend(game.economy, a.hireCost)) return;
+    const m = game.add(new Manager(id));
+    game.managers.push(m);
+    if (game.audio) game.audio.combo();
+    hireMenu.refresh();
+  });
+  game.hireMenu = hireMenu;
 
   // difficulty selection on the menu
   let selectedMode = 'normal';
@@ -135,6 +148,8 @@ if (game) {
     applyRetroToObject(game.scene, { snap: 160, affine: false });
     menuEl.classList.add('hidden');
     hudEl.classList.remove('hidden');
+    hireMenu.show();
+    hireMenu.refresh();
     game.start();
   }
 
@@ -207,13 +222,15 @@ if (game) {
       }
     }
 
+    if (g.hireMenu && g.hireMenu.open) g.hireMenu.refresh();
+
     // win / lose
     const verdict = evaluate({
       elapsed: g.elapsed, shiftSeconds: CONFIG.shiftSeconds,
       floorsBuilt: g.build.floorsBuilt, targetFloors: CONFIG.targetFloors,
       crewRemaining: g.crewRemaining, crewCollapseThreshold: CONFIG.crewCollapseThreshold,
     });
-    if (verdict !== 'playing') { g.status = verdict; menu.showResult(verdict); }
+    if (verdict !== 'playing') { g.status = verdict; if (g.hireMenu) g.hireMenu.hide(); menu.showResult(verdict); }
   };
 
   startBtn.addEventListener('click', () => {

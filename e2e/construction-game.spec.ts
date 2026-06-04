@@ -30,6 +30,10 @@ test.describe("Tantrum Tower construction game", () => {
       await page.keyboard.press(key);
       await page.waitForTimeout(300);
     }
+    await page.locator('#hire-toggle').click();
+    const firstHire = page.locator('#hire-list .hire-card button:not([disabled])').first();
+    if (await firstHire.count()) await firstHire.click();
+    await page.waitForTimeout(800);
     await page.waitForTimeout(1000);
     expect(errors, errors.join("\n")).toHaveLength(0);
   });
