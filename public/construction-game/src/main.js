@@ -110,9 +110,13 @@ if (game) {
     if (e.object3d) {
       game.scene.remove(e.object3d);
       e.object3d.traverse((o) => {
-        if (o.geometry) o.geometry.dispose();
+        if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
         const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
-        for (const m of mats) { if (m.map) m.map.dispose(); m.dispose(); }
+        for (const m of mats) {
+          if (m.userData.shared) continue;
+          if (m.map) m.map.dispose();
+          m.dispose();
+        }
       });
     }
     const i = game.systems.indexOf(e);

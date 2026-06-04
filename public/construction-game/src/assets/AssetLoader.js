@@ -16,8 +16,10 @@ export class AssetLoader {
       const gltf = await this.loader.loadAsync(url);
       gltf.scene.traverse((o) => {
         if (o.isMesh && o.material) {
+          if (o.geometry) o.geometry.userData.shared = true;
           const mats = Array.isArray(o.material) ? o.material : [o.material];
           for (const m of mats) {
+            m.userData.shared = true;
             if (m.map) { m.map.magFilter = THREE.NearestFilter; m.map.minFilter = THREE.NearestFilter; m.map.generateMipmaps = false; }
           }
         }

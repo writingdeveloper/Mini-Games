@@ -35,6 +35,10 @@ test.describe("Tantrum Tower construction game", () => {
     if (await firstHire.count()) await firstHire.click();
     await page.waitForTimeout(800);
     await page.waitForTimeout(1000);
+    // restart after models have loaded (exercises dispose-on-rebuild of shared glTF resources)
+    await page.keyboard.press("Escape"); // pause
+    await page.locator("#restart-btn").click(); // 처음으로 → startGame → buildWorld → removeEntity(model-bearing entities)
+    await page.waitForTimeout(1500);
     expect(errors, errors.join("\n")).toHaveLength(0);
   });
 });
