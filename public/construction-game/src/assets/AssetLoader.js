@@ -10,8 +10,14 @@ export class AssetLoader {
     this.onWarn = onWarn || (() => {});
   }
 
-  async load(url) {
+  load(url) {
     if (this.cache.has(url)) return this.cache.get(url);
+    const p = this._loadInner(url);
+    this.cache.set(url, p);
+    return p;
+  }
+
+  async _loadInner(url) {
     try {
       const gltf = await this.loader.loadAsync(url);
       gltf.scene.traverse((o) => {
@@ -26,9 +32,7 @@ export class AssetLoader {
       });
       // affine:false on purpose — see file header note.
       applyRetroToObject(gltf.scene, { snap: 160, affine: false });
-      const entry = { scene: gltf.scene, animations: gltf.animations || [] };
-      this.cache.set(url, entry);
-      return entry;
+      return { scene: gltf.scene, animations: gltf.animations || [] };
     } catch (err) {
       console.warn('[construction-game] asset load failed, using primitive', url, err);
       this.onWarn(`에셋 로드 실패: ${url.split('/').pop()} (기본 모델 사용)`);

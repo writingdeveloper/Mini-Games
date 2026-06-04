@@ -4,6 +4,7 @@ import { getManagerArchetype, pickManagerTarget } from '../logic/managers.js';
 import { applyTactic } from '../logic/tactics.js';
 import { getArchetype } from '../logic/archetypes.js';
 import { decayRage } from '../logic/rage.js';
+import { swapInModel } from '../assets/modelUtils.js';
 
 export class Manager {
   constructor(archetypeId) {
@@ -29,23 +30,14 @@ export class Manager {
     this.position = this.object3d.position;
     this.position.set(0, 0, -10 + Math.random() * 4);
     this.cooldownTimer = 0;
+    this.mixer = null;
     this._wander = Math.random() * 6.28;
   }
 
-  setModel(obj) {
-    // keep only the sprite child(ren), drop the placeholder primitives
-    this.object3d.children = this.object3d.children.filter((c) => c.isSprite);
-    const box = new THREE.Box3().setFromObject(obj);
-    const size = new THREE.Vector3(); box.getSize(size);
-    const target = 2.8; // ~worker height in world units
-    const s = size.y > 0 ? target / size.y : 1;
-    obj.scale.setScalar(s);
-    const box2 = new THREE.Box3().setFromObject(obj);
-    obj.position.y = -box2.min.y; // feet on the ground
-    this.object3d.add(obj);
-  }
+  setModel(obj) { swapInModel(this.object3d, obj); }
 
   update(dt, game) {
+    if (this.mixer) this.mixer.update(dt);
     const a = this.archetype;
     const p = this.position;
     // gentle patrol around the build zone

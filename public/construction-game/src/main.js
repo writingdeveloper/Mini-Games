@@ -88,7 +88,7 @@ if (game) {
     game.managers.push(m);
     if (game.workerModelEntry) {
       const inst = assets.instance(game.workerModelEntry);
-      if (inst) m.setModel(inst.obj);
+      if (inst) { m.setModel(inst.obj); m.mixer = inst.mixer; if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play(); }
     }
     if (game.audio) game.audio.combo();
     hireMenu.refresh();
@@ -158,17 +158,19 @@ if (game) {
     clearTimeout(toastTimer);
     toast.classList.add('hidden');
     buildWorld();
+    const mySession = (game._session = (game._session || 0) + 1);
     assets.load(WORKER_MODEL_URL).then((entry) => {
-      if (!entry) return;
+      if (!entry || game._session !== mySession) return;
       game.workerModelEntry = entry;
-      for (const w of game.workers) {
+      const applyTo = (e) => {
         const inst = assets.instance(entry);
-        if (inst) { w.setModel(inst.obj); w.mixer = inst.mixer; if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play(); }
-      }
-      for (const m of game.managers) {
-        const inst = assets.instance(entry);
-        if (inst) m.setModel(inst.obj);
-      }
+        if (!inst) return;
+        e.setModel(inst.obj);
+        e.mixer = inst.mixer;
+        if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play();
+      };
+      for (const w of game.workers) applyTo(w);
+      for (const m of game.managers) applyTo(m);
     });
     game.economy = createEconomy(CONFIG.economy.startFunds);
     applyRetroToObject(game.scene, { snap: 160, affine: false });
