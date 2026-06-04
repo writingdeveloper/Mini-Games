@@ -6,7 +6,7 @@ export const STATES = ['working', 'slacking', 'sabotage', 'fleeing', 'riot'];
 
 export function createWorker(id, archetypeId, rng) {
   const a = getArchetype(archetypeId);
-  const slackTimer = a.slackMeanSeconds + (rng() * 2 - 1) * a.slackVariance;
+  const slackTimer = (a.slackMeanSeconds + (rng() * 2 - 1) * a.slackVariance) * (CONFIG.slackMult ?? 1);
   return {
     id,
     archetypeId,
