@@ -17,4 +17,14 @@ test.describe("Tantrum Tower construction game", () => {
     await page.waitForTimeout(1500);
     expect(errors, errors.join("\n")).toHaveLength(0);
   });
+
+  test("gameplay runs without console errors after starting", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto("/construction-game/index.html");
+    await page.locator("#start-btn").click();
+    await page.waitForTimeout(2500); // let the game loop run several hundred frames
+    expect(errors, errors.join("\n")).toHaveLength(0);
+  });
 });
