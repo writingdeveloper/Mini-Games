@@ -82,15 +82,35 @@ if (game) {
   game.assets = assets;
   game.workerModelEntry = null; // cached glTF entry once loaded
 
+  // Apply the appropriate model to a manager: use archetype-specific model if defined,
+  // otherwise fall back to the worker model. Never throws — failed loads silently fall back.
+  function applyManagerModel(m) {
+    const modelUrl = m.archetype && m.archetype.model;
+    if (modelUrl) {
+      assets.load(modelUrl).then((entry) => {
+        if (!entry) {
+          // load failed — fall back to worker model if available
+          if (game.workerModelEntry) {
+            const inst = assets.instance(game.workerModelEntry);
+            if (inst) { m.setModel(inst.obj); m.mixer = inst.mixer; if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play(); }
+          }
+          return;
+        }
+        const inst = assets.instance(entry);
+        if (inst) { m.setModel(inst.obj); m.mixer = inst.mixer; if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play(); }
+      });
+    } else if (game.workerModelEntry) {
+      const inst = assets.instance(game.workerModelEntry);
+      if (inst) { m.setModel(inst.obj); m.mixer = inst.mixer; if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play(); }
+    }
+  }
+
   const hireMenu = new HireMenu(game, (id) => {
     const a = getManagerArchetype(id);
     if (game.managers.length >= CONFIG.economy.managerCap || !game.economy || !spend(game.economy, a.hireCost)) return;
     const m = game.add(new Manager(id));
     game.managers.push(m);
-    if (game.workerModelEntry) {
-      const inst = assets.instance(game.workerModelEntry);
-      if (inst) { m.setModel(inst.obj); m.mixer = inst.mixer; if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play(); }
-    }
+    applyManagerModel(m);
     if (game.audio) game.audio.combo();
     hireMenu.refresh();
   });
@@ -163,15 +183,15 @@ if (game) {
     assets.load(WORKER_MODEL_URL).then((entry) => {
       if (!entry || game._session !== mySession) return;
       game.workerModelEntry = entry;
-      const applyTo = (e) => {
+      const applyWorkerModel = (e) => {
         const inst = assets.instance(entry);
         if (!inst) return;
         e.setModel(inst.obj);
         e.mixer = inst.mixer;
         if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play();
       };
-      for (const w of game.workers) applyTo(w);
-      for (const m of game.managers) applyTo(m);
+      for (const w of game.workers) applyWorkerModel(w);
+      for (const m of game.managers) applyManagerModel(m);
     });
     game.economy = createEconomy(CONFIG.economy.startFunds);
     applyRetroToObject(game.scene, { snap: 160, affine: false });

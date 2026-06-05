@@ -1,8 +1,8 @@
 export const MANAGER_ARCHETYPES = {
-  veteran: { id: 'veteran', label: '김 베테랑', icon: '🧓', tactic: 'soothe', radius: 7,   cooldown: 2.5, hireCost: 1200, salary: 6,  successRate: 1.0, passive: false, color: 0x8a8f96, helmet: 0xb0b6bd },
-  drill:   { id: 'drill',   label: '박 군기',   icon: '🪖', tactic: 'bark',   radius: 4.5, cooldown: 2.0, hireCost: 2000, salary: 12, successRate: 1.0, passive: false, color: 0x9a4a3a, helmet: 0xc0392b },
-  vibe:    { id: 'vibe',    label: '이 인싸',   icon: '😎', tactic: null,     radius: 8,   cooldown: 1.0, hireCost: 1000, salary: 5,  successRate: 1.0, passive: true,  color: 0x3a8a6a, helmet: 0x2ecc71 },
-  intern:  { id: 'intern',  label: '최 인턴',   icon: '🧑‍🎓', tactic: 'soothe', radius: 4,   cooldown: 3.0, hireCost: 500,  salary: 3,  successRate: 0.7, passive: false, color: 0x9a8f5a, helmet: 0xd8c24a },
+  veteran: { id: 'veteran', label: '김 베테랑', icon: '🧓', tactic: 'soothe', radius: 7,   cooldown: 2.5, hireCost: 1200, salary: 6,  successRate: 1.0, passive: false, color: 0x8a8f96, helmet: 0xb0b6bd, model: './assets/managers/veteran.glb' },
+  drill:   { id: 'drill',   label: '박 군기',   icon: '🪖', tactic: 'bark',   radius: 4.5, cooldown: 2.0, hireCost: 2000, salary: 12, successRate: 1.0, passive: false, color: 0x9a4a3a, helmet: 0xc0392b, model: './assets/managers/drill.glb' },
+  vibe:    { id: 'vibe',    label: '이 인싸',   icon: '😎', tactic: null,     radius: 8,   cooldown: 1.0, hireCost: 1000, salary: 5,  successRate: 1.0, passive: true,  color: 0x3a8a6a, helmet: 0x2ecc71, model: './assets/managers/vibe.glb' },
+  intern:  { id: 'intern',  label: '최 인턴',   icon: '🧑‍🎓', tactic: 'soothe', radius: 4,   cooldown: 3.0, hireCost: 500,  salary: 3,  successRate: 0.7, passive: false, color: 0x9a8f5a, helmet: 0xd8c24a, model: './assets/managers/intern.glb' },
 };
 
 export const MANAGER_LIST = Object.values(MANAGER_ARCHETYPES);
