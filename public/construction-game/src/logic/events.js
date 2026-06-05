@@ -1,4 +1,6 @@
 // Random site events (S6). THREE-free pure logic — deterministic, unit-tested.
+import { addRage } from './rage.js';
+
 export const SITE_EVENTS = [
   { id: 'snack',      label: '새참 타임!',     icon: '🍱', weight: 3, kind: 'good' },
   { id: 'supply',     label: '자재 보급 도착',  icon: '📦', weight: 3, kind: 'good' },
@@ -27,10 +29,8 @@ export function initEventState() {
 }
 
 // Pure, THREE-free. Mutates `state` (workers' .logic, economy, the 4 mult/timer fields).
-// `rng` returns [0,1). `helpers.addRage` is injected (rage.js) to keep this module THREE-free & import-light.
-// Returns { id, kind } for the engine to drive toast/audio.
-export function applyEventEffects(state, ev, E, rng, helpers) {
-  const { addRage } = helpers;
+// `rng` returns [0,1). Returns { id, kind } for the engine to drive toast/audio.
+export function applyEventEffects(state, ev, E, rng) {
   switch (ev.id) {
     case 'snack':
       for (const w of state.workers) { if (w.logic.escaped) continue; addRage(w.logic, -E.snackRageDrop, w.archetype.rageSensitivity); }

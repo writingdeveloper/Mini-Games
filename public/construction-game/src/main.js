@@ -107,11 +107,11 @@ if (game) {
   }
 
   // Apply a random site event (S6): delegate state mutation to the pure fn, keep side effects (toast/audio) here.
+  // _eventState holds the 4 mult/timer fields; attach live workers/economy refs so the pure fn mutates in place.
   function applyEvent(ev, g) {
     const s = g._eventState;
-    const view = { workers: g.workers, economy: g.economy, prodMult: s.prodMult, prodTimer: s.prodTimer, boostMult: s.boostMult, boostTimer: s.boostTimer };
-    const res = applyEventEffects(view, ev, CONFIG.events, g._eventRng, { addRage });
-    s.prodMult = view.prodMult; s.prodTimer = view.prodTimer; s.boostMult = view.boostMult; s.boostTimer = view.boostTimer;
+    s.workers = g.workers; s.economy = g.economy;
+    const res = applyEventEffects(s, ev, CONFIG.events, g._eventRng);
     showToast(`${ev.icon} ${ev.label}`);
     if (g.audio) { if (res.kind === 'bad') g.audio.alarm(); else g.audio.combo(); }
   }

@@ -7,7 +7,6 @@ import {
   tickEventMultipliers,
 } from "../../../public/construction-game/src/logic/events.js";
 import { mulberry32 } from "../../../public/construction-game/src/logic/spawn.js";
-import { addRage } from "../../../public/construction-game/src/logic/rage.js";
 import { CONFIG } from "../../../public/construction-game/src/logic/config.js";
 
 const E = CONFIG.events;
@@ -100,7 +99,7 @@ describe("applyEventEffects", () => {
     const w2 = mkWorker(50);
     const escaped = mkWorker(40, 1, true);
     const state = mkState([w1, w2, escaped]);
-    const res = applyEventEffects(state, evById("snack"), E, () => 0.5, { addRage });
+    const res = applyEventEffects(state, evById("snack"), E, () => 0.5);
 
     expect(w1.logic.rage).toBe(0);
     expect(w2.logic.rage).toBe(50 - E.snackRageDrop);
@@ -112,21 +111,21 @@ describe("applyEventEffects", () => {
 
   it("supply: grants funds and sets boost; null economy does not throw", () => {
     const state = mkState([], { funds: 1000 });
-    applyEventEffects(state, evById("supply"), E, () => 0.5, { addRage });
+    applyEventEffects(state, evById("supply"), E, () => 0.5);
     expect(state.economy!.funds).toBe(1000 + E.supplyBonus);
     expect(state.boostMult).toBe(E.supplyBoost);
     expect(state.boostTimer).toBe(E.supplySec);
 
     const nullState = mkState([], null);
     expect(() =>
-      applyEventEffects(nullState, evById("supply"), E, () => 0.5, { addRage })
+      applyEventEffects(nullState, evById("supply"), E, () => 0.5)
     ).not.toThrow();
     expect(nullState.boostMult).toBe(E.supplyBoost);
   });
 
   it("inspection: grants funds and leaves multipliers at 1", () => {
     const state = mkState([], { funds: 1000 });
-    const res = applyEventEffects(state, evById("inspection"), E, () => 0.5, { addRage });
+    const res = applyEventEffects(state, evById("inspection"), E, () => 0.5);
     expect(state.economy!.funds).toBe(1000 + E.inspectionBonus);
     expect(state.prodMult).toBe(1);
     expect(state.boostMult).toBe(1);
@@ -135,7 +134,7 @@ describe("applyEventEffects", () => {
 
   it("breakdown: sets prod multiplier and timer", () => {
     const state = mkState([]);
-    const res = applyEventEffects(state, evById("breakdown"), E, () => 0.5, { addRage });
+    const res = applyEventEffects(state, evById("breakdown"), E, () => 0.5);
     expect(state.prodMult).toBe(E.breakdownProdMult);
     expect(state.prodTimer).toBe(E.breakdownSec);
     expect(res).toEqual({ id: "breakdown", kind: "bad" });
@@ -146,7 +145,7 @@ describe("applyEventEffects", () => {
     const w1 = mkWorker(50, 2); // middle, sensitivity 2 -> +70 -> 120 clamps to 100
     const w2 = mkWorker(0, 1);
     const state = mkState([w0, w1, w2]);
-    applyEventEffects(state, evById("accident"), E, () => 0.5, { addRage });
+    applyEventEffects(state, evById("accident"), E, () => 0.5);
 
     expect(w0.logic.rage).toBe(0);
     expect(w2.logic.rage).toBe(0);
@@ -157,7 +156,7 @@ describe("applyEventEffects", () => {
   it("accident: sensitivity multiplies the spike (no clamp case)", () => {
     const v = mkWorker(0, 2);
     const state = mkState([v]);
-    applyEventEffects(state, evById("accident"), E, () => 0, { addRage });
+    applyEventEffects(state, evById("accident"), E, () => 0);
     expect(v.logic.rage).toBe(E.accidentRageSpike * 2);
   });
 
@@ -171,7 +170,7 @@ describe("applyEventEffects", () => {
       return 0.5;
     };
     expect(() =>
-      applyEventEffects(state, evById("accident"), E, rng, { addRage })
+      applyEventEffects(state, evById("accident"), E, rng)
     ).not.toThrow();
     expect(e1.logic.rage).toBe(30);
     expect(e2.logic.rage).toBe(40);
