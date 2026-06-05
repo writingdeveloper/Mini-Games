@@ -26,7 +26,6 @@ import { createEconomy, earn, tickEconomy, spend } from './logic/economy.js';
 import { Manager } from './entities/Manager.js';
 import { HireMenu } from './ui/HireMenu.js';
 import { getManagerArchetype } from './logic/managers.js';
-import { AssetLoader } from './assets/AssetLoader.js';
 import { SITE_EVENTS, pickEventGuarded, applyEventEffects, tickEventMultipliers, initEventState } from './logic/events.js';
 
 const canvas = document.getElementById('game');
@@ -112,33 +111,9 @@ if (game) {
   game.audio = audio;
   game.managers = [];
 
-  const WORKER_MODEL_URL = './assets/worker.glb';
-  const assets = new AssetLoader(showToast);
-  game.assets = assets;
-  game.workerModelEntry = null; // cached glTF entry once loaded
-
-  // Apply the appropriate model to a manager: use archetype-specific model if defined,
-  // otherwise fall back to the worker model. Never throws — failed loads silently fall back.
-  function applyManagerModel(m) {
-    const modelUrl = m.archetype && m.archetype.model;
-    if (modelUrl) {
-      assets.load(modelUrl).then((entry) => {
-        if (!entry) {
-          // load failed — fall back to worker model if available
-          if (game.workerModelEntry) {
-            const inst = assets.instance(game.workerModelEntry);
-            if (inst) { m.setModel(inst.obj); m.mixer = inst.mixer; if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play(); }
-          }
-          return;
-        }
-        const inst = assets.instance(entry);
-        if (inst) { m.setModel(inst.obj); m.mixer = inst.mixer; if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play(); }
-      });
-    } else if (game.workerModelEntry) {
-      const inst = assets.instance(game.workerModelEntry);
-      if (inst) { m.setModel(inst.obj); m.mixer = inst.mixer; if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play(); }
-    }
-  }
+  // Characters (workers + managers) use bright flat-shaded primitives — the downloaded glTF character
+  // models rendered near-black (dark PBR + metalness, no env map) and were effectively invisible.
+  // (Props still use glTF via Site.js, which renders fine.)
 
   // Apply a random site event (S6): delegate state mutation to the pure fn, keep side effects (toast/audio) here.
   // _eventState holds the 4 mult/timer fields; attach live workers/economy refs so the pure fn mutates in place.
@@ -155,7 +130,6 @@ if (game) {
     if (game.managers.length >= CONFIG.economy.managerCap || !game.economy || !spend(game.economy, a.hireCost)) return;
     const m = game.add(new Manager(id));
     game.managers.push(m);
-    applyManagerModel(m);
     if (game.audio) game.audio.combo();
     hireMenu.refresh();
   });
@@ -240,20 +214,7 @@ if (game) {
     eventToastCh.reset();
     rewardToastCh.reset();
     buildWorld();
-    const mySession = (game._session = (game._session || 0) + 1);
-    assets.load(WORKER_MODEL_URL).then((entry) => {
-      if (!entry || game._session !== mySession) return;
-      game.workerModelEntry = entry;
-      const applyWorkerModel = (e) => {
-        const inst = assets.instance(entry);
-        if (!inst) return;
-        e.setModel(inst.obj);
-        e.mixer = inst.mixer;
-        if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play();
-      };
-      for (const w of game.workers) applyWorkerModel(w);
-      for (const m of game.managers) applyManagerModel(m);
-    });
+    game._session = (game._session || 0) + 1; // bumped each playthrough; seeds the per-session event RNG below
     game.economy = createEconomy(CONFIG.economy.startFunds);
     // Per-session reseed: each playthrough gets a distinct (but fully deterministic) event sequence.
     // 2654435761 = Knuth's multiplicative hash; spreads consecutive session numbers into very different seeds.

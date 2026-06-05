@@ -13,8 +13,8 @@ describe("difficulty", () => {
     expect(c.shiftSeconds).toBe(280);
     expect(c.targetBuildings).toBe(2);
     expect(c.targetFloors).toBe(6); // 2 * 3
-    expect(c.rage.decayPerSec).toBeCloseTo(5.2, 5);
-    expect(c.slackMult).toBeCloseTo(1.25, 5);
+    expect(c.rage.decayPerSec).toBeCloseTo(6.8, 5);
+    expect(c.slackMult).toBeCloseTo(1.5, 5);
     expect(c.economy.startFunds).toBe(6000);
     expect(c.economy.floorReward).toBe(1000);
     expect(c.events.badMult).toBeCloseTo(0.6, 5);
@@ -30,7 +30,7 @@ describe("difficulty", () => {
     expect(c.workerCount).toBe(10);
     expect(c.targetBuildings).toBe(4);
     expect(c.targetFloors).toBe(12);
-    expect(c.slackMult).toBeCloseTo(0.8, 5);
+    expect(c.slackMult).toBeCloseTo(1.05, 5);
     expect(c.events.badMult).toBeCloseTo(1.3, 5);
     expect(c.events.goodMult).toBeCloseTo(0.9, 5);
   });
