@@ -51,6 +51,7 @@
     <div id="hud-crew">👷 <span id="crew-val">8</span></div>
     <div id="hud-score">⭐ <span id="score-val">0</span></div>
     <div id="hud-funds">💰 <span id="funds-val">0</span> <small>(-<span id="payroll-val">0</span>/s)</small><span id="funds-warn" class="hidden"> ⚠ 적자</span></div>
+    <div id="manager-roster" class="hidden"></div>
     <div id="hud-combo" class="hidden">🔥 <span id="combo-val">0</span> COMBO</div>
     <div id="hud-hint">↑↓←→/WASD 이동 · 1 윽박 · 2 비꼬기 · 3 달래기 · Esc 정지</div>
   </div>
@@ -81,9 +82,11 @@
 
   <button id="hire-toggle" class="hidden">👔 관리자 고용 (H)</button>
   <div id="hire-panel" class="hidden">
-    <div class="hire-head">관리자 고용 — 자금 💰 <span id="hire-funds">0</span></div>
-    <div id="hire-list"></div>
-    <button id="hire-close">닫기</button>
+    <div class="hire-card-modal">
+      <div class="hire-head">관리자 고용 — 자금 💰 <span id="hire-funds">0</span></div>
+      <div id="hire-list"></div>
+      <button id="hire-close">닫기</button>
+    </div>
   </div>
 
   <div id="toast" class="toast hidden"></div>
