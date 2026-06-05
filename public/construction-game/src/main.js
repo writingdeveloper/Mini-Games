@@ -32,15 +32,33 @@ const canvas = document.getElementById('game');
 const menuEl = document.getElementById('menu');
 const hudEl = document.getElementById('hud');
 const startBtn = document.getElementById('start-btn');
-const toast = document.getElementById('toast');
 
-let toastTimer = 0;
-export function showToast(msg) {
-  toast.textContent = msg;
-  toast.classList.remove('hidden');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.add('hidden'), 2200);
+// Two independent toast channels (event vs reward/system), each with its own queue so a
+// burst within a channel shows sequentially instead of clobbering. Cross-channel messages
+// are positioned to coexist on screen (see .toast / .toast.reward in style.css).
+function makeToastChannel(el) {
+  const queue = [];
+  let timer = 0, showing = false;
+  function next() {
+    if (!queue.length) { showing = false; return; }
+    showing = true;
+    const { msg, hold } = queue.shift();
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    clearTimeout(timer);
+    timer = setTimeout(() => { el.classList.add('hidden'); setTimeout(next, 120); }, hold);
+  }
+  return {
+    show(msg, hold = 2200) { queue.push({ msg, hold }); if (!showing) next(); },
+    reset() { queue.length = 0; showing = false; clearTimeout(timer); el.classList.add('hidden'); },
+  };
 }
+const eventToastCh = makeToastChannel(document.getElementById('toast'));
+const rewardToastCh = makeToastChannel(document.getElementById('reward-toast'));
+// Default export stays the reward channel so AssetLoader load-warnings + any other importer keep working.
+export function showToast(msg) { rewardToastCh.show(msg); }
+export function showEventToast(msg) { eventToastCh.show(msg); }
+export function showRewardToast(msg) { rewardToastCh.show(msg); }
 
 let game = null;
 try {
@@ -112,7 +130,7 @@ if (game) {
     const s = g._eventState;
     s.workers = g.workers; s.economy = g.economy;
     const res = applyEventEffects(s, ev, CONFIG.events, g._eventRng, CONFIG.rage.flee);
-    showToast(`${ev.icon} ${ev.label}`);
+    showEventToast(`${ev.icon} ${ev.label}`);
     if (g.audio) { if (res.kind === 'bad') g.audio.alarm(); else g.audio.combo(); }
   }
 
@@ -187,8 +205,8 @@ if (game) {
     game.incidents = 0;
     game.crewRemaining = CONFIG.workerCount;
     if (game.diorama) { game.diorama.mode = 'overseer'; game.diorama.focus = null; }
-    clearTimeout(toastTimer);
-    toast.classList.add('hidden');
+    eventToastCh.reset();
+    rewardToastCh.reset();
     buildWorld();
     const mySession = (game._session = (game._session || 0) + 1);
     assets.load(WORKER_MODEL_URL).then((entry) => {
@@ -286,7 +304,7 @@ if (game) {
       const buildingsDone = Math.floor(res.floorsBuilt / F) - Math.floor(before / F);
       if (g.economy) earn(g.economy, res.floorsCompletedThisStep * CONFIG.economy.floorReward + buildingsDone * CONFIG.economy.buildingBonus);
       if (g.audio) { g.audio.floorUp(); if (buildingsDone > 0) g.audio.combo(); }
-      if (buildingsDone > 0) showToast(`🏢 건물 완공! +${buildingsDone * CONFIG.economy.buildingBonus}`);
+      if (buildingsDone > 0) showRewardToast(`🏢 건물 완공! +${buildingsDone * CONFIG.economy.buildingBonus}`);
     }
 
     // incidents + combo reset
@@ -301,7 +319,7 @@ if (game) {
       if (fireIdx >= 0 && g.managers[fireIdx]) {
         const fired = g.managers.splice(fireIdx, 1)[0];
         removeEntity(fired);
-        showToast(`💸 적자 — ${fired.label} 해고`);
+        showRewardToast(`💸 적자 — ${fired.label} 해고`);
       }
     }
 
