@@ -7,7 +7,8 @@ describe("managers", () => {
   it("has 4 archetypes with required fields", () => {
     expect(MANAGER_LIST).toHaveLength(4);
     expect(getManagerArchetype("drill").tactic).toBe("bark");
-    expect(getManagerArchetype("drill").salary).toBe(12);
+    expect(getManagerArchetype("drill").hireCost).toBe(1400);
+    expect(getManagerArchetype("drill").salary).toBe(8);
     expect(getManagerArchetype("vibe").passive).toBe(true);
     expect(() => getManagerArchetype("nope")).toThrow();
   });

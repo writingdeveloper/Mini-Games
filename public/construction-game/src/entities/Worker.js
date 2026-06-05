@@ -3,6 +3,7 @@ import { CONFIG } from '../logic/config.js';
 import { getArchetype } from '../logic/archetypes.js';
 import { stepWorker } from '../logic/workerState.js';
 import { swapInModel } from '../assets/modelUtils.js';
+import { SETTINGS } from '../logic/settings.js';
 
 const STATE_COLOR = {
   working: 0x6fae6f, slacking: 0xd8c24a, sabotage: 0xe08a2a, fleeing: 0xe05a3a, riot: 0xa44ad0,
@@ -59,9 +60,12 @@ export class Worker {
     const w = this.logic;
     const icon = STATE_ICON[w.state] || (w.state === 'working' ? '' : this.archetype.icon);
     const rage01 = w.rage / CONFIG.rage.max;
+    const danger = w.rage >= CONFIG.rage.flee; // riot-danger threshold
     const ctx = this._ctx;
     ctx.clearRect(0, 0, 128, 96);
     if (icon) { ctx.font = '52px serif'; ctx.textAlign = 'center'; ctx.fillText(icon, 64, 52); }
+    // Colorblind-safe danger cue: a 💢 glyph reads at high rage even without the bar's red color.
+    if (danger) { ctx.font = '34px serif'; ctx.textAlign = 'left'; ctx.fillText('💢', 2, 36); }
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(20, 70, 88, 12);
     ctx.fillStyle = rage01 > 0.8 ? '#ff5a3a' : rage01 > 0.6 ? '#ffcf3a' : '#7ec96f';
     ctx.fillRect(22, 72, 84 * rage01, 8);
@@ -86,7 +90,8 @@ export class Worker {
       this.object3d.rotation.y = Math.atan2(dx, dz);
     } else if (w.state === 'riot') {
       if (!this.enteredRiot) { this.enteredRiot = true; this.justRiotted = true; }
-      this.object3d.position.y = Math.abs(Math.sin(performance.now() / 90)) * 0.3;
+      // Reduced-motion: skip the vertical riot "bob" (vestibular trigger); hold at base y.
+      this.object3d.position.y = SETTINGS.reducedMotion ? 0 : Math.abs(Math.sin(performance.now() / 90)) * 0.3;
     } else {
       this.object3d.position.y = 0;
       this._wanderPhase += dt;
@@ -96,7 +101,9 @@ export class Worker {
       p.z += (tz - p.z) * Math.min(1, CONFIG.worker.moveSpeed * dt * 0.4);
     }
 
-    const key = `${w.state}:${Math.round(w.rage / 5)}`;
+    // Redraw gate: include the danger flag so crossing CONFIG.rage.flee toggles the 💢 glyph
+    // even if flee isn't aligned to the rage/5 bucketing. Still no per-frame redraw.
+    const key = `${w.state}:${Math.round(w.rage / 5)}:${w.rage >= CONFIG.rage.flee ? 1 : 0}`;
     if (key !== this._lastKey) { this._lastKey = key; this._redraw(); }
   }
 }

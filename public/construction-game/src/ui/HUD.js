@@ -17,8 +17,22 @@ export class HUD {
     this.funds = document.getElementById('funds-val');
     this.payroll = document.getElementById('payroll-val');
     this.fundsBox = document.getElementById('hud-funds');
+    this.fundsWarn = document.getElementById('funds-warn');
+    this.statusChips = document.getElementById('status-chips');
+    this.managerRoster = document.getElementById('manager-roster');
     this._acc = 0;
+    // cached display state so we only touch the DOM when the rendered value changes
+    this._chipText = null;
+    this._fillState = null;
+    this._rosterSig = null;
   }
+
+  // progress-fill gradients per event state (penalty takes visual priority over boost)
+  static FILL = {
+    penalty: 'linear-gradient(90deg,#ff6b5a,#ff3a2e)',
+    boost: 'linear-gradient(90deg,#7ec96f,#4caf50)',
+    normal: 'linear-gradient(90deg,#ffd24a,#ff9d2e)',
+  };
 
   update(dt) {
     this._acc += dt;
@@ -43,9 +57,48 @@ export class HUD {
     else this.comboBox.classList.add('hidden');
     if (g.economy) {
       const f = g.economy.funds;
-      this.fundsBox.classList.toggle('warn', f < 0);
+      const insolvent = f < 0;
+      this.fundsBox.classList.toggle('warn', insolvent); // red color (kept)
+      if (this.fundsWarn) this.fundsWarn.classList.toggle('hidden', !insolvent); // redundant text cue
       this.funds.textContent = Math.floor(f);
       this.payroll.textContent = Math.round((g.managers || []).reduce((s, m) => s + m.salary, 0));
     }
+    this._updateRoster(g.managers || []);
+    this._updateEventStatus(g._eventState);
+  }
+
+  // Hired-manager roster (read-only consumer of game.managers). One compact pill per manager
+  // showing archetype icon + label so they're identifiable at diorama distance. Rewrites the DOM
+  // only when the roster signature changes (avoids per-tick churn); hidden while empty.
+  _updateRoster(managers) {
+    const sig = managers.map((m) => m.archetypeId || m.archetype.id).join('|');
+    if (sig === this._rosterSig) return;
+    this._rosterSig = sig;
+    if (managers.length === 0) { this.managerRoster.classList.add('hidden'); this.managerRoster.innerHTML = ''; return; }
+    this.managerRoster.classList.remove('hidden');
+    this.managerRoster.innerHTML = managers
+      .map((m) => `<div class="roster-row">${m.archetype.icon} ${m.archetype.label}<small>💰${m.salary}/s</small></div>`)
+      .join('');
+  }
+
+  // Persistent indicator for active site-event effects (read-only consumer of _eventState).
+  // Renders draining-countdown chips and tints the progress bar; both write the DOM only
+  // when their displayed value changes (no per-tick churn). Pre-game (_eventState undefined):
+  // no chips, default fill.
+  _updateEventStatus(es) {
+    let chips = '';
+    let fill = 'normal';
+    if (es) {
+      if (es.prodMult < 1) {
+        chips += `<span class="status-chip penalty">🔧 ${Math.round((es.prodMult - 1) * 100)}% ${Math.ceil(es.prodTimer)}s</span>`;
+        fill = 'penalty';
+      }
+      if (es.boostMult > 1) {
+        chips += `<span class="status-chip boost">⚡ +${Math.round((es.boostMult - 1) * 100)}% ${Math.ceil(es.boostTimer)}s</span>`;
+        if (fill === 'normal') fill = 'boost'; // penalty keeps visual priority
+      }
+    }
+    if (chips !== this._chipText) { this.statusChips.innerHTML = chips; this._chipText = chips; }
+    if (fill !== this._fillState) { this.progressFill.style.background = HUD.FILL[fill]; this._fillState = fill; }
   }
 }
