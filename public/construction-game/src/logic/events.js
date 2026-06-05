@@ -7,7 +7,8 @@ export const SITE_EVENTS = [
   { id: 'accident',   label: '낙하 사고!',      icon: '⚠️', weight: 2, kind: 'bad' },
 ];
 
-// total weight = 12; good weight = 6 > bad weight = 4 (good-leaning, by design)
+// Catalog leans good (good weight > bad weight) so events stay fun, not punishing.
+// The invariant is asserted in events.test.ts so it can't silently regress.
 
 /** Pick one event using weighted random selection. `rng` is a function returning [0,1). Deterministic. */
 export function pickEvent(rng) {
