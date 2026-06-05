@@ -55,6 +55,9 @@ export class Worker {
     this.object3d.add(this.statusSprite);
     this._lastKey = '';
     this._wanderPhase = Math.random() * 6.28;
+    this._wanderSpeed = 0.5 + Math.random() * 0.7; // per-worker pace — crew moves organically, not in lockstep
+    this._wanderR = 0.6 + Math.random() * 0.8;     // per-worker wander radius scale
+    this._wobble = Math.random() * 6.28;
 
     this._redraw();
   }
@@ -107,11 +110,22 @@ export class Worker {
       this.object3d.position.y = SETTINGS.reducedMotion ? 0 : Math.abs(Math.sin(performance.now() / 90)) * 0.3;
     } else {
       this.object3d.position.y = 0;
-      this._wanderPhase += dt;
-      const tx = w.state === 'working' ? this.home.x : this.home.x + Math.cos(this._wanderPhase) * CONFIG.worker.wanderRadius;
-      const tz = w.state === 'working' ? this.home.y : this.home.y + Math.sin(this._wanderPhase) * CONFIG.worker.wanderRadius;
-      p.x += (tx - p.x) * Math.min(1, CONFIG.worker.moveSpeed * dt * 0.4);
-      p.z += (tz - p.z) * Math.min(1, CONFIG.worker.moveSpeed * dt * 0.4);
+      this._wanderPhase += dt * this._wanderSpeed;
+      let tx, tz;
+      if (w.state === 'working') {
+        // settle near home with a tiny organic sway so the crew doesn't look frozen
+        tx = this.home.x + Math.cos(this._wanderPhase * 0.7) * 0.35;
+        tz = this.home.y + Math.sin(this._wanderPhase) * 0.35;
+      } else {
+        // slacking: amble around home on a varied, non-uniform (figure-eight-ish) path
+        const r = CONFIG.worker.wanderRadius * this._wanderR;
+        tx = this.home.x + Math.cos(this._wanderPhase) * r + Math.cos(this._wanderPhase * 2.3 + this._wobble) * 0.6;
+        tz = this.home.y + Math.sin(this._wanderPhase * 1.3) * r;
+      }
+      const ndx = tx - p.x, ndz = tz - p.z;
+      p.x += ndx * Math.min(1, CONFIG.worker.moveSpeed * dt * 0.4);
+      p.z += ndz * Math.min(1, CONFIG.worker.moveSpeed * dt * 0.4);
+      if (Math.abs(ndx) + Math.abs(ndz) > 0.04) this.object3d.rotation.y = Math.atan2(ndx, ndz);
     }
 
     // Redraw gate: include the danger flag so crossing CONFIG.rage.flee toggles the 💢 glyph
