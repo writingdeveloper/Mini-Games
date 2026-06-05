@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { CONFIG } from '../logic/config.js';
 import { getArchetype } from '../logic/archetypes.js';
 import { stepWorker } from '../logic/workerState.js';
-import { swapInModel } from '../assets/modelUtils.js';
 import { SETTINGS } from '../logic/settings.js';
 
 const STATE_COLOR = {
@@ -37,10 +36,19 @@ export class Worker {
     this.justRiotted = false;
     this.mixer = null;
 
+    // Bright primitive worker (state-tinted capsule + yellow hard-hat). Reads clearly against the
+    // brown ground at diorama distance — the downloaded worker.glb rendered near-black (dark PBR
+    // materials + metalness, no env map) and was effectively invisible, so it's no longer applied.
     this.bodyMat = new THREE.MeshLambertMaterial({ color: this.archetype.color, flatShading: true });
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.5, 1.0, 3, 6), this.bodyMat);
     body.position.y = 1.0;
     this.object3d.add(body);
+    const helmet = new THREE.Mesh(
+      new THREE.SphereGeometry(0.42, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshLambertMaterial({ color: 0xffcf3a, flatShading: true })
+    );
+    helmet.position.y = 1.82;
+    this.object3d.add(helmet);
 
     const s = makeStatusSprite();
     this.statusSprite = s.sprite; this._canvas = s.canvas; this._tex = s.tex; this._ctx = s.ctx;
@@ -51,10 +59,9 @@ export class Worker {
     this._redraw();
   }
 
-  setModel(obj) {
-    swapInModel(this.object3d, obj);
-    this.bodyMat = null; // body replaced by the glTF model; state shown via the status sprite
-  }
+  // No-op: workers use the bright primitive above (the dark worker.glb is not applied). Kept so the
+  // engine's model-application path stays uniform across entities.
+  setModel() { /* intentionally empty */ }
 
   _redraw() {
     const w = this.logic;

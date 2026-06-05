@@ -4,7 +4,6 @@ import { getManagerArchetype, pickManagerTarget } from '../logic/managers.js';
 import { applyTactic } from '../logic/tactics.js';
 import { getArchetype } from '../logic/archetypes.js';
 import { decayRage } from '../logic/rage.js';
-import { swapInModel } from '../assets/modelUtils.js';
 
 export class Manager {
   constructor(archetypeId) {
@@ -34,7 +33,9 @@ export class Manager {
     this._wander = Math.random() * 6.28;
   }
 
-  setModel(obj) { swapInModel(this.object3d, obj); }
+  // No-op: managers use the bright primitive (color capsule + colored helmet + emoji tag), which is
+  // distinct per archetype and clearly visible — the realistic glTF rendered near-black like the worker.
+  setModel() { /* intentionally empty */ }
 
   update(dt, game) {
     if (this.mixer) this.mixer.update(dt);
