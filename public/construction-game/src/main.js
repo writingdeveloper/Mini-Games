@@ -26,7 +26,7 @@ import { Manager } from './entities/Manager.js';
 import { HireMenu } from './ui/HireMenu.js';
 import { getManagerArchetype } from './logic/managers.js';
 import { AssetLoader } from './assets/AssetLoader.js';
-import { pickEvent, applyEventEffects, tickEventMultipliers, initEventState } from './logic/events.js';
+import { pickEventGuarded, applyEventEffects, tickEventMultipliers, initEventState } from './logic/events.js';
 
 const canvas = document.getElementById('game');
 const menuEl = document.getElementById('menu');
@@ -205,8 +205,12 @@ if (game) {
       for (const m of game.managers) applyManagerModel(m);
     });
     game.economy = createEconomy(CONFIG.economy.startFunds);
-    game._eventRng = mulberry32(CONFIG.seed + 777);
+    // Per-session reseed: each playthrough gets a distinct (but fully deterministic) event sequence.
+    // 2654435761 = Knuth's multiplicative hash; spreads consecutive session numbers into very different seeds.
+    // >>> 0 keeps it a uint32 for mulberry32. No Math.random -> e2e stays deterministic.
+    game._eventRng = mulberry32((CONFIG.seed + 777 + (game._session || 0) * 2654435761) >>> 0);
     game._eventTimer = CONFIG.events.firstDelaySec;
+    game._eventCtx = { firstEvent: true, lastKind: null }; // first event of a session is never bad
     game._eventState = initEventState(); // prod/boost multipliers + their countdown timers
     applyRetroToObject(game.scene, { snap: 160, affine: false });
     menuEl.classList.add('hidden');
@@ -226,7 +230,9 @@ if (game) {
     tickEventMultipliers(g._eventState, dt);
     g._eventTimer -= dt;
     if (g._eventTimer <= 0) {
-      const ev = pickEvent(g._eventRng);
+      const ev = pickEventGuarded(g._eventRng, g._eventCtx);
+      g._eventCtx.firstEvent = false;
+      g._eventCtx.lastKind = ev.kind;
       applyEvent(ev, g);
       const E = CONFIG.events;
       g._eventTimer = E.intervalSec + (g._eventRng() * 2 - 1) * E.intervalVariance;

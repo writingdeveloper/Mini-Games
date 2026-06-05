@@ -23,6 +23,15 @@ export function pickEvent(rng) {
   return SITE_EVENTS[SITE_EVENTS.length - 1]; // float-safety fallback
 }
 
+/** Pick an event, avoiding 'bad' when ctx requires it (first event of a session, or right after a bad event).
+ *  Re-rolls consume the rng stream (deterministic). Cap prevents infinite loop; fallback returns whatever pickEvent gave. */
+export function pickEventGuarded(rng, ctx) {
+  const mustAvoidBad = ctx.firstEvent || ctx.lastKind === 'bad';
+  let ev = pickEvent(rng);
+  for (let i = 0; mustAvoidBad && ev.kind === 'bad' && i < 6; i++) ev = pickEvent(rng);
+  return ev;
+}
+
 /** Neutral starting state for the event multiplier/timer channels. */
 export function initEventState() {
   return { prodMult: 1, prodTimer: 0, boostMult: 1, boostTimer: 0 };

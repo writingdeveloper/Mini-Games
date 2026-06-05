@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   SITE_EVENTS,
   pickEvent,
+  pickEventGuarded,
   initEventState,
   applyEventEffects,
   tickEventMultipliers,
@@ -62,6 +63,42 @@ describe("events", () => {
     const seen = new Set<string>();
     for (let i = 0; i < 2000; i++) seen.add(pickEvent(rng).id);
     for (const e of SITE_EVENTS) expect(seen.has(e.id)).toBe(true);
+  });
+});
+
+describe("pickEventGuarded", () => {
+  it("first event is never bad (new-player grace)", () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const rng = mulberry32(seed);
+      const ev = pickEventGuarded(rng, { firstEvent: true, lastKind: null });
+      expect(ev.kind).not.toBe("bad");
+    }
+  });
+
+  it("no bad after bad (never two consecutive bad events)", () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const rng = mulberry32(seed);
+      const ev = pickEventGuarded(rng, { firstEvent: false, lastKind: "bad" });
+      expect(ev.kind).not.toBe("bad");
+    }
+  });
+
+  it("unconstrained behaves like a normal weighted pick (does NOT avoid bad)", () => {
+    const rng = mulberry32(999);
+    const seen = new Set<string>();
+    for (let i = 0; i < 2000; i++) {
+      seen.add(pickEventGuarded(rng, { firstEvent: false, lastKind: "good" }).id);
+    }
+    for (const e of SITE_EVENTS) expect(seen.has(e.id)).toBe(true);
+  });
+
+  it("deterministic: same seed + same ctx -> same returned id", () => {
+    const ctx = { firstEvent: true, lastKind: null };
+    const a = mulberry32(54321);
+    const b = mulberry32(54321);
+    const seqA = Array.from({ length: 50 }, () => pickEventGuarded(a, { ...ctx }).id);
+    const seqB = Array.from({ length: 50 }, () => pickEventGuarded(b, { ...ctx }).id);
+    expect(seqA).toEqual(seqB);
   });
 });
 
