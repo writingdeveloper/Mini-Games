@@ -38,22 +38,27 @@ export function initEventState() {
 }
 
 // Pure, THREE-free. Mutates `state` (workers' .logic, economy, the 4 mult/timer fields).
-// `rng` returns [0,1). Returns { id, kind } for the engine to drive toast/audio.
-export function applyEventEffects(state, ev, E, rng) {
+// `rng` returns [0,1). `fleeThreshold` excludes near-riot workers from accidents (4-arg callers omit it → no exclusion).
+// Good-event magnitudes scale by goodMult; breakdown duration + accident spike scale by badMult; boost durations stay fixed.
+// Returns { id, kind } for the engine to drive toast/audio.
+export function applyEventEffects(state, ev, E, rng, fleeThreshold) {
+  const badMult = E.badMult ?? 1;
+  const goodMult = E.goodMult ?? 1;
+  const flee = fleeThreshold ?? Infinity; // when not provided, all non-escaped are eligible (preserves old behavior)
   switch (ev.id) {
     case 'snack':
       for (const w of state.workers) { if (w.logic.escaped) continue; addRage(w.logic, -E.snackRageDrop, w.archetype.rageSensitivity); }
-      state.boostMult = E.snackBoost; state.boostTimer = E.snackSec; break;
+      state.boostMult = 1 + (E.snackBoost - 1) * goodMult; state.boostTimer = E.snackSec; break;
     case 'supply':
-      if (state.economy) state.economy.funds += E.supplyBonus;
-      state.boostMult = E.supplyBoost; state.boostTimer = E.supplySec; break;
+      if (state.economy) state.economy.funds += E.supplyBonus * goodMult;
+      state.boostMult = 1 + (E.supplyBoost - 1) * goodMult; state.boostTimer = E.supplySec; break;
     case 'inspection':
-      if (state.economy) state.economy.funds += E.inspectionBonus; break;
+      if (state.economy) state.economy.funds += E.inspectionBonus * goodMult; break;
     case 'breakdown':
-      state.prodMult = E.breakdownProdMult; state.prodTimer = E.breakdownSec; break;
+      state.prodMult = E.breakdownProdMult; state.prodTimer = E.breakdownSec * badMult; break;
     case 'accident': {
-      const victims = state.workers.filter((w) => !w.logic.escaped);
-      if (victims.length) { const v = victims[Math.floor(rng() * victims.length)]; addRage(v.logic, E.accidentRageSpike, v.archetype.rageSensitivity); }
+      const victims = state.workers.filter((w) => !w.logic.escaped && w.logic.rage < flee);
+      if (victims.length) { const v = victims[Math.floor(rng() * victims.length)]; addRage(v.logic, E.accidentRageSpike * badMult, v.archetype.rageSensitivity); }
       break;
     }
   }

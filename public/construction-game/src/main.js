@@ -111,7 +111,7 @@ if (game) {
   function applyEvent(ev, g) {
     const s = g._eventState;
     s.workers = g.workers; s.economy = g.economy;
-    const res = applyEventEffects(s, ev, CONFIG.events, g._eventRng);
+    const res = applyEventEffects(s, ev, CONFIG.events, g._eventRng, CONFIG.rage.flee);
     showToast(`${ev.icon} ${ev.label}`);
     if (g.audio) { if (res.kind === 'bad') g.audio.alarm(); else g.audio.combo(); }
   }

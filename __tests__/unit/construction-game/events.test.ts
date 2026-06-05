@@ -215,6 +215,127 @@ describe("applyEventEffects", () => {
   });
 });
 
+// Task-D: per-difficulty bad/good scaling + accident excludes near-riot workers.
+describe("applyEventEffects — difficulty scaling", () => {
+  const mkState = (workers: Worker[], economy: { funds: number } | null = { funds: 1000 }) => ({
+    workers,
+    economy,
+    prodMult: 1,
+    prodTimer: 0,
+    boostMult: 1,
+    boostTimer: 0,
+  });
+
+  // easy-flavored: bad events softened, good events amplified.
+  const E2 = { ...E, badMult: 0.6, goodMult: 1.2 };
+  // hard-flavored: bad events amplified, good events softened.
+  const E3 = { ...E, badMult: 1.3, goodMult: 0.9 };
+
+  it("breakdown duration scales by badMult (down for easy, up for hard)", () => {
+    const easy = mkState([]);
+    applyEventEffects(easy, evById("breakdown"), E2, () => 0.5);
+    expect(easy.prodMult).toBe(E.breakdownProdMult); // magnitude unchanged
+    expect(easy.prodTimer).toBeCloseTo(E2.breakdownSec * 0.6, 5);
+
+    const hard = mkState([]);
+    applyEventEffects(hard, evById("breakdown"), E3, () => 0.5);
+    expect(hard.prodTimer).toBeCloseTo(E3.breakdownSec * 1.3, 5);
+    expect(hard.prodTimer).toBeGreaterThan(E.breakdownSec); // amplified vs base
+  });
+
+  it("supply funds scale by goodMult; boost duration stays fixed", () => {
+    const state = mkState([], { funds: 1000 });
+    applyEventEffects(state, evById("supply"), E2, () => 0.5);
+    expect(state.economy!.funds).toBeCloseTo(1000 + E.supplyBonus * 1.2, 5);
+    expect(state.boostMult).toBeCloseTo(1 + (E.supplyBoost - 1) * 1.2, 5);
+    expect(state.boostTimer).toBe(E.supplySec); // duration unaffected by mults
+  });
+
+  it("inspection funds scale by goodMult", () => {
+    const state = mkState([], { funds: 1000 });
+    applyEventEffects(state, evById("inspection"), E2, () => 0.5);
+    expect(state.economy!.funds).toBeCloseTo(1000 + E.inspectionBonus * 1.2, 5);
+  });
+
+  it("snack boost magnitude scales by goodMult; rage drop + duration stay fixed", () => {
+    const w = mkWorker(50);
+    const state = mkState([w]);
+    applyEventEffects(state, evById("snack"), E2, () => 0.5);
+    expect(state.boostMult).toBeCloseTo(1 + (E.snackBoost - 1) * 1.2, 5);
+    expect(state.boostTimer).toBe(E.snackSec);
+    expect(w.logic.rage).toBe(50 - E.snackRageDrop); // rage drop not scaled
+  });
+
+  it("accident spike scales by badMult (hard amplifies the rage hit)", () => {
+    const v = mkWorker(0, 1);
+    const state = mkState([v]);
+    applyEventEffects(state, evById("accident"), E3, () => 0, CONFIG.rage.flee);
+    expect(v.logic.rage).toBeCloseTo(E.accidentRageSpike * 1.3, 5);
+  });
+});
+
+describe("applyEventEffects — accident excludes near-riot workers", () => {
+  const flee = CONFIG.rage.flee; // 80
+  const mkState = (workers: Worker[]) => ({
+    workers,
+    economy: { funds: 1000 },
+    prodMult: 1,
+    prodTimer: 0,
+    boostMult: 1,
+    boostTimer: 0,
+  });
+
+  it("never targets a worker at/over the flee threshold; victim is among the eligible (< flee)", () => {
+    // index 0 is near-riot (>= flee) and must be excluded; indices 1 & 2 are the only eligible victims.
+    const nearRiot = mkWorker(85, 1); // >= flee (80) -> excluded
+    const calm1 = mkWorker(10, 1);
+    const calm2 = mkWorker(20, 1);
+    const state = mkState([nearRiot, calm1, calm2]);
+
+    // rng=0 selects the first eligible (filtered index 0 = calm1); near-riot untouched.
+    applyEventEffects(state, evById("accident"), E, () => 0, flee);
+    expect(nearRiot.logic.rage).toBe(85);
+    expect(calm1.logic.rage).toBe(10 + E.accidentRageSpike);
+    expect(calm2.logic.rage).toBe(20);
+
+    // rng just under 1 selects the last eligible (filtered index 1 = calm2); near-riot still untouched.
+    const state2 = mkState([mkWorker(85, 1), mkWorker(10, 1), mkWorker(20, 1)]);
+    applyEventEffects(state2, evById("accident"), E, () => 0.999, flee);
+    expect(state2.workers[0].logic.rage).toBe(85); // near-riot excluded
+    expect(state2.workers[1].logic.rage).toBe(10); // first eligible spared
+    expect(state2.workers[2].logic.rage).toBe(20 + E.accidentRageSpike);
+  });
+
+  it("the near-riot worker is never the victim across many rng samples", () => {
+    const rng = mulberry32(2024);
+    for (let i = 0; i < 500; i++) {
+      const nearRiot = mkWorker(flee, 1); // exactly at threshold -> excluded (rage < flee is false)
+      const calm1 = mkWorker(0, 1);
+      const calm2 = mkWorker(0, 1);
+      const state = mkState([nearRiot, calm1, calm2]);
+      applyEventEffects(state, evById("accident"), E, rng, flee);
+      expect(nearRiot.logic.rage).toBe(flee); // exactly at flee, never spiked
+    }
+  });
+
+  it("all workers at/over flee -> no victim, no throw, rng not consumed", () => {
+    const a = mkWorker(90, 1);
+    const b = mkWorker(80, 1);
+    const state = mkState([a, b]);
+    let rngCalls = 0;
+    const rng = () => {
+      rngCalls += 1;
+      return 0.5;
+    };
+    expect(() =>
+      applyEventEffects(state, evById("accident"), E, rng, flee)
+    ).not.toThrow();
+    expect(a.logic.rage).toBe(90);
+    expect(b.logic.rage).toBe(80);
+    expect(rngCalls).toBe(0);
+  });
+});
+
 describe("tickEventMultipliers", () => {
   const mkState = (over: Partial<{ prodMult: number; prodTimer: number; boostMult: number; boostTimer: number }> = {}) => ({
     prodMult: 1,
