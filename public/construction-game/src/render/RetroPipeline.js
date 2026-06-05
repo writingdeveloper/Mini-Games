@@ -43,8 +43,14 @@ const FRAG = /* glsl */`
 `;
 
 export class RetroPipeline {
-  constructor(width = 320, height = 240, colorLevels = 16) {
-    this.rt = new THREE.WebGLRenderTarget(width, height, {
+  // Renders at a fixed VERTICAL resolution (targetHeight) with the canvas's aspect ratio, then
+  // nearest-upscales to fill the canvas. Higher targetHeight = crisper but still retro (dither/
+  // posterize preserved). Window-aspect RT = square pixels (no horizontal stretch).
+  constructor(targetHeight = 480, colorLevels = 16) {
+    this.targetHeight = targetHeight;
+    const w0 = typeof window !== 'undefined' ? window.innerWidth : 1280;
+    const h0 = typeof window !== 'undefined' ? window.innerHeight : 800;
+    this.rt = new THREE.WebGLRenderTarget(Math.max(2, Math.round(targetHeight * w0 / h0)), targetHeight, {
       minFilter: THREE.NearestFilter,
       magFilter: THREE.NearestFilter,
       depthBuffer: true,
@@ -62,7 +68,11 @@ export class RetroPipeline {
     this.quadScene.add(quad);
   }
 
-  setSize(_w, _h) { /* low-res RT stays fixed; the upscale quad fills the canvas */ }
+  setSize(w, h) {
+    // keep the fixed vertical resolution; track the canvas aspect so pixels stay square
+    if (!h) return;
+    this.rt.setSize(Math.max(2, Math.round(this.targetHeight * w / h)), this.targetHeight);
+  }
 
   render(renderer, scene, camera) {
     renderer.setRenderTarget(this.rt);

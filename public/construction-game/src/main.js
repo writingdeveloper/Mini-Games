@@ -92,7 +92,7 @@ if (game) {
   dir.position.set(20, 40, 10);
   game.scene.add(dir);
 
-  game.pipeline = new RetroPipeline(320, 240, 16);
+  game.pipeline = new RetroPipeline(480, 16); // render at 480p (window aspect), nearest-upscaled — crisper but still retro
 
   const input = new Input();
   game.input = input;

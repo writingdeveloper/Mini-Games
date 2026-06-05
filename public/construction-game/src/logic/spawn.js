@@ -15,15 +15,18 @@ const PROPS_SEED_OFFSET = 555; // keeps the prop RNG stream uncorrelated with wo
 
 const PROP_KINDS = ['barrel', 'crate', 'cone', 'pipe', 'scaffold'];
 
+// Workers cluster around the build zone (buildings sit at z≈-6, spanning x≈±12) so they're
+// on-camera, grouped, and reachable for confrontation — not scattered to the far corners of
+// the 44×44 lot (which made them tiny, off-focus, and impossible to soothe).
+const WORKER_SPAWN = { halfX: 11, centerZ: -6, halfZ: 7 };
+
 export function spawnWorkers(seed, count) {
   const rng = mulberry32(seed);
-  const halfW = CONFIG.site.width / 2 - 2;
-  const halfD = CONFIG.site.depth / 2 - 2;
   const out = [];
   for (let i = 0; i < count; i++) {
     const archetypeId = ARCHETYPE_LIST[Math.floor(rng() * ARCHETYPE_LIST.length)].id;
-    const x = +((rng() * 2 - 1) * halfW).toFixed(3);
-    const z = +((rng() * 2 - 1) * halfD).toFixed(3);
+    const x = +((rng() * 2 - 1) * WORKER_SPAWN.halfX).toFixed(3);
+    const z = +(WORKER_SPAWN.centerZ + (rng() * 2 - 1) * WORKER_SPAWN.halfZ).toFixed(3);
     out.push({ id: i, archetypeId, x, z });
   }
   return out;
