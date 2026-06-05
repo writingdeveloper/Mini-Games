@@ -46,7 +46,8 @@ function makeToastChannel(el) {
     el.textContent = msg;
     el.classList.remove('hidden');
     clearTimeout(timer);
-    timer = setTimeout(() => { el.classList.add('hidden'); setTimeout(next, 120); }, hold);
+    // track the inter-message gap timer too, so reset() can cancel it (full restart-safety)
+    timer = setTimeout(() => { el.classList.add('hidden'); timer = setTimeout(next, 120); }, hold);
   }
   return {
     show(msg, hold = 2200) { queue.push({ msg, hold }); if (!showing) next(); },
