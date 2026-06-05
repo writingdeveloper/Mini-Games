@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SETTINGS } from '../logic/settings.js';
 
 export class DioramaCamera {
   constructor(camera, foreman) {
@@ -13,6 +14,9 @@ export class DioramaCamera {
   }
 
   pushIn(targetObject3d, seconds = 1.4) {
+    // Reduced-motion: skip the confrontation camera lurch (push-in is a nausea trigger).
+    // Stay in the steady overseer framing instead of animating toward the target.
+    if (SETTINGS.reducedMotion) return;
     this.focus = targetObject3d;
     this.mode = 'pushin';
     this.holdTimer = seconds;

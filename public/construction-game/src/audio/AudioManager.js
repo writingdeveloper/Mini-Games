@@ -1,5 +1,7 @@
+import { SETTINGS } from '../logic/settings.js';
+
 export class AudioManager {
-  constructor() { this.ctx = null; this.master = null; this.enabled = false; }
+  constructor() { this.ctx = null; this.master = null; this.enabled = false; this.muted = false; this._vol = 0.5; }
 
   init() {
     if (this.ctx) return;
@@ -7,7 +9,9 @@ export class AudioManager {
     if (!AC) return;
     this.ctx = new AC();
     this.master = this.ctx.createGain();
-    this.master.gain.value = 0.5;
+    // Respect a persisted mute from a prior session; otherwise play at the default volume.
+    this.muted = !!SETTINGS.muted;
+    this.master.gain.value = this.muted ? 0 : this._vol;
     this.master.connect(this.ctx.destination);
 
     this.hum = this.ctx.createOscillator();
@@ -21,6 +25,16 @@ export class AudioManager {
   }
 
   resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }
+
+  setMuted(bool) {
+    this.muted = !!bool;
+    if (this.master) this.master.gain.value = this.muted ? 0 : this._vol;
+  }
+
+  setVolume(v) {
+    this._vol = v;
+    if (this.master && !this.muted) this.master.gain.value = v;
+  }
 
   blip(freq, dur = 0.12, type = 'square', gain = 0.25) {
     if (!this.enabled) return;

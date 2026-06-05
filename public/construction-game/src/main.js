@@ -18,8 +18,9 @@ import { applyTactic, tacticByKey } from './logic/tactics.js';
 import { addRage } from './logic/rage.js';
 import { evaluate } from './logic/scoring.js';
 import { RetroPipeline } from './render/RetroPipeline.js';
-import { applyRetro, applyRetroToObject } from './render/retroMaterial.js';
+import { applyRetro, applyRetroToObject, setReducedMotionForScene } from './render/retroMaterial.js';
 import { AudioManager } from './audio/AudioManager.js';
+import { SETTINGS, saveSettings } from './logic/settings.js';
 import { applyDifficulty } from './logic/difficulty.js';
 import { createEconomy, earn, tickEconomy, spend } from './logic/economy.js';
 import { Manager } from './entities/Manager.js';
@@ -271,6 +272,40 @@ if (game) {
 
   const menu = new Menu(game, () => startGame(game.difficulty || selectedMode));
 
+  // ---- accessibility toggles (mute / reduced-motion), persisted via SETTINGS ----
+  const muteToggle = document.getElementById('mute-toggle');
+  const motionToggle = document.getElementById('motion-toggle');
+  function refreshToggleUI() {
+    if (muteToggle) {
+      muteToggle.classList.toggle('active', SETTINGS.muted);
+      muteToggle.setAttribute('aria-pressed', String(SETTINGS.muted));
+      muteToggle.textContent = SETTINGS.muted ? '🔇 음소거: 켜짐' : '🔇 음소거: 꺼짐';
+    }
+    if (motionToggle) {
+      motionToggle.classList.toggle('active', SETTINGS.reducedMotion);
+      motionToggle.setAttribute('aria-pressed', String(SETTINGS.reducedMotion));
+      motionToggle.textContent = SETTINGS.reducedMotion ? '🐢 모션 줄이기: 켜짐' : '🐢 모션 줄이기: 꺼짐';
+    }
+  }
+  // Apply persisted settings at startup: body class for CSS, and mute is applied to audio after init().
+  document.body.classList.toggle('reduced-motion', SETTINGS.reducedMotion);
+  refreshToggleUI();
+  if (muteToggle) muteToggle.addEventListener('click', () => {
+    SETTINGS.muted = !SETTINGS.muted;
+    audio.setMuted(SETTINGS.muted);
+    saveSettings();
+    refreshToggleUI();
+  });
+  if (motionToggle) motionToggle.addEventListener('click', () => {
+    SETTINGS.reducedMotion = !SETTINGS.reducedMotion;
+    document.body.classList.toggle('reduced-motion', SETTINGS.reducedMotion);
+    // Best-effort live update of the vertex-jitter on already-built materials; otherwise it takes
+    // effect on next restart (buildWorld recreates materials). Riot-bob/push-in read the flag live.
+    if (game.scene) setReducedMotionForScene(game.scene, SETTINGS.reducedMotion);
+    saveSettings();
+    refreshToggleUI();
+  });
+
   game.step = (dt, g) => {
     if (g.status !== 'playing') return;
     g.elapsed += dt;
@@ -367,6 +402,7 @@ if (game) {
 
   startBtn.addEventListener('click', () => {
     audio.init();
+    audio.setMuted(SETTINGS.muted); // honor a persisted mute now that the master gain exists
     audio.resume();
     startGame(selectedMode);
   });

@@ -3,6 +3,7 @@ import { CONFIG } from '../logic/config.js';
 import { getArchetype } from '../logic/archetypes.js';
 import { stepWorker } from '../logic/workerState.js';
 import { swapInModel } from '../assets/modelUtils.js';
+import { SETTINGS } from '../logic/settings.js';
 
 const STATE_COLOR = {
   working: 0x6fae6f, slacking: 0xd8c24a, sabotage: 0xe08a2a, fleeing: 0xe05a3a, riot: 0xa44ad0,
@@ -89,7 +90,8 @@ export class Worker {
       this.object3d.rotation.y = Math.atan2(dx, dz);
     } else if (w.state === 'riot') {
       if (!this.enteredRiot) { this.enteredRiot = true; this.justRiotted = true; }
-      this.object3d.position.y = Math.abs(Math.sin(performance.now() / 90)) * 0.3;
+      // Reduced-motion: skip the vertical riot "bob" (vestibular trigger); hold at base y.
+      this.object3d.position.y = SETTINGS.reducedMotion ? 0 : Math.abs(Math.sin(performance.now() / 90)) * 0.3;
     } else {
       this.object3d.position.y = 0;
       this._wanderPhase += dt;

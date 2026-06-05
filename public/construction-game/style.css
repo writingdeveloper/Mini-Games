@@ -87,3 +87,18 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #14181d; f
 #hire-close { width: 100%; margin-top: 12px; padding: 9px 0; border: none; border-radius: 8px; background: #444; color: #fff; cursor: pointer; font-weight: 700; }
 #hud-funds.warn { background: rgba(200,40,20,.85); color: #fff; }
 #funds-warn { font-weight: 800; } /* redundant text cue alongside the red .warn color */
+
+/* Accessibility: pause-menu toggles (mute / reduced-motion). */
+.settings-toggles { display: flex; gap: 8px; margin-top: 16px; }
+.toggle-btn { flex: 1; padding: 9px 0; border-radius: 10px; border: 1px solid rgba(255,200,90,.35);
+  background: rgba(0,0,0,.3); color: #e8d3b8; font-weight: 700; font-size: 13px; cursor: pointer; transition: all .15s; }
+.toggle-btn.active { background: linear-gradient(135deg,#ffd24a,#ff9d2e); color: #2a1c08; border-color: transparent; }
+
+/* Reduced motion: kill CSS transitions/hover scale. The @media respects the OS setting; the
+   body.reduced-motion class lets the in-game toggle force it regardless of OS preference. */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+  .btn-primary:hover { transform: none; }
+}
+body.reduced-motion * { transition: none !important; }
+body.reduced-motion .btn-primary:hover { transform: none; }
