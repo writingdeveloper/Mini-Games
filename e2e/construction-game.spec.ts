@@ -41,4 +41,19 @@ test.describe("Tantrum Tower construction game", () => {
     await page.waitForTimeout(1500);
     expect(errors, errors.join("\n")).toHaveLength(0);
   });
+
+  test("a site event fires and shows a valence-marked toast without console errors", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+    page.on("pageerror", (e) => errors.push(e.message));
+    // ?eventDelay test hook fires the first event ~0.3s after start (prod default is 18s)
+    await page.goto("/construction-game/index.html?eventDelay=0.3");
+    await page.locator('#difficulty .diff-btn[data-mode="easy"]').click();
+    await page.locator("#start-btn").click();
+    const toast = page.locator("#toast");
+    await expect(toast).toBeVisible({ timeout: 4000 });
+    // first event of a session is never bad (grace) -> good (▲) or neutral (◆) marker
+    await expect(toast).toContainText(/[▲◆]/, { timeout: 4000 });
+    expect(errors, errors.join("\n")).toHaveLength(0);
+  });
 });

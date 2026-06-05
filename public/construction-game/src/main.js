@@ -260,6 +260,12 @@ if (game) {
     // >>> 0 keeps it a uint32 for mulberry32. No Math.random -> e2e stays deterministic.
     game._eventRng = mulberry32((CONFIG.seed + 777 + (game._session || 0) * 2654435761) >>> 0);
     game._eventTimer = CONFIG.events.firstDelaySec;
+    // Test hook: ?eventDelay=<sec> fires the first event quickly so e2e can smoke the runtime
+    // path (toast/audio/multipliers). Production default (firstDelaySec) is unchanged.
+    try {
+      const ed = parseFloat(new URLSearchParams(location.search).get('eventDelay'));
+      if (isFinite(ed) && ed >= 0) game._eventTimer = ed;
+    } catch (e) { /* no URL/search available — keep default */ }
     game._eventCtx = { firstEvent: true, lastKind: null }; // first event of a session is never bad
     game._eventState = initEventState(); // prod/boost multipliers + their countdown timers
     applyRetroToObject(game.scene, { snap: 160, affine: false });
