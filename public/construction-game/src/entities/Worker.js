@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../logic/config.js';
 import { getArchetype } from '../logic/archetypes.js';
 import { stepWorker } from '../logic/workerState.js';
+import { swapInModel } from '../assets/modelUtils.js';
 
 const STATE_COLOR = {
   working: 0x6fae6f, slacking: 0xd8c24a, sabotage: 0xe08a2a, fleeing: 0xe05a3a, riot: 0xa44ad0,
@@ -50,11 +51,8 @@ export class Worker {
   }
 
   setModel(obj) {
-    for (const c of this.object3d.children.filter((c) => c !== this.statusSprite)) {
-      this.object3d.remove(c);
-    }
-    obj.position.y = 0;
-    this.object3d.add(obj);
+    swapInModel(this.object3d, obj);
+    this.bodyMat = null; // body replaced by the glTF model; state shown via the status sprite
   }
 
   _redraw() {
@@ -76,7 +74,7 @@ export class Worker {
     if (this.mixer) this.mixer.update(dt);
 
     stepWorker(w, dt);
-    this.bodyMat.color.setHex(STATE_COLOR[w.state]);
+    if (this.bodyMat) this.bodyMat.color.setHex(STATE_COLOR[w.state]);
 
     const p = this.position;
     if (w.state === 'fleeing') {

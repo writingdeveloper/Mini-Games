@@ -37,3 +37,22 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #14181d; f
 .toast { position: fixed; top: 92px; left: 50%; transform: translateX(-50%); z-index: 8;
   background: rgba(0,0,0,.6); color: #ffe0a0; padding: 12px 22px; border-radius: 12px; font-weight: 700;
   transition: opacity .4s; pointer-events: none; }
+.difficulty { display: flex; gap: 8px; justify-content: center; margin: 4px 0 20px; }
+.diff-btn { flex: 1; padding: 10px 0; border-radius: 10px; border: 1px solid rgba(255,200,90,.35);
+  background: rgba(0,0,0,.3); color: #ffe0a0; font-weight: 700; cursor: pointer; transition: all .15s; }
+.diff-btn.selected { background: linear-gradient(135deg,#ffd24a,#ff9d2e); color: #2a1c08; border-color: transparent; }
+#hud-funds { position: absolute; top: 86px; left: 16px; background: rgba(0,0,0,.45); padding: 6px 14px; border-radius: 20px; color: #ffd24a; font-weight: 700; }
+#hud-funds small { color: #ff9d8a; font-weight: 600; }
+#hire-toggle { position: fixed; right: 16px; bottom: 16px; z-index: 6; padding: 10px 16px; border: none; border-radius: 12px;
+  background: linear-gradient(135deg,#ffd24a,#ff9d2e); color: #2a1c08; font-weight: 800; cursor: pointer; }
+#hire-panel { position: fixed; right: 16px; bottom: 64px; z-index: 7; width: 300px; max-height: 70vh; overflow:auto;
+  background: rgba(10,12,16,.95); border: 1px solid rgba(255,200,90,.35); border-radius: 14px; padding: 14px; color: #fff; }
+.hire-head { font-weight: 800; color: #ffd24a; margin-bottom: 10px; }
+.hire-card { border: 1px solid #2a2e35; border-radius: 10px; padding: 10px; margin-bottom: 8px; }
+.hire-card h4 { margin-bottom: 4px; }
+.hire-card p { font-size: 12px; opacity: .85; line-height: 1.5; }
+.hire-card button { margin-top: 6px; width: 100%; padding: 7px 0; border: none; border-radius: 8px; font-weight: 700; cursor: pointer;
+  background: linear-gradient(135deg,#ffd24a,#ff9d2e); color: #2a1c08; }
+.hire-card button:disabled { background: #555; color: #999; cursor: not-allowed; }
+#hire-close { width: 100%; margin-top: 4px; padding: 8px 0; border: none; border-radius: 8px; background: #444; color: #fff; cursor: pointer; }
+#hud-funds.warn { background: rgba(200,40,20,.85); color: #fff; }

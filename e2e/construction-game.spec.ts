@@ -23,13 +23,22 @@ test.describe("Tantrum Tower construction game", () => {
     page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto("/construction-game/index.html");
+    await page.locator('#difficulty .diff-btn[data-mode="easy"]').click();
     await page.locator("#start-btn").click();
     // drive movement, every tactic, and a pause/resume cycle
     for (const key of ["KeyW", "Digit1", "KeyD", "Digit2", "KeyA", "Digit3", "Escape", "Escape"]) {
       await page.keyboard.press(key);
       await page.waitForTimeout(300);
     }
+    await page.locator('#hire-toggle').click();
+    const firstHire = page.locator('#hire-list .hire-card button:not([disabled])').first();
+    if (await firstHire.count()) await firstHire.click();
+    await page.waitForTimeout(800);
     await page.waitForTimeout(1000);
+    // restart after models have loaded (exercises dispose-on-rebuild of shared glTF resources)
+    await page.keyboard.press("Escape"); // pause
+    await page.locator("#restart-btn").click(); // 처음으로 → startGame → buildWorld → removeEntity(model-bearing entities)
+    await page.waitForTimeout(1500);
     expect(errors, errors.join("\n")).toHaveLength(0);
   });
 });

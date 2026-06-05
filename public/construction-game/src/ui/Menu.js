@@ -34,6 +34,7 @@ export class Menu {
     if (on) {
       this.game.stop();
       if (this.game.input) this.game.input.clearTactics();
+      if (this.game.hireMenu) this.game.hireMenu.setOpen(false);
     } else {
       this.game.start();
     }

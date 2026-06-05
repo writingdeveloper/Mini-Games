@@ -4,6 +4,7 @@ import { Input } from './core/Input.js';
 import { CONFIG } from './logic/config.js';
 import { Site } from './world/Site.js';
 import { Building } from './world/Building.js';
+import { Buildings } from './world/Buildings.js';
 import { Foreman } from './entities/Foreman.js';
 import { DioramaCamera } from './camera/DioramaCamera.js';
 import { Worker } from './entities/Worker.js';
@@ -18,8 +19,13 @@ import { addRage } from './logic/rage.js';
 import { evaluate } from './logic/scoring.js';
 import { RetroPipeline } from './render/RetroPipeline.js';
 import { applyRetro, applyRetroToObject } from './render/retroMaterial.js';
-import { AssetLoader } from './assets/AssetLoader.js';
 import { AudioManager } from './audio/AudioManager.js';
+import { applyDifficulty } from './logic/difficulty.js';
+import { createEconomy, earn, tickEconomy, spend } from './logic/economy.js';
+import { Manager } from './entities/Manager.js';
+import { HireMenu } from './ui/HireMenu.js';
+import { getManagerArchetype } from './logic/managers.js';
+import { AssetLoader } from './assets/AssetLoader.js';
 
 const canvas = document.getElementById('game');
 const menuEl = document.getElementById('menu');
@@ -44,9 +50,10 @@ try {
 }
 
 if (game) {
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x556070, 1.0);
+  // ---- static setup (once) ----
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x6a7888, 1.5);
   game.scene.add(hemi);
-  const dir = new THREE.DirectionalLight(0xfff0d0, 0.7);
+  const dir = new THREE.DirectionalLight(0xfff0d0, 1.15);
   dir.position.set(20, 40, 10);
   game.scene.add(dir);
 
@@ -57,118 +64,172 @@ if (game) {
 
   game.add(new Site());
 
-  const building = game.add(new Building());
-  game.building = building;
-
   const foreman = game.add(new Foreman(input));
   game.foreman = foreman;
   const diorama = new DioramaCamera(game.camera, foreman);
   game.systems.push(diorama);
   game.diorama = diorama;
 
-  const placed = spawnWorkers(CONFIG.seed, CONFIG.workerCount);
-  const rng = mulberry32(CONFIG.seed + 99);
-  const workers = placed.map((p) =>
-    game.add(new Worker(createWorker(p.id, p.archetypeId, rng), p.x, p.z, CONFIG.exit))
-  );
-  game.workers = workers;
-
-  // Optional glTF enhancement. Entries stay null until CC0 .glb files are added to
-  // public/construction-game/assets/ — with them null, nothing is fetched (no 404) and
-  // the game renders with primitives. AssetLoader.load() also falls back gracefully if a
-  // listed file fails to load.
-  const assets = new AssetLoader(showToast);
-  const ASSET_URLS = { worker: null, foreman: null }; // e.g. './assets/worker.glb', './assets/foreman.glb'
-  (async () => {
-    if (ASSET_URLS.worker) {
-      const entry = await assets.load(ASSET_URLS.worker);
-      if (entry) {
-        for (const w of workers) {
-          const inst = assets.instance(entry);
-          if (!inst) continue;
-          w.setModel(inst.obj);
-          w.mixer = inst.mixer;
-          if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play();
-        }
-      }
-    }
-    if (ASSET_URLS.foreman) {
-      const entry = await assets.load(ASSET_URLS.foreman);
-      const inst = entry && assets.instance(entry);
-      if (inst) foreman.setModel(inst.obj);
-    }
-  })();
+  game.systems.push(new HUD(game));
+  const prompt = new ConfrontationPrompt();
 
   const audio = new AudioManager();
   game.audio = audio;
+  game.managers = [];
 
-  const prompt = new ConfrontationPrompt();
+  const WORKER_MODEL_URL = './assets/worker.glb';
+  const assets = new AssetLoader(showToast);
+  game.assets = assets;
+  game.workerModelEntry = null; // cached glTF entry once loaded
 
-  function resetState() {
+  // Apply the appropriate model to a manager: use archetype-specific model if defined,
+  // otherwise fall back to the worker model. Never throws — failed loads silently fall back.
+  function applyManagerModel(m) {
+    const modelUrl = m.archetype && m.archetype.model;
+    if (modelUrl) {
+      assets.load(modelUrl).then((entry) => {
+        if (!entry) {
+          // load failed — fall back to worker model if available
+          if (game.workerModelEntry) {
+            const inst = assets.instance(game.workerModelEntry);
+            if (inst) { m.setModel(inst.obj); m.mixer = inst.mixer; if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play(); }
+          }
+          return;
+        }
+        const inst = assets.instance(entry);
+        if (inst) { m.setModel(inst.obj); m.mixer = inst.mixer; if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play(); }
+      });
+    } else if (game.workerModelEntry) {
+      const inst = assets.instance(game.workerModelEntry);
+      if (inst) { m.setModel(inst.obj); m.mixer = inst.mixer; if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play(); }
+    }
+  }
+
+  const hireMenu = new HireMenu(game, (id) => {
+    const a = getManagerArchetype(id);
+    if (game.managers.length >= CONFIG.economy.managerCap || !game.economy || !spend(game.economy, a.hireCost)) return;
+    const m = game.add(new Manager(id));
+    game.managers.push(m);
+    applyManagerModel(m);
+    if (game.audio) game.audio.combo();
+    hireMenu.refresh();
+  });
+  game.hireMenu = hireMenu;
+
+  // difficulty selection on the menu
+  let selectedMode = 'normal';
+  document.querySelectorAll('#difficulty .diff-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#difficulty .diff-btn').forEach((b) => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedMode = btn.getAttribute('data-mode');
+    });
+  });
+
+  // remove an entity from the scene + systems list, disposing its GPU resources
+  function removeEntity(e) {
+    if (e.object3d) {
+      game.scene.remove(e.object3d);
+      e.object3d.traverse((o) => {
+        if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
+        const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+        for (const m of mats) {
+          if (m.userData.shared) continue;
+          if (m.map) m.map.dispose();
+          m.dispose();
+        }
+      });
+    }
+    const i = game.systems.indexOf(e);
+    if (i >= 0) game.systems.splice(i, 1);
+  }
+
+  // difficulty-dependent world, (re)built on start/restart
+  let building = null, workers = [], placed = [];
+
+  function buildWorld() {
+    if (building) removeEntity(building);
+    building = game.add(new Buildings(CONFIG.targetBuildings, CONFIG.production.floorsPerBuilding));
+    game.building = building;
+    for (const fm of building.floorMats) applyRetro(fm, { snap: 160, affine: false });
+
+    for (const w of workers) removeEntity(w);
+    for (const m of (game.managers || [])) removeEntity(m);
+    game.managers = [];
+    workers = [];
+    placed = spawnWorkers(CONFIG.seed, CONFIG.workerCount);
+    const rng = mulberry32(CONFIG.seed + 99);
+    for (const p of placed) {
+      const wk = game.add(new Worker(createWorker(p.id, p.archetypeId, rng), p.x, p.z, CONFIG.exit));
+      workers.push(wk);
+    }
+    game.workers = workers;
+  }
+
+  function startGame(mode) {
+    applyDifficulty(CONFIG, mode);
+    game.difficulty = mode;
     game.status = 'playing';
     game.elapsed = 0;
     game.build = { progress: 0, floorsBuilt: 0 };
     game.combo = 0;
     game.incidents = 0;
     game.crewRemaining = CONFIG.workerCount;
-    const rng2 = mulberry32(CONFIG.seed + 99);
-    placed.forEach((p, i) => {
-      const fresh = createWorker(p.id, p.archetypeId, rng2);
-      Object.assign(workers[i].logic, fresh);
-      workers[i].enteredRiot = false;
-      workers[i].justRiotted = false;
-      workers[i].justEscaped = false;
-      workers[i].object3d.visible = true;
-      workers[i].position.set(p.x, 0, p.z);
-      workers[i]._lastKey = '';
-      if (workers[i].mixer) workers[i].mixer.setTime(0);
-    });
-    for (const f of game.building.floors) {
-      game.building.object3d.remove(f);
-      f.geometry.dispose();
-    }
-    game.building.floors = [];
-    game.building.sync(0, 0);
     if (game.diorama) { game.diorama.mode = 'overseer'; game.diorama.focus = null; }
-    toast.classList.add('hidden');
     clearTimeout(toastTimer);
+    toast.classList.add('hidden');
+    buildWorld();
+    const mySession = (game._session = (game._session || 0) + 1);
+    assets.load(WORKER_MODEL_URL).then((entry) => {
+      if (!entry || game._session !== mySession) return;
+      game.workerModelEntry = entry;
+      const applyWorkerModel = (e) => {
+        const inst = assets.instance(entry);
+        if (!inst) return;
+        e.setModel(inst.obj);
+        e.mixer = inst.mixer;
+        if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play();
+      };
+      for (const w of game.workers) applyWorkerModel(w);
+      for (const m of game.managers) applyManagerModel(m);
+    });
+    game.economy = createEconomy(CONFIG.economy.startFunds);
+    applyRetroToObject(game.scene, { snap: 160, affine: false });
+    menuEl.classList.add('hidden');
     hudEl.classList.remove('hidden');
+    hireMenu.show();
+    hireMenu.refresh();
+    game.start();
   }
 
-  const menu = new Menu(game, () => { resetState(); game.start(); });
-
-  game.systems.push(new HUD(game));
+  const menu = new Menu(game, () => startGame(game.difficulty || selectedMode));
 
   game.step = (dt, g) => {
     if (g.status !== 'playing') return;
     g.elapsed += dt;
 
+    // chatter spread
     for (const cw of workers) {
       if (!cw.archetype.spreads || cw.logic.state !== 'slacking' || cw.logic.escaped) continue;
       for (const ow of workers) {
         if (ow === cw || ow.logic.escaped) continue;
         const dx = ow.position.x - cw.position.x, dz = ow.position.z - cw.position.z;
-        if (dx * dx + dz * dz <= CONFIG.chatterSpreadRadius ** 2) {
-          applySlackPressure(ow.logic, dt, CONFIG.chatterSpreadFactor);
-        }
+        if (dx * dx + dz * dz <= CONFIG.chatterSpreadRadius ** 2) applySlackPressure(ow.logic, dt, CONFIG.chatterSpreadFactor);
       }
     }
 
-
-    // riot incitement: a rioting worker inflames nearby workers' rage (spec §3②/§6.4)
+    // riot incitement
     for (const rw of workers) {
       if (rw.logic.state !== 'riot' || rw.logic.escaped) continue;
       for (const ow of workers) {
         if (ow === rw || ow.logic.escaped) continue;
         const dx = ow.position.x - rw.position.x, dz = ow.position.z - rw.position.z;
-        if (dx * dx + dz * dz <= CONFIG.riotInciteRadius ** 2) {
-          addRage(ow.logic, CONFIG.riotIncitePerSec * dt, ow.archetype.rageSensitivity);
-        }
+        if (dx * dx + dz * dz <= CONFIG.riotInciteRadius ** 2) addRage(ow.logic, CONFIG.riotIncitePerSec * dt, ow.archetype.rageSensitivity);
       }
     }
 
+    // confrontation
     prompt.update(g.foreman, workers);
-    // tactic was populated this frame by Foreman.update()'s input.sample() call
     const tacticKey = g.input.state.tactic;
     if (tacticKey) {
       const target = prompt.current;
@@ -179,49 +240,56 @@ if (game) {
         target._lastKey = '';
         if (wasSlacking) g.combo += 1;
         if (g.diorama) g.diorama.pushIn(target.object3d, 1.2);
-        if (g.audio) {
-          g.audio.shout(tacticId);
-          if (wasSlacking && g.combo >= 2) g.audio.combo();
-        }
+        if (g.audio) { g.audio.shout(tacticId); if (wasSlacking && g.combo >= 2) g.audio.combo(); }
       }
     }
 
+    // production
     const active = workers.filter((w) => !w.logic.escaped);
     const output = crewOutputPerSecond(active.map((w) => w.logic));
     const res = advanceProgress(g.build, output, dt);
     g.build = { progress: res.progress, floorsBuilt: res.floorsBuilt };
     g.building.sync(res.floorsBuilt, res.progress / CONFIG.production.floorProgress);
-    if (res.floorsCompletedThisStep > 0 && g.audio) g.audio.floorUp();
+    if (res.floorsCompletedThisStep > 0) {
+      const F = CONFIG.production.floorsPerBuilding;
+      const before = res.floorsBuilt - res.floorsCompletedThisStep;
+      const buildingsDone = Math.floor(res.floorsBuilt / F) - Math.floor(before / F);
+      if (g.economy) earn(g.economy, res.floorsCompletedThisStep * CONFIG.economy.floorReward + buildingsDone * CONFIG.economy.buildingBonus);
+      if (g.audio) { g.audio.floorUp(); if (buildingsDone > 0) g.audio.combo(); }
+      if (buildingsDone > 0) showToast(`🏢 건물 완공! +${buildingsDone * CONFIG.economy.buildingBonus}`);
+    }
 
+    // incidents + combo reset
     for (const w of workers) {
       if (w.justEscaped) { w.justEscaped = false; g.incidents += 1; g.combo = 0; if (g.audio) g.audio.alarm(); }
       if (w.justRiotted) { w.justRiotted = false; g.incidents += 1; g.combo = 0; if (g.audio) g.audio.alarm(); }
     }
-    if (active.some((w) => w.logic.state === 'sabotage' || w.logic.state === 'fleeing' || w.logic.state === 'riot')) {
-      g.combo = 0;
-    }
+    if (active.some((w) => w.logic.state === 'sabotage' || w.logic.state === 'fleeing' || w.logic.state === 'riot')) g.combo = 0;
     g.crewRemaining = active.length;
+    if (g.economy) {
+      const fireIdx = tickEconomy(g.economy, g.managers, dt);
+      if (fireIdx >= 0 && g.managers[fireIdx]) {
+        const fired = g.managers.splice(fireIdx, 1)[0];
+        removeEntity(fired);
+        showToast(`💸 적자 — ${fired.label} 해고`);
+      }
+    }
 
+    if (g.hireMenu && g.hireMenu.open) g.hireMenu.refresh();
+
+    // win / lose
     const verdict = evaluate({
       elapsed: g.elapsed, shiftSeconds: CONFIG.shiftSeconds,
       floorsBuilt: g.build.floorsBuilt, targetFloors: CONFIG.targetFloors,
       crewRemaining: g.crewRemaining, crewCollapseThreshold: CONFIG.crewCollapseThreshold,
     });
-    if (verdict !== 'playing') {
-      g.status = verdict;
-      menu.showResult(verdict);
-    }
+    if (verdict !== 'playing') { g.status = verdict; if (g.hireMenu) g.hireMenu.hide(); menu.showResult(verdict); }
   };
 
   startBtn.addEventListener('click', () => {
-    menuEl.classList.add('hidden');
-    hudEl.classList.remove('hidden');
-    game.status = 'playing';
-    applyRetroToObject(game.scene, { snap: 160, affine: false });
-    applyRetro(game.building.floorMat, { snap: 160, affine: false });
     audio.init();
     audio.resume();
-    game.start();
+    startGame(selectedMode);
   });
 
   console.log('[construction-game] ready');

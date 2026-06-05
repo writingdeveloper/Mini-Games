@@ -25,6 +25,11 @@
     <div class="panel">
       <h1 class="title">TANTRUM TOWER</h1>
       <p class="subtitle">폐급들을 다그쳐 마감 전에 탑을 올려라</p>
+      <div class="difficulty" id="difficulty">
+        <button class="diff-btn" data-mode="easy">쉬움</button>
+        <button class="diff-btn selected" data-mode="normal">보통</button>
+        <button class="diff-btn" data-mode="hard">어려움</button>
+      </div>
       <button id="start-btn" class="btn-primary">현장 투입</button>
       <div class="controls">
         <span>↑↓←→ / WASD</span><span>반장 이동</span>
@@ -38,10 +43,11 @@
 
   <div id="hud" class="hidden">
     <div id="hud-time">⏱ <span id="time-val">180</span>s</div>
-    <div id="hud-floors">🏢 <span id="floor-val">0</span> / <span id="floor-total">5</span>층</div>
+    <div id="hud-floors">🏢 <span id="bld-val">0</span>/<span id="bld-total">0</span>동 <small><span id="floor-val">0</span>/<span id="floor-pb">3</span>층</small></div>
     <div id="hud-progress"><div id="progress-fill"></div></div>
     <div id="hud-crew">👷 <span id="crew-val">8</span></div>
     <div id="hud-score">⭐ <span id="score-val">0</span></div>
+    <div id="hud-funds">💰 <span id="funds-val">0</span> <small>(-<span id="payroll-val">0</span>/s)</small></div>
     <div id="hud-combo" class="hidden">🔥 <span id="combo-val">0</span> COMBO</div>
     <div id="hud-hint">↑↓←→/WASD 이동 · 1 윽박 · 2 비꼬기 · 3 달래기 · Esc 정지</div>
   </div>
@@ -68,6 +74,13 @@
       <p id="result-detail" class="subtitle">점수 0</p>
       <button id="result-restart" class="btn-primary">다시 도전 (R)</button>
     </div>
+  </div>
+
+  <button id="hire-toggle" class="hidden">👔 관리자 고용 (H)</button>
+  <div id="hire-panel" class="hidden">
+    <div class="hire-head">관리자 고용 — 자금 💰 <span id="hire-funds">0</span></div>
+    <div id="hire-list"></div>
+    <button id="hire-close">닫기</button>
   </div>
 
   <div id="toast" class="toast hidden"></div>

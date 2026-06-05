@@ -1,0 +1,31 @@
+import { describe, it, expect } from "vitest";
+import { DIFFICULTY_MODES, applyDifficulty } from "../../../public/construction-game/src/logic/difficulty.js";
+
+const baseConfig = () => ({ workerCount: 0, shiftSeconds: 0, targetFloors: 0, targetBuildings: 0, slackMult: 1, rage: { decayPerSec: 0 }, production: { floorsPerBuilding: 3 }, economy: { startFunds: 0, floorReward: 0 } });
+
+describe("difficulty", () => {
+  it("exposes easy/normal/hard modes", () => {
+    expect(Object.keys(DIFFICULTY_MODES).sort()).toEqual(["easy", "hard", "normal"]);
+  });
+  it("applyDifficulty('easy') sets values + derives targetFloors", () => {
+    const c = applyDifficulty(baseConfig(), "easy");
+    expect(c.workerCount).toBe(6);
+    expect(c.shiftSeconds).toBe(280);
+    expect(c.targetBuildings).toBe(2);
+    expect(c.targetFloors).toBe(6); // 2 * 3
+    expect(c.rage.decayPerSec).toBeCloseTo(5.2, 5);
+    expect(c.slackMult).toBeCloseTo(1.25, 5);
+    expect(c.economy.startFunds).toBe(6000);
+    expect(c.economy.floorReward).toBe(1000);
+  });
+  it("applyDifficulty('hard') derives targetFloors = 4*3 = 12", () => {
+    const c = applyDifficulty(baseConfig(), "hard");
+    expect(c.workerCount).toBe(10);
+    expect(c.targetBuildings).toBe(4);
+    expect(c.targetFloors).toBe(12);
+    expect(c.slackMult).toBeCloseTo(0.8, 5);
+  });
+  it("throws on unknown mode", () => {
+    expect(() => applyDifficulty(baseConfig(), "nope")).toThrow();
+  });
+});

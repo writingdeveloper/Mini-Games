@@ -11,7 +11,7 @@ export const CONFIG = {
     taunt:  { id: 'taunt',  key: 2, label: '비꼬기', icon: '😏', rageDelta: 15, boost: 1.6, boostSeconds: 5 },
     soothe: { id: 'soothe', key: 3, label: '달래기', icon: '🤝', rageDelta: -25, boost: 1.3, boostSeconds: 5 },
   },
-  production: { baseRatePerWorker: 1.0, floorProgress: 100, sabotageRate: 0.2 },
+  production: { baseRatePerWorker: 1.0, floorProgress: 100, sabotageRate: 0.2, floorsPerBuilding: 3 },
   worker: { confrontRadius: 4.5, wanderRadius: 2.2, moveSpeed: 3.2, fleeSpeed: 6, minSlackSeconds: 2 },
   crewCollapseThreshold: 2,
   chatterSpreadRadius: 6,
@@ -19,4 +19,12 @@ export const CONFIG = {
   riotInciteRadius: 7,
   riotIncitePerSec: 10,
   scoring: { floorPoints: 1000, timeBonusPerSec: 10, comboStep: 0.1, noIncidentBonus: 2000 },
+  slackMult: 1.0,
+  economy: {
+    startFunds: 4000,
+    floorReward: 1000,
+    buildingBonus: 2000, // awarded per completed building (S4 multi-building)
+    fireCooldownSec: 3,
+    managerCap: 6,
+  },
 };
