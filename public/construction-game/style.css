@@ -14,6 +14,16 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #14181d; f
 .controls { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin-top: 26px; font-size: 13px; color: #e8d3b8; text-align: left; }
 .controls span:nth-child(odd) { font-weight: 700; color: #ffd24a; }
 
+/* Site-events legend (a11y onboarding + colorblind-safe valence key). Built from SITE_EVENTS in main.js. */
+.legend-title { margin-top: 22px; font-size: 13px; font-weight: 700; color: #ffd24a; text-align: left; }
+#events-legend { margin-top: 8px; display: grid; gap: 4px; font-size: 13px; color: #e8d3b8; text-align: left; }
+.legend-row { display: grid; grid-template-columns: 1.4em 1fr auto; align-items: center; gap: 4px 10px; }
+.legend-icon { text-align: center; }
+.legend-marker { font-weight: 700; }
+.legend-marker.good { color: #7ec96f; }
+.legend-marker.bad { color: #ff6b5a; }
+.legend-marker.neutral { color: #b8b8b8; }
+
 #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,.7); }
 #hud-time { position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
   background: rgba(0,0,0,.45); padding: 6px 16px; border-radius: 20px; font-size: 22px; font-weight: 800; color: #ffe0a0; }
@@ -42,6 +52,10 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #14181d; f
   background: rgba(0,0,0,.6); color: #ffe0a0; padding: 12px 22px; border-radius: 12px; font-weight: 700;
   transition: opacity .4s; pointer-events: none; }
 .toast.reward { top: 140px; color: #ffd24a; border: 1px solid rgba(255,210,74,.5); }
+/* Colorblind-safe valence border on event toasts (the ▲/▼/◆ marker in the text carries the shape). */
+.toast.good { border: 1px solid #7ec96f; }
+.toast.bad { border: 1px solid #ff6b5a; }
+.toast.neutral { border: 1px solid #b8b8b8; }
 .difficulty { display: flex; gap: 8px; justify-content: center; margin: 4px 0 20px; }
 .diff-btn { flex: 1; padding: 10px 0; border-radius: 10px; border: 1px solid rgba(255,200,90,.35);
   background: rgba(0,0,0,.3); color: #ffe0a0; font-weight: 700; cursor: pointer; transition: all .15s; }
@@ -61,3 +75,4 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #14181d; f
 .hire-card button:disabled { background: #555; color: #999; cursor: not-allowed; }
 #hire-close { width: 100%; margin-top: 4px; padding: 8px 0; border: none; border-radius: 8px; background: #444; color: #fff; cursor: pointer; }
 #hud-funds.warn { background: rgba(200,40,20,.85); color: #fff; }
+#funds-warn { font-weight: 800; } /* redundant text cue alongside the red .warn color */

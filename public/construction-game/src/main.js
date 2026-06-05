@@ -26,7 +26,7 @@ import { Manager } from './entities/Manager.js';
 import { HireMenu } from './ui/HireMenu.js';
 import { getManagerArchetype } from './logic/managers.js';
 import { AssetLoader } from './assets/AssetLoader.js';
-import { pickEventGuarded, applyEventEffects, tickEventMultipliers, initEventState } from './logic/events.js';
+import { SITE_EVENTS, pickEventGuarded, applyEventEffects, tickEventMultipliers, initEventState } from './logic/events.js';
 
 const canvas = document.getElementById('game');
 const menuEl = document.getElementById('menu');
@@ -38,27 +38,41 @@ const startBtn = document.getElementById('start-btn');
 // are positioned to coexist on screen (see .toast / .toast.reward in style.css).
 function makeToastChannel(el) {
   const queue = [];
+  // Snapshot the element's authored className as the per-message base, so a per-message valence
+  // class can be layered on cleanly and fully reset each message (no stale valence lingering).
+  const baseClass = el.className;
   let timer = 0, showing = false;
   function next() {
     if (!queue.length) { showing = false; return; }
     showing = true;
-    const { msg, hold } = queue.shift();
+    const { msg, hold, cls } = queue.shift();
     el.textContent = msg;
+    el.className = baseClass + (cls ? ' ' + cls : ''); // reset to base, then add this message's valence class
     el.classList.remove('hidden');
     clearTimeout(timer);
     // track the inter-message gap timer too, so reset() can cancel it (full restart-safety)
     timer = setTimeout(() => { el.classList.add('hidden'); timer = setTimeout(next, 120); }, hold);
   }
   return {
-    show(msg, hold = 2200) { queue.push({ msg, hold }); if (!showing) next(); },
-    reset() { queue.length = 0; showing = false; clearTimeout(timer); el.classList.add('hidden'); },
+    show(msg, hold = 2200, cls = '') { queue.push({ msg, hold, cls }); if (!showing) next(); },
+    reset() { queue.length = 0; showing = false; clearTimeout(timer); el.className = baseClass; el.classList.add('hidden'); },
   };
 }
 const eventToastCh = makeToastChannel(document.getElementById('toast'));
 const rewardToastCh = makeToastChannel(document.getElementById('reward-toast'));
 // Default export stays the reward channel so AssetLoader load-warnings + any other importer keep working.
 export function showToast(msg) { rewardToastCh.show(msg); }
-export function showEventToast(msg) { eventToastCh.show(msg); }
+// Redundant (colorblind-safe) valence coding: a shape marker + a CSS class (border color) per event kind.
+// Single source of truth for both the toast (item 2) and the start-menu legend (item 1).
+const VALENCE = {
+  good:    { marker: '▲', cls: 'good' },
+  bad:     { marker: '▼', cls: 'bad' },
+  neutral: { marker: '◆', cls: 'neutral' },
+};
+export function showEventToast(msg, kind) {
+  const v = VALENCE[kind] || VALENCE.neutral;
+  eventToastCh.show(`${v.marker} ${msg}`, 2200, v.cls);
+}
 export function showRewardToast(msg) { rewardToastCh.show(msg); }
 
 let game = null;
@@ -131,7 +145,7 @@ if (game) {
     const s = g._eventState;
     s.workers = g.workers; s.economy = g.economy;
     const res = applyEventEffects(s, ev, CONFIG.events, g._eventRng, CONFIG.rage.flee);
-    showEventToast(`${ev.icon} ${ev.label}`);
+    showEventToast(`${ev.icon} ${ev.label}`, ev.kind);
     if (g.audio) { if (res.kind === 'bad') g.audio.alarm(); else g.audio.combo(); }
   }
 
@@ -155,6 +169,22 @@ if (game) {
       selectedMode = btn.getAttribute('data-mode');
     });
   });
+
+  // Events legend (a11y onboarding): built once from SITE_EVENTS so it can't drift from the catalog.
+  // Each row mirrors the toast's valence marker (▲/▼/◆), doubling as a key for the colorblind-safe coding.
+  const legendEl = document.getElementById('events-legend');
+  if (legendEl) {
+    for (const ev of SITE_EVENTS) {
+      const v = VALENCE[ev.kind] || VALENCE.neutral;
+      const row = document.createElement('div');
+      row.className = 'legend-row';
+      row.innerHTML =
+        `<span class="legend-icon">${ev.icon}</span>` +
+        `<span class="legend-label">${ev.label}</span>` +
+        `<span class="legend-marker ${v.cls}">${v.marker}</span>`;
+      legendEl.appendChild(row);
+    }
+  }
 
   // remove an entity from the scene + systems list, disposing its GPU resources
   function removeEntity(e) {

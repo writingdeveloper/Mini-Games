@@ -17,6 +17,7 @@ export class HUD {
     this.funds = document.getElementById('funds-val');
     this.payroll = document.getElementById('payroll-val');
     this.fundsBox = document.getElementById('hud-funds');
+    this.fundsWarn = document.getElementById('funds-warn');
     this.statusChips = document.getElementById('status-chips');
     this._acc = 0;
     // cached display state so we only touch the DOM when the rendered value changes
@@ -54,7 +55,9 @@ export class HUD {
     else this.comboBox.classList.add('hidden');
     if (g.economy) {
       const f = g.economy.funds;
-      this.fundsBox.classList.toggle('warn', f < 0);
+      const insolvent = f < 0;
+      this.fundsBox.classList.toggle('warn', insolvent); // red color (kept)
+      if (this.fundsWarn) this.fundsWarn.classList.toggle('hidden', !insolvent); // redundant text cue
       this.funds.textContent = Math.floor(f);
       this.payroll.textContent = Math.round((g.managers || []).reduce((s, m) => s + m.salary, 0));
     }
