@@ -26,6 +26,7 @@ import { Manager } from './entities/Manager.js';
 import { HireMenu } from './ui/HireMenu.js';
 import { getManagerArchetype } from './logic/managers.js';
 import { AssetLoader } from './assets/AssetLoader.js';
+import { pickEvent } from './logic/events.js';
 
 const canvas = document.getElementById('game');
 const menuEl = document.getElementById('menu');
@@ -103,6 +104,47 @@ if (game) {
       const inst = assets.instance(game.workerModelEntry);
       if (inst) { m.setModel(inst.obj); m.mixer = inst.mixer; if (inst.mixer && inst.animations[0]) inst.mixer.clipAction(inst.animations[0]).play(); }
     }
+  }
+
+  // Apply a random site event (S6): mutate game/worker/economy state, then toast + audio.
+  function applyEvent(ev, g) {
+    const E = CONFIG.events;
+    switch (ev.id) {
+      case 'snack': {
+        for (const w of g.workers) {
+          if (w.logic.escaped) continue;
+          addRage(w.logic, -E.snackRageDrop, w.archetype.rageSensitivity);
+        }
+        g._eventBoostMult = E.snackBoost;
+        g._eventBoostTimer = E.snackSec;
+        break;
+      }
+      case 'supply': {
+        if (g.economy) earn(g.economy, E.supplyBonus);
+        g._eventBoostMult = E.supplyBoost;
+        g._eventBoostTimer = E.supplySec;
+        break;
+      }
+      case 'inspection': {
+        if (g.economy) earn(g.economy, E.inspectionBonus);
+        break;
+      }
+      case 'breakdown': {
+        g._eventProdMult = E.breakdownProdMult;
+        g._eventProdTimer = E.breakdownSec;
+        break;
+      }
+      case 'accident': {
+        const victims = g.workers.filter((w) => !w.logic.escaped);
+        if (victims.length) {
+          const v = victims[Math.floor(g._eventRng() * victims.length)];
+          addRage(v.logic, E.accidentRageSpike, v.archetype.rageSensitivity);
+        }
+        break;
+      }
+    }
+    showToast(`${ev.icon} ${ev.label}`);
+    if (g.audio) { if (ev.kind === 'bad') g.audio.alarm(); else g.audio.combo(); }
   }
 
   const hireMenu = new HireMenu(game, (id) => {
@@ -194,6 +236,12 @@ if (game) {
       for (const m of game.managers) applyManagerModel(m);
     });
     game.economy = createEconomy(CONFIG.economy.startFunds);
+    game._eventRng = mulberry32(CONFIG.seed + 777);
+    game._eventTimer = CONFIG.events.firstDelaySec;
+    game._eventProdMult = 1;   // breakdown sets this < 1
+    game._eventProdTimer = 0;  // seconds remaining on breakdown
+    game._eventBoostMult = 1;  // snack/supply set this > 1
+    game._eventBoostTimer = 0; // seconds remaining on boost
     applyRetroToObject(game.scene, { snap: 160, affine: false });
     menuEl.classList.add('hidden');
     hudEl.classList.remove('hidden');
@@ -207,6 +255,17 @@ if (game) {
   game.step = (dt, g) => {
     if (g.status !== 'playing') return;
     g.elapsed += dt;
+
+    // --- site events (S6) ---
+    if (g._eventBoostTimer > 0) { g._eventBoostTimer -= dt; if (g._eventBoostTimer <= 0) { g._eventBoostTimer = 0; g._eventBoostMult = 1; } }
+    if (g._eventProdTimer > 0)  { g._eventProdTimer -= dt;  if (g._eventProdTimer <= 0)  { g._eventProdTimer = 0;  g._eventProdMult = 1; } }
+    g._eventTimer -= dt;
+    if (g._eventTimer <= 0) {
+      const ev = pickEvent(g._eventRng);
+      applyEvent(ev, g);
+      const E = CONFIG.events;
+      g._eventTimer = E.intervalSec + (g._eventRng() * 2 - 1) * E.intervalVariance;
+    }
 
     // chatter spread
     for (const cw of workers) {
@@ -246,7 +305,7 @@ if (game) {
 
     // production
     const active = workers.filter((w) => !w.logic.escaped);
-    const output = crewOutputPerSecond(active.map((w) => w.logic));
+    const output = crewOutputPerSecond(active.map((w) => w.logic)) * g._eventProdMult * g._eventBoostMult;
     const res = advanceProgress(g.build, output, dt);
     g.build = { progress: res.progress, floorsBuilt: res.floorsBuilt };
     g.building.sync(res.floorsBuilt, res.progress / CONFIG.production.floorProgress);
