@@ -17,8 +17,19 @@ export class HUD {
     this.funds = document.getElementById('funds-val');
     this.payroll = document.getElementById('payroll-val');
     this.fundsBox = document.getElementById('hud-funds');
+    this.statusChips = document.getElementById('status-chips');
     this._acc = 0;
+    // cached display state so we only touch the DOM when the rendered value changes
+    this._chipText = null;
+    this._fillState = null;
   }
+
+  // progress-fill gradients per event state (penalty takes visual priority over boost)
+  static FILL = {
+    penalty: 'linear-gradient(90deg,#ff6b5a,#ff3a2e)',
+    boost: 'linear-gradient(90deg,#7ec96f,#4caf50)',
+    normal: 'linear-gradient(90deg,#ffd24a,#ff9d2e)',
+  };
 
   update(dt) {
     this._acc += dt;
@@ -47,5 +58,27 @@ export class HUD {
       this.funds.textContent = Math.floor(f);
       this.payroll.textContent = Math.round((g.managers || []).reduce((s, m) => s + m.salary, 0));
     }
+    this._updateEventStatus(g._eventState);
+  }
+
+  // Persistent indicator for active site-event effects (read-only consumer of _eventState).
+  // Renders draining-countdown chips and tints the progress bar; both write the DOM only
+  // when their displayed value changes (no per-tick churn). Pre-game (_eventState undefined):
+  // no chips, default fill.
+  _updateEventStatus(es) {
+    let chips = '';
+    let fill = 'normal';
+    if (es) {
+      if (es.prodMult < 1) {
+        chips += `<span class="status-chip penalty">🔧 ${Math.round((es.prodMult - 1) * 100)}% ${Math.ceil(es.prodTimer)}s</span>`;
+        fill = 'penalty';
+      }
+      if (es.boostMult > 1) {
+        chips += `<span class="status-chip boost">⚡ +${Math.round((es.boostMult - 1) * 100)}% ${Math.ceil(es.boostTimer)}s</span>`;
+        if (fill === 'normal') fill = 'boost'; // penalty keeps visual priority
+      }
+    }
+    if (chips !== this._chipText) { this.statusChips.innerHTML = chips; this._chipText = chips; }
+    if (fill !== this._fillState) { this.progressFill.style.background = HUD.FILL[fill]; this._fillState = fill; }
   }
 }
