@@ -22,6 +22,13 @@ describe("spawn", () => {
       expect(Math.abs(w.z)).toBeLessThanOrEqual(CONFIG.site.depth / 2 - 2);
     }
   });
+  it("workers cluster around the build zone (not scattered to the far corners)", () => {
+    for (const w of spawnWorkers(7777, 10)) {
+      expect(Math.abs(w.x)).toBeLessThanOrEqual(11); // ±halfX
+      expect(w.z).toBeGreaterThanOrEqual(-13); // centerZ -6 ± halfZ 7
+      expect(w.z).toBeLessThanOrEqual(1);
+    }
+  });
   it("different seeds give different layouts", () => {
     expect(spawnWorkers(1, 8)).not.toEqual(spawnWorkers(2, 8));
   });
