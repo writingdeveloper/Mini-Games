@@ -11,7 +11,6 @@ All committed 3D assets are CC0 (public domain) unless noted otherwise.
 | `props/traffic-cone.glb` | https://poly.pizza/m/VGvQupNGtK | Quaternius | CC0 (Public Domain) |
 | `props/barrier.glb` | https://poly.pizza/m/4mrO9ueiQr | Kenney | CC0 (Public Domain) |
 | `props/cinder-block.glb` | https://poly.pizza/m/lLkVKoJsKm | Quaternius | CC0 (Public Domain) |
-| `props/bulldozer.glb` | https://poly.pizza/m/ddxtaegI3HQ | Poly by Google | Public Domain (Poly by Google) |
 
 The game loads 3D prop models from `assets/props/` to enrich the construction-site atmosphere.
 All prop models are CC0 / Public Domain and were sourced from Poly Pizza (https://poly.pizza).

@@ -19,8 +19,6 @@ const PROP_COLOR = { barrel: 0x9a6b3a, crate: 0xb59148, cone: 0xff7a2a, pipe: 0x
 const REAL_PROP_TABLE = [
   // Back-left corner: crane tower
   { url: './assets/props/crane.glb',       targetHeight: 9,   x: -18, z: -18, ry: Math.PI * 0.25 },
-  // Back-right corner: bulldozer
-  { url: './assets/props/bulldozer.glb',   targetHeight: 2.2, x:  18, z: -18, ry: -Math.PI * 0.3 },
   // Left edge mid: metal-fence row (3 copies along z)
   { url: './assets/props/metal-fence.glb', targetHeight: 1.5, x: -19, z:  -4, ry: 0 },
   { url: './assets/props/metal-fence.glb', targetHeight: 1.5, x: -19, z:   0, ry: 0, _clone: true },
