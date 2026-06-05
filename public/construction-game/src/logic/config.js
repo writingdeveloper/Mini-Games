@@ -27,4 +27,19 @@ export const CONFIG = {
     fireCooldownSec: 3,
     managerCap: 6,
   },
+  events: {
+    intervalSec: 30,        // base seconds between site events
+    intervalVariance: 12,   // +/- random jitter on the interval
+    firstDelaySec: 18,      // grace period before the very first event
+    snackRageDrop: 22,      // 새참: rage subtracted from every worker
+    snackBoost: 1.4,        // 새참: production multiplier while active
+    snackSec: 6,            // 새참: duration
+    supplyBonus: 600,       // 자재 보급: funds granted
+    supplyBoost: 1.3,       // 자재 보급: production multiplier while active
+    supplySec: 6,           // 자재 보급: duration
+    inspectionBonus: 800,   // 안전 점검: funds granted (neutral/good)
+    breakdownProdMult: 0.5, // 장비 고장: production multiplier while active
+    breakdownSec: 14,       // 장비 고장: duration
+    accidentRageSpike: 35,  // 낙하 사고: rage added to one random worker
+  },
 };
