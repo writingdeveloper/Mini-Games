@@ -3,7 +3,7 @@ import { CONFIG } from '../logic/config.js';
 import { getArchetype } from '../logic/archetypes.js';
 import { stepWorker } from '../logic/workerState.js';
 import { SETTINGS } from '../logic/settings.js';
-import { separation, STATION } from '../logic/site.js';
+import { separation, STATION, pushOutOfFootprints } from '../logic/site.js';
 import { swapInModel } from '../assets/modelUtils.js';
 
 // Other non-escaped workers' positions, for SCV-pack separation (so the crew clusters without overlap).
@@ -212,6 +212,12 @@ export class Worker {
         if (Math.abs(ndx) + Math.abs(ndz) > 0.04) this.object3d.rotation.y = Math.atan2(ndx, ndz);
       }
     }
+
+    // Never stand inside a building footprint — slide out to the nearest edge (catches walk-through
+    // paths to a far-side slot and stray slacker wander). Workers gather just OUTSIDE the face, so
+    // on-station positions are unaffected.
+    const bld = game && game.building;
+    if (bld && bld.footprints) pushOutOfFootprints(p, bld.footprints, bld.footprintHalf, 0.6);
 
     this._animateWork(dt);
 

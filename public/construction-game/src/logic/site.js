@@ -37,6 +37,30 @@ export function workSlots(center, count, footprint = FOOTPRINT, ring = 1.2) {
   return out;
 }
 
+// World centers {x,z} of every building plot (not just the active one) — used to keep characters from
+// standing inside any building footprint.
+export function allBuildingCenters(targetBuildings) {
+  const out = [];
+  for (let i = 0; i < targetBuildings; i++) out.push(buildingCenter(i, targetBuildings));
+  return out;
+}
+
+// Hard constraint: if `pos` sits inside any building footprint (half-extent + margin), shove it out to
+// the nearest footprint edge so workers/managers never clip INTO a building (they gather just outside
+// the near face, so this only catches walk-through paths and stray wander). Mutates + returns pos.
+export function pushOutOfFootprints(pos, centers, half, margin = 0.6) {
+  const r = half + margin;
+  for (const c of centers) {
+    const dx = pos.x - c.x, dz = pos.z - c.z;
+    if (Math.abs(dx) < r && Math.abs(dz) < r) {
+      // push along the axis of least penetration (slide around the building, not through it)
+      if (r - Math.abs(dx) < r - Math.abs(dz)) pos.x = c.x + (dx < 0 ? -r : r);
+      else pos.z = c.z + (dz < 0 ? -r : r);
+    }
+  }
+  return pos;
+}
+
 // Repulsion from nearby peers within rsep — keeps bodies from stacking. Returns a {x,z} push vector
 // (zero if clear). A coincident point (distSq≈0) contributes nothing, so passing the full entity list
 // (including self) is safe. Shared by workers (SCV packing) and managers (flanking a target).

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Building } from './Building.js';
 import { CONFIG } from '../logic/config.js';
-import { SPACING, BUILDING_ROW_Z, activeBuildingIndex, buildingCenter, workSlots } from '../logic/site.js';
+import { SPACING, BUILDING_ROW_Z, FOOTPRINT, activeBuildingIndex, buildingCenter, workSlots, allBuildingCenters } from '../logic/site.js';
 
 export class Buildings {
   constructor(targetBuildings, floorsPerBuilding) {
@@ -15,6 +15,9 @@ export class Buildings {
       this.object3d.add(b.object3d);
       this.buildings.push(b);
     }
+    // static footprints (all plots; buildings never move) — characters get pushed out of these
+    this.footprints = allBuildingCenters(targetBuildings);
+    this.footprintHalf = FOOTPRINT / 2;
     // active-building anchor + SCV work slots (frame-0 defaults; refreshed each update)
     this._refreshActive(0);
   }

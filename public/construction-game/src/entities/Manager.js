@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../logic/config.js';
 import { getManagerArchetype, pickManagerTarget, managerTargetScore, chooseTactic, separation } from '../logic/managers.js';
+import { pushOutOfFootprints } from '../logic/site.js';
 import { applyTactic } from '../logic/tactics.js';
 import { getArchetype } from '../logic/archetypes.js';
 import { addRage, decayRage } from '../logic/rage.js';
@@ -74,13 +75,21 @@ export class Manager {
     this._moving = false;
     this._anchorToBuilding(game);
 
-    if (a.passive) { this._updatePassive(dt, workers, game); this._applyBob(); return; }
+    if (a.passive) { this._updatePassive(dt, workers, game); this._pushOut(game); this._applyBob(); return; }
 
     // ACTIVE (veteran/drill/intern): triage to the most urgent reachable worker, walk to it, act up close.
     const target = this._selectTarget(workers);
     if (target) this._seekAndAct(target, dt, game);
     else this._stepToward(this._idleGoal(dt), dt, this._speed * 0.5, game); // no problems → patrol the anchor
+    this._pushOut(game);
     this._applyBob();
+  }
+
+  // Never stand inside a building footprint — slide out to the nearest edge (managers flank workers at
+  // the face, so this only catches the occasional walk-through).
+  _pushOut(game) {
+    const b = game && game.building;
+    if (b && b.footprints) pushOutOfFootprints(this.position, b.footprints, b.footprintHalf, 0.6);
   }
 
   // Re-anchor the patrol x to the active building so managers loiter where the crew gathers, not at a
