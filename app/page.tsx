@@ -113,31 +113,6 @@ export default function Home() {
               </div>
             </div>
           </Link>
-
-          {/* 건설 관리 카드 */}
-          <Link href="/construction-game" aria-label="Tantrum Tower 건설 관리 게임 플레이하기">
-            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-yellow-500 to-amber-700 p-8 shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-amber-500/50 cursor-pointer">
-              <div aria-hidden="true" className="absolute -right-8 -top-8 text-9xl opacity-20">
-                🏗️
-              </div>
-              <div className="relative z-10">
-                <h2 className="mb-3 text-3xl font-bold text-white">
-                  Tantrum Tower
-                </h2>
-                <p className="mb-4 text-white/90">
-                  폐급 일꾼들을 다그쳐 마감 전에 탑을 올리세요!
-                </p>
-                <ul className="mb-6 space-y-2 text-sm text-white/80">
-                  <li>✓ PS2 레트로 로우폴리 룩</li>
-                  <li>✓ 윽박·비꼬기·달래기 양날의 검</li>
-                  <li>✓ 빡침 관리 · 콤보 점수</li>
-                </ul>
-                <div className="inline-block rounded-full bg-white/20 px-6 py-2 font-semibold text-white backdrop-blur-sm transition-colors group-hover:bg-white/30">
-                  플레이하기 →
-                </div>
-              </div>
-            </div>
-          </Link>
         </div>
 
         <div className="mt-8 text-center">

@@ -13,7 +13,6 @@ export default defineConfig({
         'public/escape-game/**',
         'public/survival-game/src/**',
         'public/desert-game/src/**',
-        'public/construction-game/src/**',
         'server/src/**',
       ],
     },
