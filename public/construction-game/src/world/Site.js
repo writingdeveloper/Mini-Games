@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CONFIG } from '../logic/config.js';
-import { spawnProps } from '../logic/spawn.js';
+import { spawnProps, spawnSkyline } from '../logic/spawn.js';
 import { AssetLoader } from '../assets/AssetLoader.js';
 
 const PROP_GEO = {
@@ -85,6 +85,61 @@ export class Site {
     // Async: load real CC0 prop models and place them at the site edges/corners.
     // Each prop loads independently; a failure just means that prop is absent.
     this._loadRealProps();
+
+    // Static exterior set-dressing (S5): fills the void outside the fence so the lot doesn't float in
+    // space. Built once into the persistent Site group (survives restarts; auto-retro'd by the
+    // scene-wide applyRetroToObject pass in startGame — except the skydome, which opts out).
+    this._buildExterior();
+  }
+
+  _buildExterior() {
+    const g = this.object3d;
+
+    // --- gradient skydome (opts out of the retro vertex-snap; fog-matched horizon) ---
+    const skyMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide, fog: false, depthWrite: false,
+      uniforms: { top: { value: new THREE.Color(0x8fa6bb) }, horizon: { value: new THREE.Color(0xb9bda8) } },
+      vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+      fragmentShader: 'uniform vec3 top; uniform vec3 horizon; varying vec3 vP; void main(){ float t = smoothstep(0.0,0.55, normalize(vP).y); gl_FragColor = vec4(mix(horizon, top, t), 1.0); }',
+    });
+    skyMat.userData.__retro = true; // applyRetro short-circuits on this flag (no snap on a custom shader)
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(600, 24, 12), skyMat);
+    g.add(sky);
+
+    // --- surrounding ground: y-staggered flat layers, all DARKER/less-saturated than the tan lot so
+    // the active site stays the brightest focal plane. As they recede they're eaten by fog. ---
+    const layer = (w, d, color, y, x = 0, z = 0) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshLambertMaterial({ color, flatShading: true }));
+      m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); g.add(m);
+    };
+    layer(180, 180, 0x83857b, -0.02);             // paved district apron (a touch darker than the tan lot)
+    layer(180, 12, 0x44474a, -0.015, 0, 42);      // front road meeting the gate side (+z)
+    layer(12, 180, 0x44474a, -0.015, -48, 0);     // a cross road on the -x flank (intersection for free)
+
+    // --- distant city: 2 InstancedMesh draws (bodies + lit windows), deterministic via spawnSkyline ---
+    const skyline = spawnSkyline(CONFIG.seed, 64);
+    const UP = new THREE.Vector3(0, 1, 0);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), pos = new THREE.Vector3(), scl = new THREE.Vector3(), col = new THREE.Color();
+    const palette = [0x8b93a0, 0x7e88a0, 0x9aa0a6, 0x8a8478]; // hazy blue-greys that melt into the fog
+
+    const bodies = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ flatShading: true }), skyline.length);
+    const windows = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), skyline.length);
+    skyline.forEach((b, i) => {
+      q.setFromAxisAngle(UP, b.ry);
+      pos.set(b.x, b.h / 2, b.z); scl.set(b.w, b.h, b.d); m4.compose(pos, q, scl);
+      bodies.setMatrixAt(i, m4); bodies.setColorAt(i, col.setHex(palette[i % palette.length]));
+      // one lit window panel per building, facing inward (toward the lot/camera)
+      const rad = Math.hypot(b.x, b.z) || 1;
+      const inset = (b.d / 2 + 0.3) / rad;
+      q.setFromAxisAngle(UP, Math.atan2(-b.x, -b.z));
+      pos.set(b.x * (1 - inset), b.h * 0.55, b.z * (1 - inset)); scl.set(b.w * 0.7, b.h * 0.7, 1); m4.compose(pos, q, scl);
+      windows.setMatrixAt(i, m4);
+      const lit = ((i * 2654435761) >>> 0) % 100 < 55; // ~55% lit, deterministic (no extra RNG)
+      windows.setColorAt(i, col.setHex(lit ? 0xffd98a : 0x20242e));
+    });
+    bodies.instanceMatrix.needsUpdate = true; if (bodies.instanceColor) bodies.instanceColor.needsUpdate = true;
+    windows.instanceMatrix.needsUpdate = true; if (windows.instanceColor) windows.instanceColor.needsUpdate = true;
+    g.add(bodies); g.add(windows);
   }
 
   _loadRealProps() {

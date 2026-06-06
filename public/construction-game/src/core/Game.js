@@ -9,8 +9,10 @@ export class Game {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x9fb0bf);
-    this.scene.fog = new THREE.Fog(0x9fb0bf, 60, 160);
+    // Hazy horizon tone shared by background + fog + skydome horizon + the far edge of the distant city
+    // (S5), so the whole backdrop reads as one continuous wall the skyline dissolves into.
+    this.scene.background = new THREE.Color(0xb9bda8);
+    this.scene.fog = new THREE.Fog(0xb9bda8, 45, 150);
 
     this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.5, 2000);
     this.camera.position.set(0, 24, 26);
