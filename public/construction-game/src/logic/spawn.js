@@ -32,6 +32,29 @@ export function spawnWorkers(seed, count) {
   return out;
 }
 
+const SKYLINE_SEED_OFFSET = 999; // uncorrelated with workers (seed) and props (seed+555)
+
+// Deterministic distant-city ring around the lot: two jittered radius bands for parallax depth, with
+// taller/denser towers biased into the -Z hemisphere (the camera's hero vista). Returns per-building
+// { x, z, w, h, d, ry }. Rendered as 2 InstancedMeshes in Site.js (bodies + windows).
+export function spawnSkyline(seed, count) {
+  const rng = mulberry32(seed + SKYLINE_SEED_OFFSET);
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const ang = (i / count) * Math.PI * 2 + (rng() * 2 - 1) * 0.06;
+    const ring = rng() < 0.5 ? 80 + rng() * 22 : 105 + rng() * 32; // inner / outer band (kept well into the fog)
+    const x = +(Math.sin(ang) * ring).toFixed(3);
+    const z = +(Math.cos(ang) * ring).toFixed(3);
+    const hero = z < 0; // far side the camera faces → taller, denser
+    const w = +(8 + rng() * 10).toFixed(3);
+    const d = +(8 + rng() * 10).toFixed(3);
+    const h = +((hero ? 22 : 14) + rng() * (hero ? 33 : 18)).toFixed(3);
+    const ry = +((rng() * 2 - 1) * 0.4).toFixed(3);
+    out.push({ x, z, w, h, d, ry });
+  }
+  return out;
+}
+
 export function spawnProps(seed, count) {
   const rng = mulberry32(seed + PROPS_SEED_OFFSET);
   const halfW = CONFIG.site.width / 2 - 1;

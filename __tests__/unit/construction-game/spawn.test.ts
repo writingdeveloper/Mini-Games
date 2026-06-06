@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mulberry32, spawnWorkers, spawnProps } from "../../../public/construction-game/src/logic/spawn.js";
+import { mulberry32, spawnWorkers, spawnProps, spawnSkyline } from "../../../public/construction-game/src/logic/spawn.js";
 import { CONFIG } from "../../../public/construction-game/src/logic/config.js";
 
 describe("spawn", () => {
@@ -35,5 +35,16 @@ describe("spawn", () => {
   it("spawnProps is deterministic", () => {
     expect(spawnProps(7777, 12)).toEqual(spawnProps(7777, 12));
     expect(spawnProps(7777, 12)).toHaveLength(12);
+  });
+  it("spawnSkyline is deterministic and rings the lot well outside the fence", () => {
+    expect(spawnSkyline(7777, 64)).toEqual(spawnSkyline(7777, 64));
+    const sky = spawnSkyline(7777, 64);
+    expect(sky).toHaveLength(64);
+    for (const b of sky) {
+      const r = Math.hypot(b.x, b.z);
+      expect(r).toBeGreaterThan(CONFIG.site.width / 2); // beyond the 44-wide lot
+      expect(r).toBeLessThan(140);
+      expect(b.h).toBeGreaterThan(0);
+    }
   });
 });
