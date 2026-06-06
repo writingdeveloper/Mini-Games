@@ -4,6 +4,7 @@ import { getArchetype } from '../logic/archetypes.js';
 import { stepWorker } from '../logic/workerState.js';
 import { SETTINGS } from '../logic/settings.js';
 import { separation, STATION } from '../logic/site.js';
+import { swapInModel } from '../assets/modelUtils.js';
 
 // Other non-escaped workers' positions, for SCV-pack separation (so the crew clusters without overlap).
 function workerPeers(game, self) {
@@ -112,9 +113,22 @@ export class Worker {
     this._redraw();
   }
 
-  // No-op: workers use the bright primitive above (the dark worker.glb is not applied). Kept so the
-  // engine's model-application path stays uniform across entities.
-  setModel() { /* intentionally empty */ }
+  // Hybrid worker visuals (S7): default to the bright primitive hammer-rig; if an animated CC0 worker
+  // glb is supplied (now that AssetLoader zeroes metalness so it renders bright), swap it in and let its
+  // own animation play. Sprites (status/danger) are preserved by swapInModel. No-op without an entry,
+  // so the primitive remains the guaranteed-visible fallback.
+  setModel(entry, loader) {
+    if (!entry || !loader) return;
+    const inst = loader.instance(entry);
+    if (!inst || !inst.obj) return;
+    swapInModel(this.object3d, inst.obj, 2.6); // removes primitive body/arms/helmet; keeps sprites
+    this._hasModel = true;
+    this.mixer = inst.mixer;
+    if (this.mixer && inst.animations.length) {
+      const clip = inst.animations.find((a) => /idle|work|interact|hammer/i.test(a.name)) || inst.animations[0];
+      this.mixer.clipAction(clip).play();
+    }
+  }
 
   _redraw() {
     const w = this.logic;
@@ -211,6 +225,7 @@ export class Worker {
   // Off-state eases arms to rest. Reduced-motion: a STATIC working pose (no swing/sparks) — still
   // visibly distinct from idle, no vestibular motion. All cheap: a handful of float writes per worker.
   _animateWork(dt) {
+    if (this._hasModel) return; // a glTF worker animates itself; the primitive rig is gone
     const w = this.logic;
     const ra = this._rightArm, la = this._leftArm, body = this._body;
     if (w.state === 'working' && w.onStation && !SETTINGS.reducedMotion) {
