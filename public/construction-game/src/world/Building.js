@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { CONFIG } from '../logic/config.js';
+import { FOOTPRINT } from '../logic/site.js'; // single source of truth (shared with the gather logic)
 
 const FLOOR_H = 2.4;
-const FOOTPRINT = 10;
 
 export class Building {
   constructor(maxFloors = CONFIG.targetFloors) {

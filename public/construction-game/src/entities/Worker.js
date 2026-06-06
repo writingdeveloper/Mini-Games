@@ -3,6 +3,14 @@ import { CONFIG } from '../logic/config.js';
 import { getArchetype } from '../logic/archetypes.js';
 import { stepWorker } from '../logic/workerState.js';
 import { SETTINGS } from '../logic/settings.js';
+import { separation, STATION } from '../logic/site.js';
+
+// Other non-escaped workers' positions, for SCV-pack separation (so the crew clusters without overlap).
+function workerPeers(game, self) {
+  const out = [];
+  for (const w of (game && game.workers) || []) if (w !== self && !w.logic.escaped) out.push(w.position);
+  return out;
+}
 
 const STATE_COLOR = {
   working: 0x6fae6f, slacking: 0xd8c24a, sabotage: 0xe08a2a, fleeing: 0xe05a3a, riot: 0xa44ad0,
@@ -88,7 +96,7 @@ export class Worker {
     this._tex.needsUpdate = true;
   }
 
-  update(dt) {
+  update(dt, game) {
     const w = this.logic;
     if (w.escaped) { this.object3d.visible = false; return; }
     if (this.mixer) this.mixer.update(dt);
@@ -111,21 +119,42 @@ export class Worker {
     } else {
       this.object3d.position.y = 0;
       this._wanderPhase += dt * this._wanderSpeed;
-      let tx, tz;
-      if (w.state === 'working') {
-        // settle near home with a tiny organic sway so the crew doesn't look frozen
-        tx = this.home.x + Math.cos(this._wanderPhase * 0.7) * 0.35;
-        tz = this.home.y + Math.sin(this._wanderPhase) * 0.35;
+      const b = game && game.building;
+      // SCV gather: a WORKING worker walks to its assigned slot on the active building's near face,
+      // then holds station and faces the wall (S4 hooks the hammer motion onto onStation+working).
+      const slot = (w.state === 'working' && b && b.slotFor) ? b.slotFor(w.id) : null;
+      if (slot) {
+        const ndx = slot.x - p.x, ndz = slot.z - p.z;
+        const d = Math.hypot(ndx, ndz);
+        if (d > STATION.arriveEps) {
+          // en route — gather toward the slot, blended with peer separation so the crew packs neatly
+          w.onStation = false;
+          const sep = separation(p, workerPeers(game, this), 1.4);
+          let mx = ndx / (d || 1) + sep.x * 0.8, mz = ndz / (d || 1) + sep.z * 0.8;
+          const ml = Math.hypot(mx, mz) || 1;
+          const step = CONFIG.worker.moveSpeed * dt;
+          p.x += (mx / ml) * step; p.z += (mz / ml) * step;
+          this.object3d.rotation.y = Math.atan2(mx, mz);
+        } else {
+          // on station — micro-sway so the crew isn't frozen, body faces the building wall
+          w.onStation = true;
+          p.x += (slot.x + Math.cos(this._wanderPhase) * 0.12 - p.x) * Math.min(1, dt * 4);
+          p.z += (slot.z + Math.sin(this._wanderPhase * 1.3) * 0.12 - p.z) * Math.min(1, dt * 4);
+          const cx = b.activeCenter ? b.activeCenter.x : 0, cz = b.activeCenter ? b.activeCenter.z : -6;
+          this.object3d.rotation.y = Math.atan2(cx - p.x, cz - p.z);
+        }
       } else {
-        // slacking: amble around home on a varied, non-uniform (figure-eight-ish) path
+        // slacking/sabotage (or no active building): amble around spawn home, drifting AWAY from the
+        // work line — reads as "that guy walked off the job" and contributes no on-station output.
+        w.onStation = false;
         const r = CONFIG.worker.wanderRadius * this._wanderR;
-        tx = this.home.x + Math.cos(this._wanderPhase) * r + Math.cos(this._wanderPhase * 2.3 + this._wobble) * 0.6;
-        tz = this.home.y + Math.sin(this._wanderPhase * 1.3) * r;
+        const tx = this.home.x + Math.cos(this._wanderPhase) * r + Math.cos(this._wanderPhase * 2.3 + this._wobble) * 0.6;
+        const tz = this.home.y + Math.sin(this._wanderPhase * 1.3) * r;
+        const ndx = tx - p.x, ndz = tz - p.z;
+        p.x += ndx * Math.min(1, CONFIG.worker.moveSpeed * dt * 0.4);
+        p.z += ndz * Math.min(1, CONFIG.worker.moveSpeed * dt * 0.4);
+        if (Math.abs(ndx) + Math.abs(ndz) > 0.04) this.object3d.rotation.y = Math.atan2(ndx, ndz);
       }
-      const ndx = tx - p.x, ndz = tz - p.z;
-      p.x += ndx * Math.min(1, CONFIG.worker.moveSpeed * dt * 0.4);
-      p.z += ndz * Math.min(1, CONFIG.worker.moveSpeed * dt * 0.4);
-      if (Math.abs(ndx) + Math.abs(ndz) > 0.04) this.object3d.rotation.y = Math.atan2(ndx, ndz);
     }
 
     // Redraw gate: include the danger flag so crossing CONFIG.rage.flee toggles the 💢 glyph

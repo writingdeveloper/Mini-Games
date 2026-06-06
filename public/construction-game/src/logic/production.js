@@ -1,10 +1,16 @@
 import { CONFIG } from './config.js';
 import { getArchetype } from './archetypes.js';
+import { STATION } from './site.js';
 
 export function workerOutput(worker) {
   const a = getArchetype(worker.archetypeId);
   const base = CONFIG.production.baseRatePerWorker * a.workRate;
-  if (worker.state === 'working') return base * worker.boostMul;
+  if (worker.state === 'working') {
+    // SCV coupling: a working worker still walking to its slot contributes the reduced "travel"
+    // factor; on-station (or undefined, for back-compat/tests) it contributes full output.
+    const station = worker.onStation === false ? STATION.enRouteFactor : 1;
+    return base * worker.boostMul * station;
+  }
   if (worker.state === 'sabotage') return base * CONFIG.production.sabotageRate;
   return 0;
 }
