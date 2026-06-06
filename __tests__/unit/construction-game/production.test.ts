@@ -9,6 +9,11 @@ describe("production", () => {
     expect(workerOutput(wk({ archetypeId: "dozer" }))).toBeCloseTo(0.9, 5);
     expect(workerOutput(wk({ archetypeId: "hothead", boostMul: 2 }))).toBeCloseTo(2.2, 5);
   });
+  it("a working worker en route to its slot (onStation:false) outputs the reduced travel factor", () => {
+    expect(workerOutput(wk({ archetypeId: "phone", onStation: false }))).toBeCloseTo(0.35, 5);
+    expect(workerOutput(wk({ archetypeId: "phone", onStation: true }))).toBeCloseTo(1.0, 5);
+    expect(workerOutput(wk({ archetypeId: "phone" }))).toBeCloseTo(1.0, 5); // undefined => full (back-compat)
+  });
   it("slacking/fleeing/riot output nothing; sabotage outputs reduced", () => {
     expect(workerOutput(wk({ state: "slacking" }))).toBe(0);
     expect(workerOutput(wk({ state: "fleeing" }))).toBe(0);

@@ -94,21 +94,6 @@ export function pickManagerTarget(managerPos, archetype, workers, ctx) {
   return best;
 }
 
-// Repulsion from nearby peers within rsep — keeps managers/workers from stacking on the same point.
-// Returns a {x,z} push vector (zero if clear). selfPos may be included in `others`; a coincident point
-// (distSq≈0) contributes nothing, so passing the full entity list is safe.
-export function separation(selfPos, others, rsep) {
-  let px = 0, pz = 0;
-  const r2 = rsep * rsep;
-  for (const o of others) {
-    const dx = selfPos.x - o.x, dz = selfPos.z - o.z;
-    const d2 = dx * dx + dz * dz;
-    if (d2 > 1e-6 && d2 < r2) {
-      const d = Math.sqrt(d2);
-      const w = 1 - d / rsep; // stronger the closer they are
-      px += (dx / d) * w;
-      pz += (dz / d) * w;
-    }
-  }
-  return { x: px, z: pz };
-}
+// separation lives in site.js (shared spatial helper used by both workers and managers); re-exported
+// here so existing importers (Manager.js, managers.test.ts) keep their import path.
+export { separation } from './site.js';

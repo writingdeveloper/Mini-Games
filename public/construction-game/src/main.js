@@ -27,6 +27,7 @@ import { Manager } from './entities/Manager.js';
 import { HireMenu } from './ui/HireMenu.js';
 import { getManagerArchetype } from './logic/managers.js';
 import { SITE_EVENTS, pickEventGuarded, applyEventEffects, tickEventMultipliers, initEventState } from './logic/events.js';
+import { Fx } from './world/Fx.js';
 
 const canvas = document.getElementById('game');
 const menuEl = document.getElementById('menu');
@@ -97,6 +98,7 @@ if (game) {
   game.input = input;
 
   game.add(new Site());
+  game.fx = game.add(new Fx(game.scene)); // pooled floor-complete dust/spark (persists across restarts)
 
   const foreman = game.add(new Foreman(input));
   game.foreman = foreman;
@@ -213,6 +215,7 @@ if (game) {
     if (game.diorama) { game.diorama.mode = 'overseer'; game.diorama.focus = null; }
     eventToastCh.reset();
     rewardToastCh.reset();
+    if (game.fx) game.fx.reset(); // clear any in-flight FX sprites from a prior shift
     buildWorld();
     game._session = (game._session || 0) + 1; // bumped each playthrough; seeds the per-session event RNG below
     game.economy = createEconomy(CONFIG.economy.startFunds);
@@ -338,6 +341,14 @@ if (game) {
       if (g.economy) earn(g.economy, res.floorsCompletedThisStep * CONFIG.economy.floorReward + buildingsDone * CONFIG.economy.buildingBonus);
       if (g.audio) { g.audio.floorUp(); if (buildingsDone > 0) g.audio.combo(); }
       if (buildingsDone > 0) showRewardToast(`🏢 건물 완공! +${buildingsDone * CONFIG.economy.buildingBonus}`);
+      // S4 reaction FX: dust+spark burst at the just-finished floor + a tiered camera shake.
+      if (g.fx && g.building.activeCenter) {
+        const c = g.building.activeCenter;
+        const floorsInActive = res.floorsBuilt - g.building.activeIndex * F;
+        const y = 0.5 + Math.max(1, Math.min(F, floorsInActive)) * 2.4;
+        g.fx.floorBurst(c.x, y, c.z);
+      }
+      if (g.diorama) g.diorama.shake(buildingsDone > 0 ? 0.6 : 0.3, buildingsDone > 0 ? 0.4 : 0.25);
     }
 
     // incidents + combo reset
