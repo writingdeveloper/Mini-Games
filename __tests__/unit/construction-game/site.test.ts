@@ -7,6 +7,8 @@ import {
   buildingCenter,
   workSlots,
   separation,
+  allBuildingCenters,
+  pushOutOfFootprints,
 } from "../../../public/construction-game/src/logic/site.js";
 
 describe("site geometry + helpers", () => {
@@ -41,6 +43,22 @@ describe("site geometry + helpers", () => {
   it("STATION en-route factor is a travel dip (between 0 and 1)", () => {
     expect(STATION.enRouteFactor).toBeGreaterThan(0);
     expect(STATION.enRouteFactor).toBeLessThan(1);
+  });
+
+  it("allBuildingCenters lists every plot center", () => {
+    expect(allBuildingCenters(3)).toEqual([buildingCenter(0, 3), buildingCenter(1, 3), buildingCenter(2, 3)]);
+  });
+
+  it("pushOutOfFootprints shoves a point inside a footprint out to the nearest edge, leaves clear points", () => {
+    const centers = [{ x: 0, z: -6 }];
+    const half = FOOTPRINT / 2; // 5
+    // a point well inside the footprint, slightly toward +z -> pushed to the +z edge (least penetration)
+    const inside = pushOutOfFootprints({ x: 0.5, z: -3 }, centers, half, 0.6);
+    expect(Math.abs(inside.x) >= half + 0.6 || Math.abs(inside.z - -6) >= half + 0.6).toBe(true);
+    // an on-station slot point (just outside the +z face) is NOT moved
+    const slot = workSlots({ x: 0, z: -6 }, 8)[0];
+    const kept = pushOutOfFootprints({ x: slot.x, z: slot.z }, centers, half, 0.6);
+    expect(kept).toEqual({ x: slot.x, z: slot.z });
   });
 
   it("separation pushes near peers apart and ignores far ones", () => {
