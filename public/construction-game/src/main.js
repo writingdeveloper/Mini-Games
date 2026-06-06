@@ -28,6 +28,13 @@ import { HireMenu } from './ui/HireMenu.js';
 import { getManagerArchetype } from './logic/managers.js';
 import { SITE_EVENTS, pickEventGuarded, applyEventEffects, tickEventMultipliers, initEventState } from './logic/events.js';
 import { Fx } from './world/Fx.js';
+import { AssetLoader } from './assets/AssetLoader.js';
+
+// Optional animated worker model (hybrid, S7): the primitive hammer-rig is the guaranteed-visible
+// default. To activate a CC0 animated worker, drop the glb at assets/chars/worker.glb and set this URL
+// — AssetLoader now zeroes metalness so Kenney/Quaternius chars render bright. Left null so no 404 is
+// logged while the asset is absent. See docs/superpowers/assets-acquisition.md.
+const WORKER_MODEL_URL = null;
 
 const canvas = document.getElementById('game');
 const menuEl = document.getElementById('menu');
@@ -99,6 +106,14 @@ if (game) {
 
   game.add(new Site());
   game.fx = game.add(new Fx(game.scene)); // pooled floor-complete dust/spark (persists across restarts)
+
+  // Optional worker model load (no-op while WORKER_MODEL_URL is null → no 404). Loads once; workers
+  // built afterwards pick it up in buildWorld, else they keep the primitive hammer-rig.
+  game._workerModel = null;
+  if (WORKER_MODEL_URL) {
+    game._charLoader = new AssetLoader(showRewardToast);
+    game._charLoader.load(WORKER_MODEL_URL).then((e) => { game._workerModel = e; });
+  }
 
   const foreman = game.add(new Foreman(input));
   game.foreman = foreman;
@@ -198,6 +213,7 @@ if (game) {
     const rng = mulberry32(CONFIG.seed + 99);
     for (const p of placed) {
       const wk = game.add(new Worker(createWorker(p.id, p.archetypeId, rng), p.x, p.z, CONFIG.exit));
+      if (game._workerModel && game._charLoader) wk.setModel(game._workerModel, game._charLoader);
       workers.push(wk);
     }
     game.workers = workers;
@@ -334,12 +350,14 @@ if (game) {
     const res = advanceProgress(g.build, output, dt);
     g.build = { progress: res.progress, floorsBuilt: res.floorsBuilt };
     g.building.sync(res.floorsBuilt, res.progress / CONFIG.production.floorProgress);
+    // steady hammer rhythm while the crew is actually on-station building (self-throttled in AudioManager)
+    if (g.audio && active.some((w) => w.logic.state === 'working' && w.logic.onStation)) g.audio.hammer();
     if (res.floorsCompletedThisStep > 0) {
       const F = CONFIG.production.floorsPerBuilding;
       const before = res.floorsBuilt - res.floorsCompletedThisStep;
       const buildingsDone = Math.floor(res.floorsBuilt / F) - Math.floor(before / F);
       if (g.economy) earn(g.economy, res.floorsCompletedThisStep * CONFIG.economy.floorReward + buildingsDone * CONFIG.economy.buildingBonus);
-      if (g.audio) { g.audio.floorUp(); if (buildingsDone > 0) g.audio.combo(); }
+      if (g.audio) { g.audio.floorUp(); if (buildingsDone > 0) g.audio.buildingDone(); }
       if (buildingsDone > 0) showRewardToast(`🏢 건물 완공! +${buildingsDone * CONFIG.economy.buildingBonus}`);
       // S4 reaction FX: dust+spark burst at the just-finished floor + a tiered camera shake.
       if (g.fx && g.building.activeCenter) {

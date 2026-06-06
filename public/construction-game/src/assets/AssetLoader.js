@@ -26,6 +26,12 @@ export class AssetLoader {
           const mats = Array.isArray(o.material) ? o.material : [o.material];
           for (const m of mats) {
             m.userData.shared = true;
+            // CC0 glTF characters (Kenney/Quaternius) render near-BLACK because an empty PBR material
+            // defaults to metalness=1 with no env map. Zeroing metalness (+ full roughness) makes them
+            // render bright under the scene's Lambert lighting — the one-liner that unlocks animated
+            // workers/managers (previously dropped for primitives over exactly this bug).
+            if (m.metalness !== undefined) m.metalness = 0;
+            if (m.roughness !== undefined) m.roughness = 1;
             if (m.map) { m.map.magFilter = THREE.NearestFilter; m.map.minFilter = THREE.NearestFilter; m.map.generateMipmaps = false; }
           }
         }
