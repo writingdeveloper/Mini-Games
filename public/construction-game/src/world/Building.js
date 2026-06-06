@@ -1,8 +1,15 @@
 import * as THREE from 'three';
 import { CONFIG } from '../logic/config.js';
 import { FOOTPRINT } from '../logic/site.js'; // single source of truth (shared with the gather logic)
+import { SETTINGS } from '../logic/settings.js';
 
 const FLOOR_H = 2.4;
+
+// Overshoot ease for the floor "thunk into place" pop-in.
+function easeOutBack(t) {
+  const c1 = 1.70158, c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+}
 
 export class Building {
   constructor(maxFloors = CONFIG.targetFloors) {
@@ -39,9 +46,23 @@ export class Building {
       const i = this.floors.length;
       const floor = new THREE.Mesh(new THREE.BoxGeometry(FOOTPRINT, FLOOR_H, FOOTPRINT), this.floorMat);
       floor.position.set(0, 0.5 + i * FLOOR_H + FLOOR_H / 2, 0);
+      // Pop-in (S4): new floor "thunks" up with an overshoot. Reduced-motion: appear at full scale.
+      if (SETTINGS.reducedMotion) { floor.scale.y = 1; }
+      else { floor.scale.y = 0.001; floor.userData.pop = 0; }
       this.object3d.add(floor);
       this.floors.push(floor);
     }
     this._positionGhost(floorsBuilt, progress01);
+  }
+
+  // Ease any popping floors toward full height (called from Buildings.update). Cheap: only runs while
+  // a floor is mid-pop (~0.35s), then the tag is cleared.
+  tickPops(dt) {
+    for (const f of this.floors) {
+      if (f.userData.pop == null) continue;
+      f.userData.pop = Math.min(1, f.userData.pop + dt / 0.35);
+      f.scale.y = Math.max(0.001, easeOutBack(f.userData.pop));
+      if (f.userData.pop >= 1) { f.scale.y = 1; delete f.userData.pop; }
+    }
   }
 }

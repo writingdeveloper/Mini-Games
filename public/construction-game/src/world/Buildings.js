@@ -31,6 +31,7 @@ export class Buildings {
 
   update(dt, game) {
     this._refreshActive(game.build ? game.build.floorsBuilt : 0);
+    for (const b of this.buildings) b.tickPops(dt); // S4 floor pop-in
   }
 
   // Stable work slot for a worker id (fixed assignment → no reshuffle when crew shrinks); null if none.

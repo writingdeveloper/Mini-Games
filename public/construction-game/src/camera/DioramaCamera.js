@@ -11,6 +11,7 @@ export class DioramaCamera {
     this.overseerOffset = new THREE.Vector3(0, 22, 24);
     this._desired = new THREE.Vector3();
     this._look = new THREE.Vector3();
+    this._shakeT = 0; this._shakeAmp = 0; this._shakeDur = 0.25;
   }
 
   pushIn(targetObject3d, seconds = 1.4) {
@@ -20,6 +21,15 @@ export class DioramaCamera {
     this.focus = targetObject3d;
     this.mode = 'pushin';
     this.holdTimer = seconds;
+  }
+
+  // Brief decaying screen-shake (floor-complete = small, building-complete = bigger). Skipped under
+  // reduced-motion (vestibular trigger). Takes the stronger of any overlapping shakes.
+  shake(amp = 0.35, seconds = 0.25) {
+    if (SETTINGS.reducedMotion) return;
+    this._shakeAmp = Math.max(this._shakeAmp, amp);
+    this._shakeT = Math.max(this._shakeT, seconds);
+    this._shakeDur = seconds;
   }
 
   update(dt) {
@@ -40,5 +50,15 @@ export class DioramaCamera {
     }
     this.camera.position.lerp(this._desired, k);
     this.camera.lookAt(this._look);
+
+    // Additive decaying shake applied AFTER lookAt → a translational jolt that the next-frame lerp
+    // smoothly corrects. Cosmetic Math.random is fine (never feeds gameplay/seeded streams).
+    if (this._shakeT > 0) {
+      this._shakeT -= dt;
+      const s = this._shakeAmp * Math.max(0, this._shakeT / this._shakeDur);
+      this.camera.position.x += (Math.random() * 2 - 1) * s;
+      this.camera.position.y += (Math.random() * 2 - 1) * s;
+      if (this._shakeT <= 0) this._shakeAmp = 0;
+    }
   }
 }

@@ -30,6 +30,36 @@ function makeStatusSprite() {
   return { sprite, canvas, tex, ctx: canvas.getContext('2d') };
 }
 
+// Shared work-rig geometry/material (S4). The arm box hangs from its top so rotation.x swings it like
+// a shoulder. Marked userData.shared so removeEntity() won't dispose these singletons on restart.
+const ARM_GEO = new THREE.BoxGeometry(0.16, 0.7, 0.16);
+ARM_GEO.translate(0, -0.35, 0);
+ARM_GEO.userData.shared = true;
+const ARM_MAT = new THREE.MeshLambertMaterial({ color: 0x5a4a32, flatShading: true });
+ARM_MAT.userData.shared = true;
+
+function makeGlyphSprite(emoji, px, scale, additive) {
+  const c = document.createElement('canvas'); c.width = c.height = px;
+  const ctx = c.getContext('2d');
+  ctx.font = `${px - 6}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(emoji, px / 2, px / 2 + 2);
+  const tex = new THREE.CanvasTexture(c); tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true, depthWrite: false });
+  if (additive) mat.blending = THREE.AdditiveBlending;
+  const sp = new THREE.Sprite(mat); sp.scale.setScalar(scale);
+  return sp;
+}
+const makeToolSprite = () => makeGlyphSprite('🔨', 32, 0.9, false);
+function makeSparkSprite() {
+  const c = document.createElement('canvas'); c.width = c.height = 16;
+  const ctx = c.getContext('2d'); ctx.fillStyle = '#fff7c8';
+  ctx.beginPath(); ctx.arc(8, 8, 5, 0, Math.PI * 2); ctx.fill();
+  const tex = new THREE.CanvasTexture(c); tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+  const mat = new THREE.SpriteMaterial({ map: tex, color: 0xfff2b0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const sp = new THREE.Sprite(mat); sp.scale.setScalar(0.5);
+  return sp;
+}
+
 export class Worker {
   constructor(logic, x, z, exit) {
     this.logic = logic;
@@ -50,6 +80,7 @@ export class Worker {
     this.bodyMat = new THREE.MeshLambertMaterial({ color: this.archetype.color, flatShading: true });
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.5, 1.0, 3, 6), this.bodyMat);
     body.position.y = 1.0;
+    this._body = body;
     this.object3d.add(body);
     const helmet = new THREE.Mesh(
       new THREE.SphereGeometry(0.42, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2),
@@ -57,6 +88,17 @@ export class Worker {
     );
     helmet.position.y = 1.82;
     this.object3d.add(helmet);
+
+    // Work rig (S4): arms + a hammer + a spark, driven only while on-station & working (see _animateWork).
+    this._rightArm = new THREE.Mesh(ARM_GEO, ARM_MAT); this._rightArm.position.set(0.42, 1.45, 0.12);
+    this._leftArm = new THREE.Mesh(ARM_GEO, ARM_MAT); this._leftArm.position.set(-0.42, 1.45, 0.12);
+    this.object3d.add(this._rightArm); this.object3d.add(this._leftArm);
+    this._tool = makeToolSprite(); this._tool.position.set(0, -0.78, 0); this._tool.visible = false; this._rightArm.add(this._tool);
+    this._spark = makeSparkSprite(); this._spark.position.set(0, -0.95, 0.12); this._spark.material.opacity = 0; this._rightArm.add(this._spark);
+    this._workPhase = Math.random() * 6.28;
+    this._workRand = Math.random();
+    this._prevSwing = 0;
+    this._sparkLife = 0;
 
     const s = makeStatusSprite();
     this.statusSprite = s.sprite; this._canvas = s.canvas; this._tex = s.tex; this._ctx = s.ctx;
@@ -157,9 +199,46 @@ export class Worker {
       }
     }
 
+    this._animateWork(dt);
+
     // Redraw gate: include the danger flag so crossing CONFIG.rage.flee toggles the 💢 glyph
     // even if flee isn't aligned to the rage/5 bucketing. Still no per-frame redraw.
     const key = `${w.state}:${Math.round(w.rage / 5)}:${w.rage >= CONFIG.rage.flee ? 1 : 0}`;
     if (key !== this._lastKey) { this._lastKey = key; this._redraw(); }
+  }
+
+  // Hammer the building face while on-station & working (transform-only; a spark on each down-stroke).
+  // Off-state eases arms to rest. Reduced-motion: a STATIC working pose (no swing/sparks) — still
+  // visibly distinct from idle, no vestibular motion. All cheap: a handful of float writes per worker.
+  _animateWork(dt) {
+    const w = this.logic;
+    const ra = this._rightArm, la = this._leftArm, body = this._body;
+    if (w.state === 'working' && w.onStation && !SETTINGS.reducedMotion) {
+      this._tool.visible = true;
+      this._workPhase += dt * (6.0 + this._workRand * 2);
+      const swing = Math.sin(this._workPhase);
+      ra.rotation.x = -1.1 + swing * 0.9;                 // overhead-down hammer arc
+      la.rotation.x = -0.5 + Math.sin(this._workPhase + 1.0) * 0.4; // bracing arm, offset
+      body.rotation.x = 0.12 + Math.max(0, swing) * 0.10; // forward hunch on the down-stroke
+      body.position.y = 1.0 - Math.max(0, swing) * 0.06;
+      if (this._prevSwing > 0 && swing <= 0) this._sparkLife = 0.12; // strike on the down-stroke zero-cross
+      this._prevSwing = swing;
+      if (this._sparkLife > 0) {
+        this._sparkLife -= dt;
+        const k = Math.max(0, this._sparkLife / 0.12);
+        this._spark.material.opacity = k;
+        this._spark.scale.setScalar(0.3 + (1 - k) * 0.6);
+      } else this._spark.material.opacity = 0;
+    } else {
+      const staticPose = w.state === 'working' && SETTINGS.reducedMotion;
+      const rest = staticPose ? -0.7 : 0;
+      const e = Math.min(1, dt * 8);
+      ra.rotation.x += (rest - ra.rotation.x) * e;
+      la.rotation.x += (rest - la.rotation.x) * e;
+      body.rotation.x += (0 - body.rotation.x) * e;
+      body.position.y += (1.0 - body.position.y) * e;
+      this._tool.visible = staticPose;
+      this._spark.material.opacity = 0;
+    }
   }
 }
