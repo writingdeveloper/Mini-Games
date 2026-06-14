@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, chromium } from "@playwright/test";
 
 declare global {
   interface Window { __fry?: { session?: { height: number } }; }
@@ -43,6 +43,39 @@ test.describe("Fryffel Tower fry-stacking game", () => {
     const height = await page.evaluate(() => window.__fry?.session?.height ?? -1);
     expect(height).toBeGreaterThan(0);
     expect(errors, errors.join("\n")).toHaveLength(0);
+  });
+
+  test("touch: tap-to-drop works on a mobile context and places fries", async ({ browser }) => {
+    const mobileCtx = await browser.newContext({
+      hasTouch: true,
+      isMobile: true,
+      viewport: { width: 390, height: 844 },
+    });
+    const page = await mobileCtx.newPage();
+
+    const errors: string[] = [];
+    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+    page.on("pageerror", (e) => errors.push(e.message));
+
+    await page.goto("/fry-tower-game/index.html");
+    // Start solo game
+    await page.getByRole("button", { name: /쌓기 시작/ }).click();
+    await expect(page.locator("#hud")).toBeVisible();
+
+    // Tap the canvas several times to trigger tap-to-drop; space taps apart so fries settle
+    const canvas = page.locator("#game");
+    for (let i = 0; i < 3; i++) {
+      await canvas.tap();
+      await page.waitForTimeout(1800); // let each fry fall and settle before the next tap
+    }
+    await page.waitForTimeout(2000); // extra settle time after last drop
+
+    // height > 0 once at least one fry is resting on the tray
+    const height = await page.evaluate(() => window.__fry?.session?.height ?? -1);
+    expect(height, "tap-to-drop should produce a positive tower height").toBeGreaterThan(0);
+    expect(errors, "no console errors on touch: " + errors.join("\n")).toHaveLength(0);
+
+    await mobileCtx.close();
   });
 
   test("multi-mode bootstrap runs and recovers gracefully when server is unreachable", async ({ page }) => {

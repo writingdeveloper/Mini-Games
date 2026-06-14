@@ -42,6 +42,7 @@ export function startMultiplayer({ game, input, fx, client }) {
     update: (dt) => {
       if (session) {
         session.update(dt, input);
+        if (fx) fx.followHeight(session.height);
         if (hud) hud.update();
       }
     },

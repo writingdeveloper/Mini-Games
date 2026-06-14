@@ -2,6 +2,11 @@ import * as THREE from 'three';
 
 const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// Camera-follow constants.
+const FOLLOW_FACTOR = 0.9;  // world-units of camera rise per world-unit of tower height
+const MAX_RISE      = 18;   // hard cap so camera doesn't fly off into the sky
+const LERP_SPEED    = 3;    // base-Y lerp speed (units/s feel, exponential)
+
 // Small pooled dust burst + a decaying camera-shake offset.
 export class Fx {
   constructor(scene, camera) {
@@ -9,6 +14,8 @@ export class Fx {
     this.camera = camera;
     this._shake = 0;
     this._base = camera.position.clone();
+    this._initialBaseY = this._base.y;
+    this._targetBaseY  = this._base.y;
     this._spawnBudget = 8;
     this.sprites = [];
     const tex = makeDotTexture();
@@ -28,7 +35,16 @@ export class Fx {
     }
   }
   shake(amp) { if (!reduced) this._shake = Math.max(this._shake, amp); }
+  /** Call each frame with the current tower height so the camera pans up gently. */
+  followHeight(h) {
+    const rise = Math.min(h * FOLLOW_FACTOR, MAX_RISE);
+    this._targetBaseY = this._initialBaseY + rise;
+  }
   update(dt) {
+    // Lerp base Y toward the target (camera follows tower height with ease).
+    const t = Math.min(1, LERP_SPEED * dt);
+    this._base.y += (this._targetBaseY - this._base.y) * t;
+
     this._spawnBudget = 8;
     for (const p of this.sprites) {
       if (p.life <= 0) continue;
@@ -37,6 +53,7 @@ export class Fx {
       p.s.material.opacity = Math.max(0, p.life / 0.6);
       if (p.life <= 0) p.s.visible = false;
     }
+    // Shake offsets from the now-moving _base, so the two effects compose cleanly.
     if (this._shake > 0.001) {
       this.camera.position.set(
         this._base.x + (Math.random() - 0.5) * this._shake,

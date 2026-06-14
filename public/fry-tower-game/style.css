@@ -23,3 +23,55 @@ html, body { margin: 0; height: 100%; overflow: hidden; font-family: system-ui, 
 #opponents .opp { background: rgba(255,246,223,0.92); border: 3px solid #2a1b08; border-radius: 10px; padding: 6px 10px; font-weight: 800; color: #2a1b08; display: flex; align-items: center; gap: 8px; box-shadow: 0 3px 0 #2a1b08; }
 #opponents .opp-bar { width: 10px; height: 40px; background: #e9d8b0; border: 2px solid #2a1b08; border-radius: 4px; position: relative; overflow: hidden; }
 #opponents .opp-bar i { position: absolute; bottom: 0; left: 0; right: 0; background: #f7b330; display: block; }
+
+/* ---- Responsive HUD: shrink chips on narrow/touch viewports ---- */
+@media (max-width: 600px), (pointer: coarse) {
+  #hud {
+    top: 8px;
+    left: 8px;
+    gap: 6px;
+    /* Cap width so it can't reach the right-side opponents panel */
+    max-width: calc(50vw - 16px);
+    flex-wrap: wrap;
+  }
+  #hud > div {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-width: 2px;
+    border-radius: 8px;
+    box-shadow: 0 2px 0 #2a1b08;
+  }
+  #opponents {
+    top: 8px;
+    right: 8px;
+    gap: 5px;
+    max-width: calc(50vw - 16px);
+  }
+  #opponents .opp {
+    font-size: 11px;
+    padding: 4px 7px;
+    gap: 5px;
+    border-width: 2px;
+    border-radius: 8px;
+    box-shadow: 0 2px 0 #2a1b08;
+  }
+  #opponents .opp-bar {
+    width: 7px;
+    height: 28px;
+  }
+}
+
+/* Touch rotate buttons — hidden on desktop (fine pointer), visible on touch (coarse pointer) */
+#touch-controls { display: none; position: fixed; bottom: 24px; left: 0; right: 0; z-index: 6;
+  pointer-events: none; }
+.touch-btn { pointer-events: all; width: 72px; height: 72px; font-size: 36px; font-weight: 900;
+  background: linear-gradient(#fff6df, #f5dfa0); border: 4px solid #2a1b08; border-radius: 50%;
+  box-shadow: 0 5px 0 #2a1b08; color: #2a1b08; cursor: pointer; user-select: none;
+  -webkit-user-select: none; touch-action: none; }
+.touch-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #2a1b08; }
+#rot-left { position: fixed; bottom: 24px; left: 20px; }
+#rot-right { position: fixed; bottom: 24px; right: 20px; }
+@media (pointer: coarse) {
+  #touch-controls { display: block; }
+  #rot-left, #rot-right { display: block; }
+}
