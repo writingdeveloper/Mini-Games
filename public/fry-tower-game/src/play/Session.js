@@ -88,7 +88,17 @@ export class Session {
     }
   }
 
+  dispose() {
+    if (this.active) { this.scene.remove(this.active.mesh); this.active = null; }
+    for (const f of this.placed) this.scene.remove(f.mesh);
+    this.placed = [];
+    this.bodies = [];
+    this._pendingSettle = [];
+    this._disposed = true;
+  }
+
   update(dt, input) {
+    if (this._disposed) return;
     if (isOver(this.round)) return;
     if (input && input.takeDrop()) this.drop();
     if (input) this.steer(input, dt);

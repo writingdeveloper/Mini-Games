@@ -9,6 +9,8 @@ test.describe("Fryffel Tower fry-stacking game", () => {
     await page.goto("/");
     await page.getByRole("link", { name: /Fryffel Tower/ }).click();
     await expect(page).toHaveURL(/\/fry-tower-game/);
+    // Mode-select screen is now shown first; click through to single-player.
+    await page.getByRole("button", { name: /싱글플레이어/ }).click();
     await expect(page.locator('iframe[title*="Fryffel Tower"]')).toBeVisible();
   });
 
@@ -41,5 +43,20 @@ test.describe("Fryffel Tower fry-stacking game", () => {
     const height = await page.evaluate(() => window.__fry?.session?.height ?? -1);
     expect(height).toBeGreaterThan(0);
     expect(errors, errors.join("\n")).toHaveLength(0);
+  });
+
+  test("multi-mode bootstrap runs and recovers gracefully when server is unreachable", async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on("pageerror", (e) => pageErrors.push(e.message));
+
+    await page.goto("/fry-tower-game/index.html?mode=multi&server=https://example.invalid");
+    // Allow time for the socket.io script load to fail and the onerror handler to fire.
+    await page.waitForTimeout(3000);
+
+    // Bootstrap either showed the lobby overlay (socket.io loaded) or restored #menu (onerror path).
+    const lobbyVisible = await page.locator(".lobby-overlay").isVisible();
+    const menuVisible = await page.locator("#menu").isVisible();
+    expect(lobbyVisible || menuVisible, "expected lobby-overlay or #menu to be visible").toBe(true);
+    expect(pageErrors, pageErrors.join("\n")).toHaveLength(0);
   });
 });
