@@ -21,7 +21,7 @@ export function createPhysicsWorld() {
   tray.position.set(0, -0.2, 0);
   world.addBody(tray);
 
-  return { world, fryMat, trayMat, trayTopY: 0 };
+  return { world, fryMat, trayMat, trayBody: tray, trayTopY: 0 };
 }
 
 export function makeFryBody(fryMat, fry = CONFIG.fry) {

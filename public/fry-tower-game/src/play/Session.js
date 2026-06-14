@@ -19,6 +19,7 @@ export class Session {
     this.world = phys.world;
     this.fryMat = phys.fryMat;
     this.trayTopY = phys.trayTopY;
+    this._trayBody = phys.trayBody;
 
     this.placed = [];          // Fry[] dropped
     this.bodies = [];          // CANNON.Body[] dropped (for height)
@@ -104,7 +105,11 @@ export class Session {
     if (this.active) { this.scene.remove(this.active.mesh); this.active = null; }
     for (const f of this.placed) this.scene.remove(f.mesh);
     this.placed = [];
+    // Remove all dynamic fry bodies from the physics world to free Cannon memory.
+    for (const b of this.bodies) this.world.removeBody(b);
     this.bodies = [];
+    // Remove the static tray body as well (the world is discarded after this round).
+    if (this._trayBody) { this.world.removeBody(this._trayBody); this._trayBody = null; }
     this._pendingSettle = [];
     this._disposed = true;
   }
