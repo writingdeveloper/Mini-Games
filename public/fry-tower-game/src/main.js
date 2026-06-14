@@ -39,7 +39,12 @@ if (game) {
         result.classList.remove('hidden');
       },
     });
-    game.add({ update: (dt) => session.update(dt, input) });
+    game.add({
+      update: (dt) => {
+        session.update(dt, input);
+        if (fx) fx.followHeight(session.height);
+      },
+    });
     game.add(new HUD(session));
     game.start();
     window.__fry = { get session() { return session; } };

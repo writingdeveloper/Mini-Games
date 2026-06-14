@@ -24,6 +24,43 @@ html, body { margin: 0; height: 100%; overflow: hidden; font-family: system-ui, 
 #opponents .opp-bar { width: 10px; height: 40px; background: #e9d8b0; border: 2px solid #2a1b08; border-radius: 4px; position: relative; overflow: hidden; }
 #opponents .opp-bar i { position: absolute; bottom: 0; left: 0; right: 0; background: #f7b330; display: block; }
 
+/* ---- Responsive HUD: shrink chips on narrow/touch viewports ---- */
+@media (max-width: 600px), (pointer: coarse) {
+  #hud {
+    top: 8px;
+    left: 8px;
+    gap: 6px;
+    /* Cap width so it can't reach the right-side opponents panel */
+    max-width: calc(50vw - 16px);
+    flex-wrap: wrap;
+  }
+  #hud > div {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-width: 2px;
+    border-radius: 8px;
+    box-shadow: 0 2px 0 #2a1b08;
+  }
+  #opponents {
+    top: 8px;
+    right: 8px;
+    gap: 5px;
+    max-width: calc(50vw - 16px);
+  }
+  #opponents .opp {
+    font-size: 11px;
+    padding: 4px 7px;
+    gap: 5px;
+    border-width: 2px;
+    border-radius: 8px;
+    box-shadow: 0 2px 0 #2a1b08;
+  }
+  #opponents .opp-bar {
+    width: 7px;
+    height: 28px;
+  }
+}
+
 /* Touch rotate buttons — hidden on desktop (fine pointer), visible on touch (coarse pointer) */
 #touch-controls { display: none; position: fixed; bottom: 24px; left: 0; right: 0; z-index: 6;
   pointer-events: none; }
