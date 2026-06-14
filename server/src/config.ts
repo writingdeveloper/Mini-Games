@@ -19,6 +19,7 @@ export const TICK_RATES: Record<string, number> = {
   escape: 10,
   flight: 20,
   survival: 15,
+  frytower: 10,
 };
 
 export const DB_PATH = process.env.DB_PATH || './data/minigames.db';

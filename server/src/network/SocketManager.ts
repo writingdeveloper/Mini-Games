@@ -6,6 +6,7 @@ import { GameSessionBase } from '../games/GameSessionBase.js';
 import { EscapeGameSession } from '../games/escape/EscapeGameSession.js';
 import { FlightGameSession } from '../games/flight/FlightGameSession.js';
 import { SurvivalGameSession } from '../games/survival/SurvivalGameSession.js';
+import { FryTowerGameSession } from '../games/frytower/FryTowerGameSession.js';
 import { TICK_RATES } from '../config.js';
 
 export class SocketManager {
@@ -78,7 +79,7 @@ export class SocketManager {
     });
 
     socket.on(MSG.ROOM_LIST, (payload: { gameType?: string }, ack?: (data: unknown) => void) => {
-      const gameType = payload?.gameType as 'escape' | 'flight' | 'survival' | undefined;
+      const gameType = payload?.gameType as 'escape' | 'flight' | 'survival' | 'frytower' | undefined;
       const rooms = this.lobby.listRooms(gameType).map(r => r.toInfo());
       const response = { rooms };
       if (ack) ack(response);
@@ -177,6 +178,9 @@ export class SocketManager {
         break;
       case 'survival':
         session = new SurvivalGameSession(this.io, room);
+        break;
+      case 'frytower':
+        session = new FryTowerGameSession(this.io, room);
         break;
       default:
         return;
