@@ -1,6 +1,6 @@
 # 🎮 Mini Games Hub
 
-여러 브라우저 게임을 한곳에서 즐기는 게임 허브입니다. **Next.js 프론트엔드 + 독립 Socket.io 멀티플레이어 서버**로 구성된 풀스택 프로젝트로, 서로 다른 4개의 렌더링 엔진(2D Canvas / Babylon.js / CesiumJS / Three.js)으로 만든 게임을 제공합니다.
+여러 브라우저 게임을 한곳에서 즐기는 게임 허브입니다. **Next.js 프론트엔드 + 독립 Socket.io 멀티플레이어 서버**로 구성된 풀스택 프로젝트로, 서로 다른 4개의 렌더링 엔진(2D Canvas / Babylon.js / CesiumJS / Three.js)으로 만든 5개의 게임을 제공합니다.
 
 [![CI](https://github.com/writingdeveloper/Mini-Games/actions/workflows/ci.yml/badge.svg)](https://github.com/writingdeveloper/Mini-Games/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
@@ -26,7 +26,7 @@
 ## ✨ 주요 특징
 
 - **풀스택 실시간 멀티플레이어** — Socket.io 기반 룸 매칭/로비 시스템과 권위 서버(authoritative server) 구조
-- **4개의 독립 게임 엔진** — 2D Canvas, Babylon.js(3D), CesiumJS(실제 지구본), Three.js(로우폴리 3D) 통합
+- **5개 게임 · 4개의 독립 렌더링 엔진** — 2D Canvas, Babylon.js(3D), CesiumJS(실제 지구본), Three.js(로우폴리 3D / 물리 타워) 통합
 - **모노레포 구조** — Next.js 앱과 게임 서버를 한 저장소에서 관리, 각각 독립 배포
 - **테스트 & CI** — Vitest 단위/통합 테스트 + Playwright E2E + GitHub Actions 자동화
 - **타입 안전성** — TypeScript, ESLint, Prettier 일관 적용
@@ -67,13 +67,13 @@
 - 빌드 없는 자체완결형 ESM (Three.js를 importmap CDN으로 로드)
 - 조작: `↑↓←→`/`WASD` 주행 · `Space` 드리프트 · `C` 카메라 · `R` 리셋
 
-### 🏗️ Tantrum Tower (건설 관리)
+### 🍟 Fryffel Tower (감자튀김 마천루)
 
-- 막장 건설 현장에서 폐급 일꾼들을 다그쳐 마감 전에 탑을 올리는 코미디 관리 게임
-- 빌드리스 Three.js 0.184 + PS2 레트로 셰이더 + Web Audio (진동음/외침/콤보/층완공/경보)
-- 일꾼 AI (일함/태업/사보타주/폭동/탈주) · 대치 시스템 · 신상필벌 콤보
-- 경제·AI 관리자 4종 고용·난이도 모드(Easy/Normal/Hard)
-- 싱글플레이어 (`/construction-game`)
+- 감자튀김을 쌓아 하늘에 닿는 마천루를 만드는 물리 타워 게임
+- 빌드 없는 자체완결형 ESM — Three.js 0.184 + cannon-es 물리 엔진 (importmap CDN 로드)
+- 실시간 **2인 멀티플레이어** (Socket.io 권위 서버, 베스트-오브 3 라운드 제) + 싱글플레이어 프리플레이
+- 방해 공작 시스템 (돌풍 · 갈매기 · 기름 · 케첩) · 콤보 차지 · 터치/모바일 완전 지원
+- 조작: `←→` / `A/D` 회전 · `Space` 투하 · `F` 방해 발사 (멀티플레이어)
 
 ---
 
@@ -196,12 +196,14 @@ Mini-Games/
 │   ├── escape-game/page.tsx   # 도주 게임 라우트 (모드 선택)
 │   ├── survival-game/page.tsx # 서바이벌 라우트 (모드 선택)
 │   ├── flight-game/page.tsx   # 비행 게임 라우트
-│   └── desert-game/page.tsx   # Dust Drifter 라우트
+│   ├── desert-game/page.tsx   # Dust Drifter 라우트
+│   └── fry-tower-game/page.tsx # Fryffel Tower 라우트
 ├── public/
 │   ├── escape-game/           # 2D Canvas 게임
 │   ├── survival-game/         # Babylon.js 3D (game-modular.js + src/)
 │   ├── flight-game/           # CesiumJS 3D (game.js + src/)
 │   ├── desert-game/           # Three.js 3D 로우폴리 (src/ ESM, importmap)
+│   ├── fry-tower-game/        # Three.js 0.184 + cannon-es 물리 타워 (src/ ESM, importmap)
 │   └── shared/                # 멀티플레이어 공유 클라이언트
 │       ├── networking/        # GameClient · State/InputBuffer · MessageTypes
 │       └── lobby/             # LobbyUI

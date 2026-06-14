@@ -144,13 +144,26 @@ export function startMultiplayer({ game, input, fx, client, audio }) {
       opponents.showRoundResult(ev);
     } else if (ev.type === 'sabotage') {
       if (ev.target === client.playerId) applySabotage(ev.key);
+    } else if (ev.type === 'forfeit' || ev.type === 'player_disconnected') {
+      // Opponent left mid-match. The server ends a 1v1 as an explicit walkover
+      // (forfeit + game:end). Show the result overlay clearly; player_disconnected
+      // is the legacy signal and is treated the same so the player always sees it.
+      net.stopReporting();
+      if (audio) audio.matchEnd();
+      opponents.showForfeit(ev, latestPlayers);
     }
   });
 
   net.onEnd((data) => {
     net.stopReporting();
     if (audio) audio.matchEnd();
-    opponents.showMatchEnd(data, latestPlayers);
+    // A walkover end carries reason:'walkover' — keep the clear "부전승" message
+    // instead of the generic match-end overlay.
+    if (data && data.reason === 'walkover') opponents.showForfeit(data, latestPlayers);
+    else opponents.showMatchEnd(data, latestPlayers);
+    // Stop the per-frame driver from continuing to step the round session
+    // behind the overlay once the match has ended.
+    if (session) { session.dispose(); session = null; }
   });
 
   // Fire on the F key (sabotage is MP-only, so this listener lives here, not in shared Input).

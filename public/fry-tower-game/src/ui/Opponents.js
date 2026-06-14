@@ -37,5 +37,19 @@ export class Opponents {
     this.result.classList.remove('hidden');
   }
 
+  // Opponent left mid-match → the remaining player wins by walkover (부전승).
+  // Accepts either a forfeit game:event ({ winnerId }) or the game:end payload
+  // ({ matchWinnerId, reason:'walkover' }).
+  showForfeit(ev, players) {
+    const id = ev.winnerId ?? ev.matchWinnerId ?? matchLeader(players);
+    const won = id === this.myId;
+    const name = players?.[id]?.name;
+    this.resultTitle.textContent = won ? '부전승!' : '경기 종료';
+    this.resultDetail.textContent = won
+      ? '상대가 나갔습니다 — 부전승!'
+      : (name ? `${name} 부전승` : '상대가 나갔습니다');
+    this.result.classList.remove('hidden');
+  }
+
   hideResult() { this.result.classList.add('hidden'); }
 }
