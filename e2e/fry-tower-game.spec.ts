@@ -9,6 +9,8 @@ test.describe("Fryffel Tower fry-stacking game", () => {
     await page.goto("/");
     await page.getByRole("link", { name: /Fryffel Tower/ }).click();
     await expect(page).toHaveURL(/\/fry-tower-game/);
+    // Mode-select screen is now shown first; click through to single-player.
+    await page.getByRole("button", { name: /싱글플레이어/ }).click();
     await expect(page.locator('iframe[title*="Fryffel Tower"]')).toBeVisible();
   });
 
