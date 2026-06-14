@@ -113,6 +113,31 @@ export default function Home() {
               </div>
             </div>
           </Link>
+
+          {/* 감자튀김 쌓기 카드 */}
+          <Link href="/fry-tower-game" aria-label="Fryffel Tower 감자튀김 쌓기 플레이하기">
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-yellow-400 to-red-500 p-8 shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-yellow-500/50 cursor-pointer">
+              <div aria-hidden="true" className="absolute -right-8 -top-8 text-9xl opacity-20">
+                🍟
+              </div>
+              <div className="relative z-10">
+                <h2 className="mb-3 text-3xl font-bold text-white">
+                  Fryffel Tower
+                </h2>
+                <p className="mb-4 text-white/90">
+                  감자튀김을 쌓아 가장 높은 탑을 만드세요!
+                </p>
+                <ul className="mb-6 space-y-2 text-sm text-white/80">
+                  <li>✓ 3D 물리 스태킹</li>
+                  <li>✓ 조준·회전·놓기</li>
+                  <li>✓ 시간제 높이 경쟁</li>
+                </ul>
+                <div className="inline-block rounded-full bg-white/20 px-6 py-2 font-semibold text-white backdrop-blur-sm transition-colors group-hover:bg-white/30">
+                  플레이하기 →
+                </div>
+              </div>
+            </div>
+          </Link>
         </div>
 
         <div className="mt-8 text-center">
