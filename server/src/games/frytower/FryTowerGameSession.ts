@@ -8,6 +8,7 @@ interface FryPlayer {
   name: string;
   height: number;      // live reported height this round
   score: number;       // live reported score this round
+  charge: number;      // live reported sabotage charge (anti-spam awareness)
   finalHeight: number; // captured at round_end
   roundDone: boolean;
   roundWins: number;
@@ -35,6 +36,7 @@ export class FryTowerGameSession extends GameSessionBase {
         name: p.name,
         height: 0,
         score: 0,
+        charge: 0,
         finalHeight: 0,
         roundDone: false,
         roundWins: 0,
@@ -49,6 +51,7 @@ export class FryTowerGameSession extends GameSessionBase {
     for (const p of this.players.values()) {
       p.height = 0;
       p.score = 0;
+      p.charge = 0;
       p.finalHeight = 0;
       p.roundDone = false;
     }
@@ -95,6 +98,9 @@ export class FryTowerGameSession extends GameSessionBase {
     if (typeof input.score === 'number') {
       p.score = input.score as number;
     }
+    if (typeof input.charge === 'number') {
+      p.charge = input.charge as number;
+    }
   }
 
   protected onAction(
@@ -102,6 +108,10 @@ export class FryTowerGameSession extends GameSessionBase {
     type: string,
     data: Record<string, unknown>,
   ): void {
+    if (type === 'sabotage') {
+      this._handleSabotage(playerId, data);
+      return;
+    }
     if (type !== 'round_end') return;
     const p = this.players.get(playerId);
     if (!p || p.roundDone) return;
@@ -116,6 +126,25 @@ export class FryTowerGameSession extends GameSessionBase {
       (q) => q.roundDone || !q.connected,
     );
     if (everyoneDone) this._finalizeRound();
+  }
+
+  // Relay a sabotage from one player to a connected opponent. Pure pass-through —
+  // does not touch round logic. Clients filter incoming events by `target`.
+  private _handleSabotage(playerId: string, data: Record<string, unknown>): void {
+    const from = this.players.get(playerId);
+    if (!from) return;
+    const key = data.key;
+    const target = data.target;
+    if (typeof key !== 'string' || typeof target !== 'string') return;
+    if (target === playerId) return; // can't sabotage yourself
+    const victim = this.players.get(target);
+    if (!victim || !victim.connected) return; // target must be a connected player
+    this.broadcast(MSG.GAME_EVENT, {
+      type: 'sabotage',
+      key,
+      from: playerId,
+      target,
+    });
   }
 
   private _finalizeRound(): void {

@@ -6,12 +6,12 @@ export class NetClient {
     this._reportTimer = null;
   }
 
-  // Begin sending {height, score} at 10 Hz from a getter the caller supplies.
+  // Begin sending {height, score, charge} at 10 Hz from a getter the caller supplies.
   startReporting(getState) {
     this.stopReporting();
     this._reportTimer = setInterval(() => {
       const s = getState();
-      if (s) this.client.sendInput({ height: s.height, score: s.score });
+      if (s) this.client.sendInput({ height: s.height, score: s.score, charge: s.charge });
     }, 100);
   }
 
