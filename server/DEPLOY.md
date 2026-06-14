@@ -5,7 +5,7 @@
 ```
 [Vercel - Frontend]                    [Oracle Cloud - Game Server]
  Next.js + Static Games    <-WSS->     Node.js + Socket.io (Docker)
- mini-games.vercel.app                  minigames-api.devmanage.duckdns.org
+ games.writingdeveloper.blog            minigames-api.devmanage.duckdns.org
                                            |
                                      [Nginx Proxy Manager]
                                        SSL + WebSocket proxy
@@ -121,7 +121,7 @@ Once you know your Vercel frontend URL, update `docker-compose.yml`:
 
 ```yaml
 environment:
-  - CORS_ORIGIN=https://mini-games-xxxx.vercel.app,https://your-custom-domain.com
+  - CORS_ORIGIN=https://games.writingdeveloper.blog
 ```
 
 Then restart:
