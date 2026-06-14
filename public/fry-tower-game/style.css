@@ -61,6 +61,42 @@ html, body { margin: 0; height: 100%; overflow: hidden; font-family: system-ui, 
   }
 }
 
+/* ---- Sabotage panel (multiplayer-only; cartoon style) ---- */
+#sabotage-panel { position: fixed; top: 64px; left: 14px; z-index: 4;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: rgba(255, 246, 223, 0.92); border: 3px solid #2a1b08; border-radius: 12px;
+  padding: 8px 12px; box-shadow: 0 3px 0 #2a1b08; }
+#sabotage-label { font-weight: 900; color: #2a1b08; font-size: 14px; }
+#sabotage-meter { width: 120px; height: 16px; background: #e9d8b0; border: 2px solid #2a1b08;
+  border-radius: 8px; overflow: hidden; }
+#sabotage-fill { display: block; height: 100%; width: 0%;
+  background: linear-gradient(#ff5a3a, #e23434); transition: width 0.15s ease-out; }
+#sabotage-held { font-weight: 900; color: #2a1b08; font-size: 15px;
+  background: #ffe39a; border: 2px solid #2a1b08; border-radius: 8px; padding: 2px 8px; }
+#fire-sabotage { font-weight: 900; color: #fff; font-size: 14px;
+  background: linear-gradient(#ff7a3a, #e2342f); border: 3px solid #2a1b08; border-radius: 10px;
+  padding: 6px 12px; cursor: pointer; box-shadow: 0 3px 0 #2a1b08; user-select: none;
+  -webkit-user-select: none; touch-action: manipulation; }
+#fire-sabotage:active { transform: translateY(2px); box-shadow: 0 1px 0 #2a1b08; }
+
+/* Ketchup splat overlay (full-screen red splat for the ketchup sabotage) */
+#ketchup-splat { position: fixed; inset: 0; z-index: 7; pointer-events: none;
+  background:
+    radial-gradient(circle at 22% 30%, rgba(200, 18, 18, 0.78) 0 14%, transparent 16%),
+    radial-gradient(circle at 74% 22%, rgba(190, 14, 14, 0.74) 0 18%, transparent 20%),
+    radial-gradient(circle at 60% 70%, rgba(210, 20, 20, 0.7) 0 22%, transparent 24%),
+    radial-gradient(circle at 35% 78%, rgba(180, 10, 10, 0.72) 0 16%, transparent 18%),
+    radial-gradient(ellipse at center, rgba(200, 16, 16, 0.5) 0 40%, rgba(200, 16, 16, 0.18) 70%, transparent 100%); }
+
+@media (max-width: 600px), (pointer: coarse) {
+  #sabotage-panel { top: 52px; left: 8px; gap: 6px; padding: 5px 8px;
+    border-width: 2px; border-radius: 8px; box-shadow: 0 2px 0 #2a1b08; }
+  #sabotage-label { font-size: 11px; }
+  #sabotage-meter { width: 70px; height: 12px; }
+  #sabotage-held { font-size: 12px; padding: 2px 6px; }
+  #fire-sabotage { font-size: 12px; padding: 5px 9px; border-width: 2px; box-shadow: 0 2px 0 #2a1b08; }
+}
+
 /* Touch rotate buttons — hidden on desktop (fine pointer), visible on touch (coarse pointer) */
 #touch-controls { display: none; position: fixed; bottom: 24px; left: 0; right: 0; z-index: 6;
   pointer-events: none; }

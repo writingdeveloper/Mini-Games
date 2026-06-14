@@ -44,6 +44,17 @@
 
   <div id="opponents" class="hidden"></div>
 
+  <!-- Sabotage panel (multiplayer-only; revealed by Multiplayer.js, hidden in solo) -->
+  <div id="sabotage-panel" class="hidden">
+    <div id="sabotage-label">😈 방해</div>
+    <div id="sabotage-meter"><i id="sabotage-fill"></i></div>
+    <div id="sabotage-held" class="hidden"></div>
+    <button id="fire-sabotage" class="hidden" aria-label="Fire sabotage">🎯 발사 (F)</button>
+  </div>
+
+  <!-- Ketchup splat overlay (ketchup sabotage effect) -->
+  <div id="ketchup-splat" class="hidden"></div>
+
   <!-- Touch rotate buttons — shown only on coarse-pointer (touch) devices via CSS -->
   <div id="touch-controls">
     <button id="rot-left" class="touch-btn" aria-label="Rotate left">⟲</button>

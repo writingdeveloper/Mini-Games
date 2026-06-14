@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 import { CONFIG } from '../logic/config.js';
 import { createPhysicsWorld, makeFryBody, towerHeight, isSettled, fallenCount } from '../physics/world.js';
 import { makeFryMesh } from '../render/fryMesh.js';
@@ -61,6 +62,13 @@ export class Session {
     body.quaternion.set(q.x, q.y, q.z, q.w);
     this.world.addBody(body);
 
+    // Sabotage: a greased drop slips sideways as it lands.
+    if (this._greaseNext) {
+      const dir = Math.random() < 0.5 ? -1 : 1;
+      body.velocity.set(dir * 1.5, 0, 0);
+      this._greaseNext = false;
+    }
+
     const fry = new Fry(body, a.mesh);
     this.placed.push(fry);
     this.bodies.push(body);
@@ -118,6 +126,34 @@ export class Session {
     if (prev === 'playing' && isOver(this.round)) {
       this.onEnd({ height, score: this.score, fallen: fallenCount(this.bodies, this.trayTopY) });
     }
+  }
+
+  // ---- Sabotage effects (multiplayer-only; invoked by Multiplayer.applySabotage) ----
+
+  // 강풍 (gust): a sideways gust shoves the whole tower so it lurches.
+  applyGust() {
+    if (!this.bodies.length) return;
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    const impulse = new CANNON.Vec3(dir * 2.5, 0, 0);
+    const center = new CANNON.Vec3(0, 0, 0);
+    for (const b of this.bodies) {
+      b.wakeUp();
+      b.applyImpulse(impulse, center);
+    }
+  }
+
+  // 갈매기 (seagull): a single fry gets a stronger sideways knock.
+  nudgeRandomFry() {
+    if (!this.bodies.length) return;
+    const b = this.bodies[Math.floor(Math.random() * this.bodies.length)];
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    b.wakeUp();
+    b.applyImpulse(new CANNON.Vec3(dir * 4.0, 0.5, 0), new CANNON.Vec3(0, 0, 0));
+  }
+
+  // 기름 (grease): the next dropped fry slips sideways as it lands (see drop()).
+  greaseNextFry() {
+    this._greaseNext = true;
   }
 
   get height() { return towerHeight(this.bodies, this.trayTopY); }
