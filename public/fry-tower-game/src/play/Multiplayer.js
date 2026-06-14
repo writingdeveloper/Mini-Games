@@ -14,6 +14,7 @@ export function startMultiplayer({ game, input, fx, client }) {
   let session = null;
   let hud = null;
   let latestPlayers = {};
+  let startedRound = 0;
 
   function endRoundLocally() {
     if (!session) return;
@@ -21,7 +22,9 @@ export function startMultiplayer({ game, input, fx, client }) {
     net.reportRoundEnd(session.height, session.score);
   }
 
-  function startRound() {
+  function startRound(roundNum) {
+    if (roundNum <= startedRound) return; // de-dupe late/duplicate round_start
+    startedRound = roundNum;
     opponents.hideResult();
     if (session) session.dispose();
     session = new Session(game.scene, { fx, onEnd: () => endRoundLocally() });
@@ -50,7 +53,7 @@ export function startMultiplayer({ game, input, fx, client }) {
   });
 
   net.onEvent((ev) => {
-    if (ev.type === 'round_start') startRound();
+    if (ev.type === 'round_start') startRound(ev.round ?? startedRound + 1);
     else if (ev.type === 'round_result') opponents.showRoundResult(ev);
   });
 
@@ -60,4 +63,9 @@ export function startMultiplayer({ game, input, fx, client }) {
   });
 
   game.start();
+
+  // The server broadcasts the first round_start inside onStart(), which runs BEFORE
+  // GAME_START — the client only attaches listeners on gameStart, so it would miss it.
+  // Start round 1 locally on match begin; rounds 2+ arrive via the round_start event.
+  startRound(1);
 }
