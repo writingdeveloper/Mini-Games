@@ -39,6 +39,8 @@ Before anything else, ensure port 3001 is open in Oracle Cloud's networking laye
    sudo iptables-save | sudo tee /etc/iptables/rules.v4
    ```
 
+> **Note:** `npm start` now runs `npm run build` first (compiles `tsc` → `dist/`) before `node dist/index.js`, so a deploy always serves freshly built code and never a stale committed `dist/`.
+
 ## Step 2: Clone & Build on Server
 
 ```bash
