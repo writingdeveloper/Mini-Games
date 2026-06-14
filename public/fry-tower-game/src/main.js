@@ -1,6 +1,7 @@
 import { Game } from './core/Game.js';
 import { Input } from './core/Input.js';
 import { Stage } from './render/Stage.js';
+import { Fx } from './render/Fx.js';
 import { Session } from './play/Session.js';
 import { HUD } from './ui/HUD.js';
 
@@ -22,6 +23,8 @@ try {
 
 if (game) {
   game.add(new Stage(game.scene));
+  const fx = new Fx(game.scene, game.camera);
+  game.add(fx);
   const input = new Input();
   let session = null;
 
@@ -34,6 +37,7 @@ if (game) {
         resultDetail.textContent = `높이 ${height.toFixed(1)}m · 점수 ${score}`;
         result.classList.remove('hidden');
       },
+      fx,
     });
     // Drive the session + HUD from the game loop.
     const hudView = new HUD(session);
