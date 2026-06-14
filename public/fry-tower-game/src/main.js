@@ -4,6 +4,7 @@ import { Stage } from './render/Stage.js';
 import { Session } from './play/Session.js';
 import { HUD } from './ui/HUD.js';
 import { Fx } from './render/Fx.js';
+import { AudioManager } from './audio/AudioManager.js';
 
 const canvas = document.getElementById('game');
 const menu = document.getElementById('menu');
@@ -12,6 +13,23 @@ const result = document.getElementById('result');
 const startBtn = document.getElementById('start-btn');
 const restartBtn = document.getElementById('restart-btn');
 const resultDetail = document.getElementById('result-detail');
+const muteBtn = document.getElementById('mute-btn');
+
+const audio = new AudioManager();
+
+/** Update the mute button icon to reflect current state. */
+function refreshMuteBtn() {
+  if (muteBtn) muteBtn.textContent = audio.muted ? '🔇' : '🔊';
+}
+// Reflect persisted mute state immediately (before any gesture).
+refreshMuteBtn();
+
+if (muteBtn) {
+  muteBtn.addEventListener('click', () => {
+    audio.toggleMute();
+    refreshMuteBtn();
+  });
+}
 
 let game = null;
 try {
@@ -32,8 +50,13 @@ if (game) {
     menu.classList.add('hidden');
     result.classList.add('hidden');
     hud.classList.remove('hidden');
+    // Initialise audio on this user gesture.
+    audio.init();
+    audio.resume();
+    audio.startBgm();
     const session = new Session(game.scene, {
       fx,
+      audio,
       onEnd: ({ height, score }) => {
         resultDetail.textContent = `높이 ${height.toFixed(1)}m · 점수 ${score}`;
         result.classList.remove('hidden');
@@ -76,7 +99,12 @@ if (game) {
         gameType: 'frytower',
         gameName: 'FRYFFEL TOWER',
         onSinglePlayer: () => startSolo(),
-        onGameStart: () => startMultiplayer({ game, input, fx, client }),
+        onGameStart: () => {
+          audio.init();
+          audio.resume();
+          audio.startBgm();
+          startMultiplayer({ game, input, fx, client, audio });
+        },
       });
       lobby.show();
     };

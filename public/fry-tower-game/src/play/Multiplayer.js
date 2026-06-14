@@ -20,7 +20,7 @@ function seedFromId(id) {
 // Drives server-authoritative best-of rounds: each round runs a local Session,
 // reports height/score/charge at 10Hz, and reports round_end when the local round finishes.
 // Sabotage (Phase 3b) is multiplayer-only and lives entirely here — solo is unaffected.
-export function startMultiplayer({ game, input, fx, client }) {
+export function startMultiplayer({ game, input, fx, client, audio }) {
   document.getElementById('hud').classList.remove('hidden');
   document.getElementById('opponents')?.classList.remove('hidden');
 
@@ -71,6 +71,7 @@ export function startMultiplayer({ game, input, fx, client }) {
     }
     if (!leaderId) return; // no opponents yet
     client.sendAction('sabotage', { key: held, target: leaderId });
+    if (audio) audio.sabotageFire();
     held = null;
     refreshSabotageHud();
   }
@@ -78,6 +79,7 @@ export function startMultiplayer({ game, input, fx, client }) {
   // Apply an incoming sabotage to the local session.
   function applySabotage(key) {
     if (!session) return;
+    if (audio) audio.sabotageHit();
     if (key === 'gust') session.applyGust();
     else if (key === 'seagull') session.nudgeRandomFry();
     else if (key === 'grease') session.greaseNextFry();
@@ -101,7 +103,7 @@ export function startMultiplayer({ game, input, fx, client }) {
     startedRound = roundNum;
     opponents.hideResult();
     if (session) session.dispose();
-    session = new Session(game.scene, { fx, onEnd: () => endRoundLocally() });
+    session = new Session(game.scene, { fx, audio, onEnd: () => endRoundLocally() });
     held = null;
     if (!hud) {
       hud = new HUD(session);
@@ -137,14 +139,17 @@ export function startMultiplayer({ game, input, fx, client }) {
 
   net.onEvent((ev) => {
     if (ev.type === 'round_start') startRound(ev.round ?? startedRound + 1);
-    else if (ev.type === 'round_result') opponents.showRoundResult(ev);
-    else if (ev.type === 'sabotage') {
+    else if (ev.type === 'round_result') {
+      if (audio) audio.roundEnd();
+      opponents.showRoundResult(ev);
+    } else if (ev.type === 'sabotage') {
       if (ev.target === client.playerId) applySabotage(ev.key);
     }
   });
 
   net.onEnd((data) => {
     net.stopReporting();
+    if (audio) audio.matchEnd();
     opponents.showMatchEnd(data, latestPlayers);
   });
 

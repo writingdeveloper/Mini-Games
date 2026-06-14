@@ -10,10 +10,11 @@ import { roundScore } from '../logic/scoring.js';
 
 // Owns the cannon world, the active (aiming) fry, placed fries, and pure-logic state.
 export class Session {
-  constructor(scene, { onEnd, fx } = {}) {
+  constructor(scene, { onEnd, fx, audio } = {}) {
     this.scene = scene;
     this.onEnd = onEnd || (() => {});
     this.fx = fx || null;
+    this.audio = audio || null;
     const phys = createPhysicsWorld();
     this.world = phys.world;
     this.fryMat = phys.fryMat;
@@ -74,6 +75,7 @@ export class Session {
     this.bodies.push(body);
     this._pendingSettle.push({ body, t: 0 });
     this.active = null;
+    if (this.audio) this.audio.place();
     this._spawnActive();
   }
 
@@ -85,11 +87,13 @@ export class Session {
       if (fell) {
         this.combo = onCollapse(this.combo);
         if (this.fx) { this.fx.burst(s.body.position.x, s.body.position.y, s.body.position.z); this.fx.shake(0.25); }
+        if (this.audio) this.audio.collapse();
         this._pendingSettle.splice(i, 1);
         continue;
       }
       if (s.t > CONFIG.stability.settleTime && isSettled(s.body)) {
         this.combo = onStablePlacement(this.combo);
+        if (this.audio) this.audio.combo();
         this.stableCount += 1;
         this._pendingSettle.splice(i, 1);
       }

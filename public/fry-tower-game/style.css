@@ -97,6 +97,21 @@ html, body { margin: 0; height: 100%; overflow: hidden; font-family: system-ui, 
   #fire-sabotage { font-size: 12px; padding: 5px 9px; border-width: 2px; box-shadow: 0 2px 0 #2a1b08; }
 }
 
+/* ---- Mute button (always visible, top-right corner) ---- */
+#mute-btn {
+  position: fixed; top: 14px; right: 14px; z-index: 8;
+  width: 42px; height: 42px; font-size: 22px; line-height: 1;
+  background: rgba(255, 246, 223, 0.92); border: 3px solid #2a1b08;
+  border-radius: 50%; box-shadow: 0 3px 0 #2a1b08;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  padding: 0; user-select: none; -webkit-user-select: none; touch-action: manipulation;
+}
+#mute-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #2a1b08; }
+
+@media (max-width: 600px), (pointer: coarse) {
+  #mute-btn { top: 8px; right: 8px; width: 34px; height: 34px; font-size: 18px; border-width: 2px; box-shadow: 0 2px 0 #2a1b08; }
+}
+
 /* Touch rotate buttons — hidden on desktop (fine pointer), visible on touch (coarse pointer) */
 #touch-controls { display: none; position: fixed; bottom: 24px; left: 0; right: 0; z-index: 6;
   pointer-events: none; }
