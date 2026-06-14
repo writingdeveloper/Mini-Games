@@ -1,6 +1,10 @@
 import * as CANNON from 'cannon-es';
 import { CONFIG } from '../logic/config.js';
 
+// Pure height/stability helpers live in logic/tower.js (cannon-free, unit-tested).
+// Re-exported here so existing callers can keep importing them from the physics module.
+export { towerHeight, isSettled, fallenCount } from '../logic/tower.js';
+
 export function createPhysicsWorld() {
   const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
   world.broadphase = new CANNON.SAPBroadphase(world);
@@ -26,27 +30,4 @@ export function makeFryBody(fryMat, fry = CONFIG.fry) {
   body.sleepSpeedLimit = CONFIG.stability.settleSpeed;
   body.sleepTimeLimit = CONFIG.stability.settleTime;
   return body;
-}
-
-// Tower height = highest fry top above the tray, ignoring fries that fell off.
-export function towerHeight(bodies, trayTopY = 0, fry = CONFIG.fry) {
-  let top = trayTopY;
-  for (const b of bodies) {
-    if (b.position.y < trayTopY - 1.5) continue; // fell off the tray
-    const topY = b.position.y + fry.thickness / 2;
-    if (topY > top) top = topY;
-  }
-  return Math.max(0, top - trayTopY);
-}
-
-// A body is "settled" when its speed is below the stability threshold.
-export function isSettled(body, cfg = CONFIG.stability) {
-  return body.velocity.length() < cfg.settleSpeed && body.angularVelocity.length() < cfg.settleSpeed;
-}
-
-// Count fries that have fallen below the tray (collapse signal).
-export function fallenCount(bodies, trayTopY = 0) {
-  let n = 0;
-  for (const b of bodies) if (b.position.y < trayTopY - 1.5) n++;
-  return n;
 }
