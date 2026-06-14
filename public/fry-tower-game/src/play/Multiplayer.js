@@ -161,6 +161,9 @@ export function startMultiplayer({ game, input, fx, client, audio }) {
     // instead of the generic match-end overlay.
     if (data && data.reason === 'walkover') opponents.showForfeit(data, latestPlayers);
     else opponents.showMatchEnd(data, latestPlayers);
+    // Stop the per-frame driver from continuing to step the round session
+    // behind the overlay once the match has ended.
+    if (session) { session.dispose(); session = null; }
   });
 
   // Fire on the F key (sabotage is MP-only, so this listener lives here, not in shared Input).

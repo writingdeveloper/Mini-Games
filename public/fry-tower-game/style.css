@@ -1,6 +1,6 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; font-family: system-ui, "Segoe UI", sans-serif; }
-#game { display: block; width: 100vw; height: 100vh; background: #ffe39a; }
+#game { display: block; width: 100vw; height: 100vh; background: #ffe39a; touch-action: none; }
 .hidden { display: none !important; }
 
 .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -42,7 +42,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; font-family: system-ui, 
     box-shadow: 0 2px 0 #2a1b08;
   }
   #opponents {
-    top: 8px;
+    top: 52px;
     right: 8px;
     gap: 5px;
     max-width: calc(50vw - 16px);
