@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fryffel Tower — 감자튀김 마천루</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/",
+      "cannon-es": "https://esm.sh/cannon-es@0.20.0"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="webgl-error" class="overlay hidden">
+    <div class="panel"><h1>WebGL을 사용할 수 없습니다</h1><p>최신 브라우저에서 실행해 주세요.</p></div>
+  </div>
+
+  <div id="menu" class="overlay">
+    <div class="panel">
+      <h1 class="title">FRYFFEL TOWER</h1>
+      <p class="subtitle">감자튀김을 쌓아 가장 높은 탑을!</p>
+      <button id="start-btn" class="btn-primary">쌓기 시작</button>
+      <div class="controls">
+        <span>← →</span><span>이동</span>
+        <span>Q / E</span><span>회전</span>
+        <span>Space</span><span>놓기</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="hud" class="hidden">
+    <div id="hud-height">🗼 <span id="height-val">0.0</span> m</div>
+    <div id="hud-time">⏱ <span id="time-val">90</span></div>
+    <div id="hud-score">⭐ <span id="score-val">0</span></div>
+    <div id="hud-combo">🔥 <span id="combo-val">0</span></div>
+  </div>
+
+  <div id="result" class="overlay hidden">
+    <div class="panel">
+      <h1 class="title" id="result-title">시간 종료!</h1>
+      <p class="subtitle" id="result-detail"></p>
+      <button id="restart-btn" class="btn-primary">다시 쌓기</button>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
