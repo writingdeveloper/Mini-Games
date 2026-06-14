@@ -18,3 +18,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; font-family: system-ui, 
 #hud { position: fixed; top: 14px; left: 14px; z-index: 4; display: flex; gap: 14px; flex-wrap: wrap; }
 #hud > div { background: rgba(255, 246, 223, 0.92); border: 3px solid #2a1b08; border-radius: 10px;
   padding: 6px 12px; font-weight: 800; color: #2a1b08; box-shadow: 0 3px 0 #2a1b08; }
+
+#opponents { position: fixed; top: 14px; right: 14px; z-index: 4; display: flex; flex-direction: column; gap: 8px; }
+#opponents .opp { background: rgba(255,246,223,0.92); border: 3px solid #2a1b08; border-radius: 10px; padding: 6px 10px; font-weight: 800; color: #2a1b08; display: flex; align-items: center; gap: 8px; box-shadow: 0 3px 0 #2a1b08; }
+#opponents .opp-bar { width: 10px; height: 40px; background: #e9d8b0; border: 2px solid #2a1b08; border-radius: 4px; position: relative; overflow: hidden; }
+#opponents .opp-bar i { position: absolute; bottom: 0; left: 0; right: 0; background: #f7b330; display: block; }
