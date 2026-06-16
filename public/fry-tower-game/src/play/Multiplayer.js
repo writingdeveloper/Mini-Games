@@ -20,7 +20,7 @@ function seedFromId(id) {
 // Drives server-authoritative best-of rounds: each round runs a local Session,
 // reports height/score/charge at 10Hz, and reports round_end when the local round finishes.
 // Sabotage (Phase 3b) is multiplayer-only and lives entirely here — solo is unaffected.
-export function startMultiplayer({ game, input, fx, client, audio }) {
+export function startMultiplayer({ game, input, fx, cameraRig, client, audio }) {
   document.getElementById('hud').classList.remove('hidden');
   document.getElementById('opponents')?.classList.remove('hidden');
 
@@ -103,7 +103,7 @@ export function startMultiplayer({ game, input, fx, client, audio }) {
     startedRound = roundNum;
     opponents.hideResult();
     if (session) session.dispose();
-    session = new Session(game.scene, { fx, audio, onEnd: () => endRoundLocally() });
+    session = new Session(game.scene, { fx, audio, cameraRig, onEnd: () => endRoundLocally() });
     held = null;
     if (!hud) {
       hud = new HUD(session);
@@ -119,8 +119,13 @@ export function startMultiplayer({ game, input, fx, client, audio }) {
   game.add({
     update: (dt) => {
       if (session) {
+        if (input.state.orbitL) cameraRig.orbit(+CONFIG.camera.yawSpeed * dt);
+        if (input.state.orbitR) cameraRig.orbit(-CONFIG.camera.yawSpeed * dt);
+        if (input.takeViewStep()) cameraRig.orbitStep();
+        session.azimuth = cameraRig.azimuth;
         session.update(dt, input);
-        if (fx) fx.followHeight(session.height);
+        cameraRig.followHeight(session.height);
+        cameraRig.update(dt);
         if (hud) hud.update();
         // Charge -> grant a sabotage when the threshold is reached and none is held.
         if (shouldGrant(session.combo.charge, held)) {

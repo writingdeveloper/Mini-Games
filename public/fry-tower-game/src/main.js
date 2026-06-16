@@ -4,6 +4,8 @@ import { Stage } from './render/Stage.js';
 import { Session } from './play/Session.js';
 import { HUD } from './ui/HUD.js';
 import { Fx } from './render/Fx.js';
+import { CameraRig } from './render/CameraRig.js';
+import { CONFIG } from './logic/config.js';
 import { AudioManager } from './audio/AudioManager.js';
 
 const canvas = document.getElementById('game');
@@ -42,14 +44,33 @@ try {
 if (game) {
   game.add(new Stage(game.scene));
   const input = new Input();
-  const fx = new Fx(game.scene, game.camera);
+  const fx = new Fx(game.scene);
   game.add(fx);
+  // CameraRig owns camera.position; its update is driven explicitly in each game
+  // loop (after the session) for deterministic ordering, so it is NOT game.add()ed.
+  const cameraRig = new CameraRig(game.camera);
+
+  // Show the touch control hint once, on first coarse-pointer (mobile) play.
+  function maybeShowTouchHint() {
+    const hint = document.getElementById('touch-hint');
+    if (!hint) return;
+    const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+    let seen = false;
+    try { seen = !!localStorage.getItem('fryTowerTouchHintSeen'); } catch { /* private mode */ }
+    if (!coarse || seen) return;
+    hint.classList.remove('hidden');
+    try { localStorage.setItem('fryTowerTouchHintSeen', '1'); } catch { /* ignore */ }
+    const dismiss = () => hint.classList.add('hidden');
+    setTimeout(dismiss, 4000);
+    hint.addEventListener('pointerdown', dismiss, { once: true });
+  }
 
   // ---- Solo (existing behavior) ----
   function startSolo() {
     menu.classList.add('hidden');
     result.classList.add('hidden');
     hud.classList.remove('hidden');
+    maybeShowTouchHint();
     // Initialise audio on this user gesture.
     audio.init();
     audio.resume();
@@ -57,6 +78,7 @@ if (game) {
     const session = new Session(game.scene, {
       fx,
       audio,
+      cameraRig,
       onEnd: ({ height, score }) => {
         resultDetail.textContent = `높이 ${height.toFixed(1)}m · 점수 ${score}`;
         result.classList.remove('hidden');
@@ -64,8 +86,13 @@ if (game) {
     });
     game.add({
       update: (dt) => {
+        if (input.state.orbitL) cameraRig.orbit(+CONFIG.camera.yawSpeed * dt);
+        if (input.state.orbitR) cameraRig.orbit(-CONFIG.camera.yawSpeed * dt);
+        if (input.takeViewStep()) cameraRig.orbitStep();
+        session.azimuth = cameraRig.azimuth;
         session.update(dt, input);
-        if (fx) fx.followHeight(session.height);
+        cameraRig.followHeight(session.height);
+        cameraRig.update(dt);
       },
     });
     game.add(new HUD(session));
@@ -103,7 +130,7 @@ if (game) {
           audio.init();
           audio.resume();
           audio.startBgm();
-          startMultiplayer({ game, input, fx, client, audio });
+          startMultiplayer({ game, input, fx, cameraRig, client, audio });
         },
       });
       lobby.show();
