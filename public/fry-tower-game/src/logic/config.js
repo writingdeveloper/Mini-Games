@@ -20,4 +20,7 @@ export const CONFIG = {
   momentum: { smooth: 0.5, max: 7, assistScale: 0.18, upClamp: 0.5 },
   // Orbit camera: radius/height, look target, and yaw orbit limits/speed.
   camera: { radius: 10.4, height: 6.7, targetY: 2.5, yawSpeed: 1.2, yawMin: -0.7, yawMax: 0.9, startYaw: 0.16 },
+
+  // ---- challenge (Phase B3): height-scaled wobble that stresses tall towers ----
+  challenge: { interval: 5, startHeight: 1.5, perMeter: 0.6, maxImpulse: 2.5 },
 };
