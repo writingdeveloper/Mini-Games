@@ -4,6 +4,8 @@ import { Stage } from './render/Stage.js';
 import { Session } from './play/Session.js';
 import { HUD } from './ui/HUD.js';
 import { Fx } from './render/Fx.js';
+import { CameraRig } from './render/CameraRig.js';
+import { CONFIG } from './logic/config.js';
 import { AudioManager } from './audio/AudioManager.js';
 
 const canvas = document.getElementById('game');
@@ -42,8 +44,11 @@ try {
 if (game) {
   game.add(new Stage(game.scene));
   const input = new Input();
-  const fx = new Fx(game.scene, game.camera);
+  const fx = new Fx(game.scene);
   game.add(fx);
+  // CameraRig owns camera.position; its update is driven explicitly in each game
+  // loop (after the session) for deterministic ordering, so it is NOT game.add()ed.
+  const cameraRig = new CameraRig(game.camera);
 
   // ---- Solo (existing behavior) ----
   function startSolo() {
@@ -57,6 +62,7 @@ if (game) {
     const session = new Session(game.scene, {
       fx,
       audio,
+      cameraRig,
       onEnd: ({ height, score }) => {
         resultDetail.textContent = `높이 ${height.toFixed(1)}m · 점수 ${score}`;
         result.classList.remove('hidden');
@@ -64,8 +70,12 @@ if (game) {
     });
     game.add({
       update: (dt) => {
+        if (input.state.orbitL) cameraRig.orbit(+CONFIG.camera.yawSpeed * dt);
+        if (input.state.orbitR) cameraRig.orbit(-CONFIG.camera.yawSpeed * dt);
+        session.azimuth = cameraRig.azimuth;
         session.update(dt, input);
-        if (fx) fx.followHeight(session.height);
+        cameraRig.followHeight(session.height);
+        cameraRig.update(dt);
       },
     });
     game.add(new HUD(session));
@@ -103,7 +113,7 @@ if (game) {
           audio.init();
           audio.resume();
           audio.startBgm();
-          startMultiplayer({ game, input, fx, client, audio });
+          startMultiplayer({ game, input, fx, cameraRig, client, audio });
         },
       });
       lobby.show();
