@@ -1,7 +1,9 @@
 import { test, expect, chromium } from "@playwright/test";
 
 declare global {
-  interface Window { __fry?: { session?: { height: number } }; }
+  interface Window {
+    __fry?: { session?: { height: number; placed?: unknown[] } };
+  }
 }
 
 test.describe("Fryffel Tower fry-stacking game", () => {
@@ -76,6 +78,37 @@ test.describe("Fryffel Tower fry-stacking game", () => {
     expect(errors, "no console errors on touch: " + errors.join("\n")).toHaveLength(0);
 
     await mobileCtx.close();
+  });
+
+  test("hand controls place fries in 3D (depth/yaw/tilt/orbit) without errors", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+    page.on("pageerror", (e) => errors.push(e.message));
+
+    await page.goto("/fry-tower-game/index.html");
+    await page.getByRole("button", { name: /쌓기 시작/ }).click();
+    await expect(page.locator("#hud")).toBeVisible();
+    await page.waitForTimeout(800); // let the hand settle holding the first fry
+
+    // Exercise the 3D placement controls: depth, yaw, tilt, camera orbit, X.
+    for (const key of ["ArrowUp", "KeyQ", "KeyZ", "BracketRight", "ArrowLeft"]) {
+      await page.keyboard.down(key);
+      await page.waitForTimeout(150);
+      await page.keyboard.up(key);
+    }
+
+    // Place several fries with the hand (Space releases; a fresh fry is grabbed).
+    for (let i = 0; i < 4; i++) {
+      await page.keyboard.press("Space");
+      await page.waitForTimeout(700); // > respawnBeat so the next fry is in hand
+    }
+    await page.waitForTimeout(1200); // settle
+
+    const placed = await page.evaluate(
+      () => window.__fry?.session?.placed?.length ?? 0
+    );
+    expect(placed, "hand should have placed at least one fry").toBeGreaterThan(0);
+    expect(errors, errors.join("\n")).toHaveLength(0);
   });
 
   test("multi-mode bootstrap runs and recovers gracefully when server is unreachable", async ({ page }) => {
