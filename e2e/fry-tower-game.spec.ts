@@ -2,7 +2,9 @@ import { test, expect, chromium } from "@playwright/test";
 
 declare global {
   interface Window {
-    __fry?: { session?: { height: number; placed?: unknown[] } };
+    __fry?: {
+      session?: { height: number; placed?: unknown[]; azimuth?: number };
+    };
   }
 }
 
@@ -109,6 +111,42 @@ test.describe("Fryffel Tower fry-stacking game", () => {
     );
     expect(placed, "hand should have placed at least one fry").toBeGreaterThan(0);
     expect(errors, errors.join("\n")).toHaveLength(0);
+  });
+
+  test("touch: 🔄 view button rotates the camera (arm follows via azimuth)", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext({
+      hasTouch: true,
+      isMobile: true,
+      viewport: { width: 390, height: 844 },
+    });
+    const page = await ctx.newPage();
+    const errors: string[] = [];
+    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+    page.on("pageerror", (e) => errors.push(e.message));
+
+    await page.goto("/fry-tower-game/index.html");
+    await page.getByRole("button", { name: /쌓기 시작/ }).click();
+    await expect(page.locator("#hud")).toBeVisible();
+    await page.waitForTimeout(700); // settle
+
+    const before = await page.evaluate(
+      () => window.__fry?.session?.azimuth ?? 0
+    );
+    await page.locator("#view-btn").tap();
+    await page.waitForTimeout(700); // let the camera lerp to the next preset
+
+    const after = await page.evaluate(
+      () => window.__fry?.session?.azimuth ?? 0
+    );
+    expect(
+      Math.abs(after - before),
+      "view button should change the camera azimuth"
+    ).toBeGreaterThan(0.05);
+    expect(errors, errors.join("\n")).toHaveLength(0);
+
+    await ctx.close();
   });
 
   test("multi-mode bootstrap runs and recovers gracefully when server is unreachable", async ({ page }) => {
