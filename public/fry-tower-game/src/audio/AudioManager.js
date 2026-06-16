@@ -161,6 +161,23 @@ export class AudioManager {
     });
   }
 
+  /** Soft grip/pick-up when the hand grabs a fresh fry. Quiet (fires per fry). */
+  grab() {
+    if (!this._ready) return;
+    this._noise(0.05, 0.16, 760, 1.4);
+    this._osc('sine', 230, 0.06, 0.004, 0.05);
+  }
+
+  /** Low wooden creak when the tower wobbles under the height challenge. */
+  wobble() {
+    if (!this._ready) return;
+    this._noise(0.22, 0.3, 230, 1.1);
+    const osc = this._osc('sawtooth', 150, 0.09, 0.02, 0.2);
+    if (osc) {
+      osc.frequency.exponentialRampToValueAtTime(90, this.ctx.currentTime + 0.22);
+    }
+  }
+
   /** Whoosh when firing a sabotage. */
   sabotageFire() {
     if (!this._ready) return;

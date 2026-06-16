@@ -72,6 +72,7 @@ export class Session {
     const mesh = makeFryMesh();
     this.scene.add(mesh);
     this.held = mesh;
+    if (this.audio) this.audio.grab();
     // grip animates closed (GRIP_CLOSED) in update() so the fingers visibly
     // cup the new fry rather than snapping shut.
   }
@@ -151,6 +152,7 @@ export class Session {
       b.applyImpulse(new CANNON.Vec3(dir * mag, 0, jz), new CANNON.Vec3(0, 0, 0));
     }
     if (this.cameraRig) this.cameraRig.shake(0.12);
+    if (this.audio) this.audio.wobble();
   }
 
   dispose() {
