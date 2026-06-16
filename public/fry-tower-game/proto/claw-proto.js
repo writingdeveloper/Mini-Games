@@ -1,8 +1,7 @@
-// Claw-feel prototype v2 — AUTHENTIC crane-game flow with a HAND as the claw.
-// Position the hand over the cabinet at the top, press Space: it auto-plunges,
-// grips, lifts, returns to the chute corner, and drops. The grip is weak — a
-// poorly-centered / heavy grab SLIPS on the way (the classic "dropped it!" drama).
-// Reuses HandRig, CameraRig, makeFryMesh, Fry, CONFIG.
+// Claw-feel prototype v3 — authentic crane game with the HAND as the claw.
+// Commit aiming (lock X, then lock Z, then drop), a WEAK grip that drops off-center
+// grabs on the way to a real CHUTE HOLE, an aim reticle, and juice (shake/pop/flash
+// /sound). Reuses HandRig, CameraRig, makeFryMesh, Fry, CONFIG, AudioManager.
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { CONFIG } from '../src/logic/config.js';
@@ -10,17 +9,17 @@ import { HandRig } from '../src/render/HandRig.js';
 import { CameraRig } from '../src/render/CameraRig.js';
 import { makeFryMesh } from '../src/render/fryMesh.js';
 import { Fry } from '../src/entities/Fry.js';
+import { AudioManager } from '../src/audio/AudioManager.js';
 
-// ---- Tunables (find the crane-game feel) ----
-const GRAB_RADIUS = 0.95;   // how close the grip must be to grab a prize
-const GRAB_MAXFORCE = 26;   // grip pull strength
-const SLIP_DIST = 1.0;      // held prize lagging this far for SLIP_GRACE = slips
-const SLIP_GRACE = 0.16;
-const HOVER_Y = 5.0;        // claw rest / positioning height (top of cabinet)
-const PLUNGE_Y = 2.75;      // how deep the claw plunges
-const PLUNGE_SPEED = 3.4, LIFT_SPEED = 2.8, RETURN_SPEED = 3.0, MOVE_SPEED = 3.0;
+// ---- Tunables (the crane feel) ----
+const GRAB_RADIUS = 0.95;   // grip must be this close to grab
+const GRAB_MAXFORCE = 15;   // base grip strength (scaled DOWN for off-center grabs)
+const SLIP_DIST = 0.6;      // held prize lagging this far for SLIP_GRACE = drops
+const SLIP_GRACE = 0.07;
+const HOVER_Y = 5.0, PLUNGE_Y = 2.75;
+const PLUNGE_SPEED = 3.4, LIFT_SPEED = 2.3, RETURN_SPEED = 2.4, AIM_SPEED = 2.6;
 const CAB = { x: 0, z: 0, half: 1.55, floorTop: 2.2 };
-const CHUTE = { x: -1.05, z: -1.05, half: 0.55 }; // back-left corner of the cabinet
+const HOLE = { x: -1.0, z: -1.0, half: 0.62 }; // back-left chute hole
 const ROUND_SEC = 80;
 
 // ---- Scene ----
@@ -42,10 +41,11 @@ addEventListener('resize', () => {
 });
 
 const cameraRig = new CameraRig(camera);
-cameraRig.target.set(0, 2.6, 0);
+cameraRig.target.set(0, 2.5, 0);
 const hand = new HandRig(scene);
+const audio = new AudioManager();
 
-// ---- Physics world ----
+// ---- Physics ----
 const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
 world.broadphase = new CANNON.SAPBroadphase(world);
 world.allowSleep = true;
@@ -67,31 +67,44 @@ function staticBox(cx, cy, cz, hx, hy, hz, color, opacity = 1) {
   return body;
 }
 
-// Cabinet — red base/frame + tall glassy walls (the enclosed crane-game box).
+// Cabinet base (red) under everything except the hole.
 const RED = 0xd0322f;
-staticBox(CAB.x, CAB.floorTop - 0.2, CAB.z, CAB.half + 0.18, 0.2, CAB.half + 0.18, RED);
+staticBox(CAB.x, CAB.floorTop - 0.3, CAB.z, CAB.half + 0.18, 0.1, CAB.half + 0.18, 0x9a2420);
+// Floor = two boxes leaving the back-left hole open (x<-0.4 & z<-0.4 uncovered).
+staticBox(0.6, CAB.floorTop - 0.1, 0, 0.95, 0.1, CAB.half + 0.05, RED);          // right strip
+staticBox(-0.93, CAB.floorTop - 0.1, 0.6, 0.62, 0.1, 0.95, RED);                 // left-front strip
+// Glass walls + corner posts.
 const wallY = CAB.floorTop + 1.1, wallH = 1.3;
-staticBox(CAB.x + CAB.half, wallY, CAB.z, 0.08, wallH, CAB.half, 0x8fd3e8, 0.22);
-staticBox(CAB.x - CAB.half, wallY, CAB.z, 0.08, wallH, CAB.half, 0x8fd3e8, 0.22);
-staticBox(CAB.x, wallY, CAB.z + CAB.half, CAB.half, wallH, 0.08, 0x8fd3e8, 0.22);
-staticBox(CAB.x, wallY, CAB.z - CAB.half, CAB.half, wallH, 0.08, 0x8fd3e8, 0.22);
-// Corner posts (red frame).
+staticBox(CAB.x + CAB.half, wallY, CAB.z, 0.08, wallH, CAB.half, 0x8fd3e8, 0.2);
+staticBox(CAB.x - CAB.half, wallY, CAB.z, 0.08, wallH, CAB.half, 0x8fd3e8, 0.2);
+staticBox(CAB.x, wallY, CAB.z + CAB.half, CAB.half, wallH, 0.08, 0x8fd3e8, 0.2);
+staticBox(CAB.x, wallY, CAB.z - CAB.half, CAB.half, wallH, 0.08, 0x8fd3e8, 0.2);
 for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-  staticBox(CAB.x + sx * CAB.half, wallY, CAB.z + sz * CAB.half, 0.12, wallH, 0.12, RED);
+  staticBox(CAB.x + sx * CAB.half, wallY, CAB.z + sz * CAB.half, 0.1, wallH, 0.1, RED);
 }
-// Chute — a green pad in the back-left corner (drop a held prize here to deliver).
-const chutePad = new THREE.Mesh(
-  new THREE.BoxGeometry(CHUTE.half * 2, 0.06, CHUTE.half * 2),
-  new THREE.MeshStandardMaterial({ color: 0x36b24a, roughness: 0.7 })
+// Collection bin under the hole (delivered prizes drop through into it).
+staticBox(HOLE.x, 0.5, HOLE.z, HOLE.half + 0.25, 0.1, HOLE.half + 0.25, 0x2a2a2a);
+// Hole rim marker (dark ring at floor level).
+const rim = new THREE.Mesh(
+  new THREE.RingGeometry(HOLE.half * 0.7, HOLE.half + 0.18, 24),
+  new THREE.MeshBasicMaterial({ color: 0x161616, side: THREE.DoubleSide })
 );
-chutePad.position.set(CHUTE.x, CAB.floorTop + 0.02, CHUTE.z);
-scene.add(chutePad);
+rim.rotation.x = -Math.PI / 2;
+rim.position.set(HOLE.x, CAB.floorTop + 0.02, HOLE.z);
+scene.add(rim);
 
-// Grip anchor — kinematic body teleported to the grip point each frame.
+// Aim reticle — a ring on the floor under the claw.
+const reticle = new THREE.Mesh(
+  new THREE.RingGeometry(0.28, 0.42, 24),
+  new THREE.MeshBasicMaterial({ color: 0xffe14a, transparent: true, opacity: 0.9, side: THREE.DoubleSide })
+);
+reticle.rotation.x = -Math.PI / 2;
+scene.add(reticle);
+
 const anchor = new CANNON.Body({ mass: 0, type: CANNON.Body.KINEMATIC });
 world.addBody(anchor);
 
-// ---- Prizes (fries) in the cabinet ----
+// ---- Prizes ----
 function makeFryBody(mat) {
   const f = CONFIG.fry;
   const body = new CANNON.Body({
@@ -109,7 +122,7 @@ function spawnFries(n) {
     body.position.set(
       CAB.x + (Math.random() - 0.5) * 1.4,
       CAB.floorTop + 0.7 + Math.random() * 1.9,
-      CAB.z + (Math.random() - 0.5) * 1.4
+      CAB.z + (Math.random() - 0.5) * 1.4 + 0.3 // bias away from the hole corner
     );
     body.quaternion.setFromEuler(Math.random() * 3, Math.random() * 3, Math.random() * 3);
     world.addBody(body);
@@ -118,30 +131,56 @@ function spawnFries(n) {
     const r = Math.random();
     fry.value = r < 0.1 ? 5 : r < 0.32 ? 3 : 1;
     fry.delivered = false;
+    // High-value prizes glow so you can target them.
+    if (fry.value > 1) {
+      mesh.traverse((o) => {
+        if (o.material && o.material.emissive) {
+          o.material = o.material.clone();
+          o.material.emissive = new THREE.Color(fry.value === 5 ? 0xffcc33 : 0xff7a1f);
+          o.material.emissiveIntensity = fry.value === 5 ? 0.5 : 0.28;
+        }
+      });
+    }
     fries.push(fry);
   }
 }
 spawnFries(16);
 
-// ---- Input ----
+// ---- Juice (DOM + audio + shake) ----
+const elFlash = document.getElementById('flash');
+const elPop = document.getElementById('pop');
+function flash() { if (!elFlash) return; elFlash.style.opacity = '1'; setTimeout(() => (elFlash.style.opacity = '0'), 120); }
+function popScore(n) {
+  if (!elPop) return;
+  elPop.textContent = '+' + n;
+  elPop.classList.remove('show'); void elPop.offsetWidth; elPop.classList.add('show');
+}
+
+// ---- Input: commit aiming ----
 const keys = {};
+let audioReady = false;
 addEventListener('keydown', (e) => {
+  if (!audioReady) { audio.init(); audio.resume(); audioReady = true; }
   keys[e.code] = true;
-  if (e.code === 'Space') { e.preventDefault(); dropClaw(); }
+  if (e.code === 'Space') { e.preventDefault(); commitAim(); }
 });
 addEventListener('keyup', (e) => { keys[e.code] = false; });
 
-// ---- State machine ----
-// idle -> plunge -> grab -> lift -> return -> drop -> idle
-let state = 'idle';
-let stateT = 0;
-const handPos = new THREE.Vector3(CAB.x, HOVER_Y, CAB.z);
+// ---- State ----
+// aim_x -> aim_z -> plunge -> grab -> lift -> return -> drop -> aim_x
+let state = 'aim_x', stateT = 0;
+const handPos = new THREE.Vector3(HOLE.x, HOVER_Y, HOLE.z); // start at the chute/home corner
 let grip = 0.2;
 let held = null, constraint = null, slipT = 0;
-let score = 0, slips = 0, grabs = 0;
+let grabbedThisCycle = false; // one grab attempt per plunge
+let score = 0, slips = 0, grabs = 0, attached = 0, deliveredCount = 0;
 const gripPoint = new THREE.Vector3();
 
-function dropClaw() { if (state === 'idle') { state = 'plunge'; stateT = 0; } }
+function commitAim() {
+  if (state === 'aim_x') { state = 'aim_z'; stateT = 0; }
+  else if (state === 'aim_z') { state = 'plunge'; stateT = 0; }
+}
+function startPlunge() { if (state === 'aim_x' || state === 'aim_z') { state = 'plunge'; stateT = 0; } }
 
 function tryGrab() {
   grabs++;
@@ -154,37 +193,33 @@ function tryGrab() {
   }
   if (best) {
     best.body.wakeUp();
+    // Off-center grabs hold WEAKLY -> slip on the way. Centered = strong.
+    const force = GRAB_MAXFORCE * (1 - 0.72 * (bestD / GRAB_RADIUS));
     const c = new CANNON.PointToPointConstraint(
-      anchor, new CANNON.Vec3(0, 0, 0), best.body, new CANNON.Vec3(0, 0, 0), GRAB_MAXFORCE
+      anchor, new CANNON.Vec3(0, 0, 0), best.body, new CANNON.Vec3(0, 0, 0), force
     );
     world.addConstraint(c);
-    held = best; constraint = c; slipT = 0;
+    held = best; constraint = c; slipT = 0; attached++;
+    if (audioReady) audio.grab();
   }
 }
-function releaseHeld() {
-  if (constraint) world.removeConstraint(constraint);
-  constraint = null; held = null;
+function releaseHeld() { if (constraint) world.removeConstraint(constraint); constraint = null; held = null; }
+function slip() {
+  releaseHeld(); slips++; slipT = 0;
+  cameraRig.shake(0.32); flash();
+  if (audioReady) audio.collapse();
 }
-function slip() { releaseHeld(); slips++; }
+// Delivered when the claw opens over the chute while still holding (slip already nulled held).
+function deliverHeld() {
+  if (!held) return;
+  const f = held; releaseHeld();
+  f.delivered = true; score += f.value; deliveredCount++;
+  popScore(f.value); if (audioReady) audio.combo();
+  world.removeBody(f.body); f.mesh.visible = false;
+}
 function approach(cur, target, speed, dt) {
-  const d = target - cur;
-  const step = speed * dt;
+  const d = target - cur, step = speed * dt;
   return Math.abs(d) <= step ? target : cur + Math.sign(d) * step;
-}
-
-function checkDeliveries() {
-  for (const f of fries) {
-    if (f.delivered || f === held) continue;
-    const p = f.body.position;
-    const inChute =
-      Math.abs(p.x - CHUTE.x) < CHUTE.half + 0.2 &&
-      Math.abs(p.z - CHUTE.z) < CHUTE.half + 0.2 &&
-      p.y < CAB.floorTop + 0.7;
-    if (inChute && f.body.velocity.lengthSquared() < 0.8) {
-      f.delivered = true; score += f.value;
-      world.removeBody(f.body); f.mesh.visible = false;
-    }
-  }
 }
 
 // ---- Loop ----
@@ -192,42 +227,44 @@ const elScore = document.getElementById('r-score');
 const elHeld = document.getElementById('r-held');
 const elSlip = document.getElementById('r-slip');
 const elTime = document.getElementById('r-time');
+const PHASE = { aim_x: '좌우 조준 ←→', aim_z: '앞뒤 조준 ↑↓', plunge: '내려가는 중', grab: '집는 중', lift: '올리는 중', return: '배출구로', drop: '떨굼' };
 let timeLeft = ROUND_SEC, last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   stateT += dt;
-
   if (timeLeft > 0) timeLeft = Math.max(0, timeLeft - dt);
   if (keys.BracketLeft) cameraRig.orbit(+CONFIG.camera.yawSpeed * dt);
   if (keys.BracketRight) cameraRig.orbit(-CONFIG.camera.yawSpeed * dt);
 
-  // --- crane state machine ---
-  if (state === 'idle') {
+  if (state === 'aim_x') {
+    handPos.y = approach(handPos.y, HOVER_Y, LIFT_SPEED, dt);
     if (timeLeft > 0) {
-      if (keys.ArrowLeft) handPos.x -= MOVE_SPEED * dt;
-      if (keys.ArrowRight) handPos.x += MOVE_SPEED * dt;
-      if (keys.ArrowUp) handPos.z -= MOVE_SPEED * dt;
-      if (keys.ArrowDown) handPos.z += MOVE_SPEED * dt;
+      if (keys.ArrowLeft) handPos.x -= AIM_SPEED * dt;
+      if (keys.ArrowRight) handPos.x += AIM_SPEED * dt;
       handPos.x = THREE.MathUtils.clamp(handPos.x, CAB.x - CAB.half + 0.3, CAB.x + CAB.half - 0.3);
+    }
+  } else if (state === 'aim_z') {
+    if (timeLeft > 0) {
+      if (keys.ArrowUp) handPos.z -= AIM_SPEED * dt;
+      if (keys.ArrowDown) handPos.z += AIM_SPEED * dt;
       handPos.z = THREE.MathUtils.clamp(handPos.z, CAB.z - CAB.half + 0.3, CAB.z + CAB.half - 0.3);
     }
-    handPos.y = approach(handPos.y, HOVER_Y, LIFT_SPEED, dt);
   } else if (state === 'plunge') {
     handPos.y = approach(handPos.y, PLUNGE_Y, PLUNGE_SPEED, dt);
-    if (handPos.y <= PLUNGE_Y + 0.01) { state = 'grab'; stateT = 0; }
+    if (handPos.y <= PLUNGE_Y + 0.01) { state = 'grab'; stateT = 0; grabbedThisCycle = false; if (audioReady) audio.place(); }
   } else if (state === 'grab') {
-    if (stateT > 0.18 && !held) { tryGrab(); }
+    if (stateT > 0.16 && !grabbedThisCycle) { tryGrab(); grabbedThisCycle = true; }
     if (stateT > 0.45) { state = 'lift'; stateT = 0; }
   } else if (state === 'lift') {
     handPos.y = approach(handPos.y, HOVER_Y, LIFT_SPEED, dt);
     if (handPos.y >= HOVER_Y - 0.01) { state = 'return'; stateT = 0; }
   } else if (state === 'return') {
-    handPos.x = approach(handPos.x, CHUTE.x, RETURN_SPEED, dt);
-    handPos.z = approach(handPos.z, CHUTE.z, RETURN_SPEED, dt);
-    if (Math.abs(handPos.x - CHUTE.x) < 0.02 && Math.abs(handPos.z - CHUTE.z) < 0.02) { state = 'drop'; stateT = 0; }
+    handPos.x = approach(handPos.x, HOLE.x, RETURN_SPEED, dt);
+    handPos.z = approach(handPos.z, HOLE.z, RETURN_SPEED, dt);
+    if (Math.abs(handPos.x - HOLE.x) < 0.02 && Math.abs(handPos.z - HOLE.z) < 0.02) { state = 'drop'; stateT = 0; }
   } else if (state === 'drop') {
-    if (stateT > 0.25) { releaseHeld(); }
-    if (stateT > 0.7) { state = 'idle'; stateT = 0; }
+    if (stateT > 0.2) deliverHeld(); // over the hole: if still held, it's delivered
+    if (stateT > 0.7) { state = 'aim_x'; stateT = 0; }
   }
 
   const grabbing = state === 'grab' || state === 'lift' || state === 'return';
@@ -245,23 +282,28 @@ function frame(now) {
     else slipT = Math.max(0, slipT - dt * 2);
   }
 
+  reticle.position.set(handPos.x, CAB.floorTop + 0.04, handPos.z);
+  reticle.material.color.setHex(state === 'aim_x' ? 0xffe14a : state === 'aim_z' ? 0x4ad0ff : 0xaaaaaa);
+  reticle.visible = state === 'aim_x' || state === 'aim_z';
+
   world.step(1 / 60, dt, 3);
   for (const f of fries) if (!f.delivered) f.sync();
-  checkDeliveries();
   cameraRig.update(dt);
   renderer.render(scene, camera);
 
   elScore.textContent = score;
-  elHeld.textContent = held ? `${held.value}점짜리` : state === 'idle' ? '-' : `(${state})`;
+  elHeld.textContent = held ? `${held.value}점!` : PHASE[state] || '-';
   elSlip.textContent = slips;
   elTime.textContent = Math.ceil(timeLeft);
+  if (elTime.parentElement) elTime.style.color = timeLeft <= 10 ? '#ff5a4a' : '#ffd479';
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
-// Expose for the verify script.
+// Expose for the verify script (bypasses the commit-aim keys).
 window.__claw = {
   get score() { return score; }, get slips() { return slips; }, get grabs() { return grabs; },
   get held() { return !!held; }, get state() { return state; }, get handPos() { return handPos; },
-  drop: dropClaw, setHand(x, z) { handPos.x = x; handPos.z = z; },
+  get attached() { return attached; }, get deliveredCount() { return deliveredCount; },
+  drop() { startPlunge(); }, setHand(x, z) { handPos.x = x; handPos.z = z; },
 };

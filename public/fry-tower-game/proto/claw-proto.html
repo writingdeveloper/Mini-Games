@@ -13,6 +13,14 @@
     #readout { position: fixed; right: 12px; top: 12px; background: rgba(40,24,8,.85); color: #ffe9c2;
       padding: 8px 12px; border-radius: 10px; font-size: 14px; line-height: 1.6; border: 2px solid #ffce7a; min-width: 150px; }
     #readout span { color: #ffd479; font-weight: 800; }
+    #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .12s ease-out;
+      background: radial-gradient(circle, rgba(220,40,40,0) 38%, rgba(220,40,40,.5) 100%); }
+    #pop { position: fixed; left: 50%; top: 40%; transform: translateX(-50%); pointer-events: none; opacity: 0;
+      font-size: 42px; font-weight: 900; color: #ffd34d; text-shadow: 0 2px 0 #7a3a00, 0 0 14px rgba(255,200,60,.7); }
+    @keyframes popUp { 0% { opacity: 0; transform: translateX(-50%) translateY(12px) scale(.6); }
+      18% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1.12); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-54px) scale(1); } }
+    #pop.show { animation: popUp .9s ease-out; }
   </style>
   <script type="importmap">
   {
@@ -27,10 +35,12 @@
 <body>
   <canvas id="game"></canvas>
   <div id="hint">
-    <b>← → ↑ ↓</b> 집게 위치 (위에서) · <b>[ ]</b> 카메라<br>
-    <b>Space</b> 집게 내리기! — 위치 잡고 누르면 <b>자동으로</b> 하강·집기·올림·<b>배출구(초록)</b>로 이동해 떨굼.<br>
-    집게 힘이 약해 <b>치우치거나 무거우면 가는 길에 미끄러집니다</b> — 잘 노려서!
+    <b>← →</b> 좌우 조준 → <b>Space</b> 확정 → <b>↑ ↓</b> 앞뒤 조준 → <b>Space</b> 집게 내림! · <b>[ ]</b> 카메라<br>
+    한 축씩 정하면 <b>되돌릴 수 없습니다</b>. 자동으로 하강·집기·올려 <b>구멍</b>으로 떨굼.<br>
+    집게 힘이 약해 <b>치우치거나 무겁게 잡으면 가는 길에 놓칩니다</b> — 정확히 노려서!
   </div>
+  <div id="flash"></div>
+  <div id="pop"></div>
   <div id="readout">
     담은 가치: <span id="r-score">0</span><br>
     들고 있음: <span id="r-held">-</span><br>
