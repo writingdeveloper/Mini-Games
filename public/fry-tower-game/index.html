@@ -46,6 +46,9 @@
   <!-- Mute button — always visible, works in solo + multiplayer -->
   <button id="mute-btn" aria-label="Toggle mute">🔊</button>
 
+  <!-- Help button (controls reference) — visible during play (z-index below menu/result) -->
+  <button id="help-btn" aria-label="도움말">❔</button>
+
   <div id="opponents" class="hidden"></div>
 
   <!-- Sabotage panel (multiplayer-only; revealed by Multiplayer.js, hidden in solo) -->
@@ -67,6 +70,26 @@
   </div>
   <!-- One-time touch control hint (shown once on first mobile play) -->
   <div id="touch-hint" class="hidden">드래그 이동 · ⟲ ⟳ 회전 · 탭 놓기 · 🔄 시점</div>
+
+  <!-- Controls help overlay (full control reference + assist toggle; pauses the round) -->
+  <div id="help-overlay" class="overlay hidden">
+    <div class="panel">
+      <h1 class="title help-title">조작법</h1>
+      <div class="controls help-controls">
+        <span>← →</span><span>좌우</span>
+        <span>↑ ↓</span><span>앞뒤(깊이)</span>
+        <span>Q / E</span><span>회전(교차)</span>
+        <span>Z / X</span><span>기울이기</span>
+        <span>W / S</span><span>높이</span>
+        <span>[ ]</span><span>카메라</span>
+        <span>Space</span><span>놓기</span>
+        <span>R</span><span>리셋</span>
+      </div>
+      <p class="subtitle help-mobile">📱 드래그=이동 · 탭=놓기 · ⟲ ⟳=회전 · 🔄=시점</p>
+      <button id="assist-toggle">🎯 보정: 끔</button>
+      <button id="help-close" class="btn-primary">닫기</button>
+    </div>
+  </div>
 
   <div id="result" class="overlay hidden">
     <div class="panel">
