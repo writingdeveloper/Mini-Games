@@ -50,11 +50,27 @@ if (game) {
   // loop (after the session) for deterministic ordering, so it is NOT game.add()ed.
   const cameraRig = new CameraRig(game.camera);
 
+  // Show the touch control hint once, on first coarse-pointer (mobile) play.
+  function maybeShowTouchHint() {
+    const hint = document.getElementById('touch-hint');
+    if (!hint) return;
+    const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+    let seen = false;
+    try { seen = !!localStorage.getItem('fryTowerTouchHintSeen'); } catch { /* private mode */ }
+    if (!coarse || seen) return;
+    hint.classList.remove('hidden');
+    try { localStorage.setItem('fryTowerTouchHintSeen', '1'); } catch { /* ignore */ }
+    const dismiss = () => hint.classList.add('hidden');
+    setTimeout(dismiss, 4000);
+    hint.addEventListener('pointerdown', dismiss, { once: true });
+  }
+
   // ---- Solo (existing behavior) ----
   function startSolo() {
     menu.classList.add('hidden');
     result.classList.add('hidden');
     hud.classList.remove('hidden');
+    maybeShowTouchHint();
     // Initialise audio on this user gesture.
     audio.init();
     audio.resume();
@@ -72,6 +88,7 @@ if (game) {
       update: (dt) => {
         if (input.state.orbitL) cameraRig.orbit(+CONFIG.camera.yawSpeed * dt);
         if (input.state.orbitR) cameraRig.orbit(-CONFIG.camera.yawSpeed * dt);
+        if (input.takeViewStep()) cameraRig.orbitStep();
         session.azimuth = cameraRig.azimuth;
         session.update(dt, input);
         cameraRig.followHeight(session.height);

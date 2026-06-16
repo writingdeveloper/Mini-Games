@@ -121,6 +121,7 @@ export function startMultiplayer({ game, input, fx, cameraRig, client, audio }) 
       if (session) {
         if (input.state.orbitL) cameraRig.orbit(+CONFIG.camera.yawSpeed * dt);
         if (input.state.orbitR) cameraRig.orbit(-CONFIG.camera.yawSpeed * dt);
+        if (input.takeViewStep()) cameraRig.orbitStep();
         session.azimuth = cameraRig.azimuth;
         session.update(dt, input);
         cameraRig.followHeight(session.height);
