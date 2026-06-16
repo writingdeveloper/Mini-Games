@@ -190,4 +190,10 @@ export class HandRig {
     out.set(0, -0.52, 0.30).applyQuaternion(this.hand.quaternion).add(this.hand.position);
     return out;
   }
+
+  // Remove every mesh this rig added to the scene (constructor adds these six
+  // objects directly). Lets a disposed round leave no orphaned arm in the scene.
+  dispose(scene) {
+    scene.remove(this.upper, this.fore, this.shoulder, this.elbowJoint, this.wristJoint, this.hand);
+  }
 }
