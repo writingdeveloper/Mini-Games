@@ -59,11 +59,14 @@
   <!-- Ketchup splat overlay (ketchup sabotage effect) -->
   <div id="ketchup-splat" class="hidden"></div>
 
-  <!-- Touch rotate buttons — shown only on coarse-pointer (touch) devices via CSS -->
+  <!-- Touch buttons — shown only on coarse-pointer (touch) devices via CSS -->
   <div id="touch-controls">
     <button id="rot-left" class="touch-btn" aria-label="Rotate left">⟲</button>
+    <button id="view-btn" class="touch-btn" aria-label="Rotate camera">🔄</button>
     <button id="rot-right" class="touch-btn" aria-label="Rotate right">⟳</button>
   </div>
+  <!-- One-time touch control hint (shown once on first mobile play) -->
+  <div id="touch-hint" class="hidden">드래그 이동 · ⟲ ⟳ 회전 · 탭 놓기 · 🔄 시점</div>
 
   <div id="result" class="overlay hidden">
     <div class="panel">

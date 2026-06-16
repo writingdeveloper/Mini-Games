@@ -120,9 +120,24 @@ html, body { margin: 0; height: 100%; overflow: hidden; font-family: system-ui, 
   box-shadow: 0 5px 0 #2a1b08; color: #2a1b08; cursor: pointer; user-select: none;
   -webkit-user-select: none; touch-action: none; }
 .touch-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #2a1b08; }
-#rot-left { position: fixed; bottom: 24px; left: 20px; }
-#rot-right { position: fixed; bottom: 24px; right: 20px; }
+#rot-left { position: fixed; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); left: 20px; }
+#rot-right { position: fixed; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); right: 20px; }
+/* 🔄 view button — bottom-center, between the rotate buttons (touch only) */
+#view-btn { display: none; position: fixed; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); left: calc(50% - 36px); }
+
+/* One-time control hint toast */
+#touch-hint {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+  z-index: 7; max-width: 88vw; text-align: center;
+  padding: 8px 14px; border-radius: 999px;
+  background: rgba(40, 26, 8, 0.88); color: #ffe9c2;
+  font-size: 13px; font-weight: 700; border: 2px solid #ffce7a;
+  box-shadow: 0 2px 0 #2a1b08; pointer-events: all;
+}
+#touch-hint.hidden { display: none; }
+
 @media (pointer: coarse) {
   #touch-controls { display: block; }
-  #rot-left, #rot-right { display: block; }
+  #rot-left, #rot-right, #view-btn { display: block; }
 }
