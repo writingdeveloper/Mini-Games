@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claw Proto — 뽑기 손맛</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #ffe39a; font-family: system-ui, sans-serif; }
+    #game { display: block; width: 100vw; height: 100vh; touch-action: none; }
+    #hint { position: fixed; left: 12px; bottom: 12px; background: rgba(40,24,8,.8); color: #ffe9c2;
+      padding: 8px 12px; border-radius: 10px; font-size: 13px; line-height: 1.5; border: 2px solid #ffce7a; }
+    #hint b { color: #fff; }
+    #readout { position: fixed; right: 12px; top: 12px; background: rgba(40,24,8,.85); color: #ffe9c2;
+      padding: 8px 12px; border-radius: 10px; font-size: 14px; line-height: 1.6; border: 2px solid #ffce7a; min-width: 150px; }
+    #readout span { color: #ffd479; font-weight: 800; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/",
+      "cannon-es": "https://esm.sh/cannon-es@0.20.0"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="hint">
+    <b>← →</b> 좌우 · <b>↑ ↓</b> 앞뒤 · <b>W / S</b> 내리기/올리기 · <b>[ ]</b> 카메라<br>
+    <b>Space</b> 잡기 / 놓기 — 바구니에서 집어 <b>트레이</b>에 담으세요. 거칠게 옮기면 미끄러집니다!
+  </div>
+  <div id="readout">
+    담은 가치: <span id="r-score">0</span><br>
+    들고 있음: <span id="r-held">-</span><br>
+    미끄러짐: <span id="r-slip">0</span><br>
+    남은 시간: <span id="r-time">--</span>
+  </div>
+  <script type="module" src="./claw-proto.js"></script>
+</body>
+</html>
