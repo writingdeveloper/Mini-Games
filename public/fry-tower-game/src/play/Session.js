@@ -9,6 +9,7 @@ import { createRound, tickRound, isOver } from '../logic/round.js';
 import { createCombo, onStablePlacement, onCollapse } from '../logic/combo.js';
 import { roundScore } from '../logic/scoring.js';
 import { releaseVelocity } from '../logic/placement.js';
+import { wobbleImpulse } from '../logic/challenge.js';
 
 // Module-level constant + scratch vectors (avoid per-frame allocation).
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
@@ -42,6 +43,8 @@ export class Session {
     this.score = 0;
     this.stableCount = 0;
     this._pendingSettle = [];  // bodies awaiting settle check
+    this._wobbleT = 0;         // challenge wobble timer
+    this._wobbleSign = 1;      // alternating sway direction
 
     // ---- Hand rig + held-fry steering state (ported from proto/hand-proto.js) ----
     this.hand = new HandRig(scene);
@@ -129,6 +132,24 @@ export class Session {
         this._pendingSettle.splice(i, 1);
       }
     }
+  }
+
+  // Challenge: a periodic height-scaled sideways wobble (shear). Each fry is
+  // pushed in proportion to its own height above the tray, so tall towers lean
+  // and risk toppling while short ones stay calm. Alternating direction = sway.
+  _applyWobble() {
+    const top = towerHeight(this.bodies, this.trayTopY);
+    if (top < CONFIG.challenge.startHeight) return;
+    this._wobbleSign *= -1;
+    const dir = this._wobbleSign;
+    for (const b of this.bodies) {
+      const mag = wobbleImpulse(b.position.y - this.trayTopY, top, CONFIG.challenge);
+      if (mag <= 0) continue;
+      b.wakeUp();
+      const jz = (Math.random() - 0.5) * mag * 0.3;
+      b.applyImpulse(new CANNON.Vec3(dir * mag, 0, jz), new CANNON.Vec3(0, 0, 0));
+    }
+    if (this.cameraRig) this.cameraRig.shake(0.12);
   }
 
   dispose() {
@@ -223,6 +244,13 @@ export class Session {
       this.handVel.lerp(_inst, CONFIG.momentum.smooth);
     }
     this._prevGrip.copy(_gripNow);
+
+    // Challenge: a periodic height-scaled wobble stresses tall towers.
+    this._wobbleT += dt;
+    if (this._wobbleT >= CONFIG.challenge.interval) {
+      this._wobbleT = 0;
+      this._applyWobble();
+    }
 
     // ---- Physics + scoring (preserved) ----
     this.world.step(1 / 60, dt, 3);
