@@ -16,6 +16,10 @@ const startBtn = document.getElementById('start-btn');
 const restartBtn = document.getElementById('restart-btn');
 const resultDetail = document.getElementById('result-detail');
 const muteBtn = document.getElementById('mute-btn');
+const helpBtn = document.getElementById('help-btn');
+const helpOverlay = document.getElementById('help-overlay');
+const helpClose = document.getElementById('help-close');
+const assistToggle = document.getElementById('assist-toggle');
 
 const audio = new AudioManager();
 
@@ -32,6 +36,48 @@ if (muteBtn) {
     refreshMuteBtn();
   });
 }
+
+// ---- Help overlay (controls reference + assist toggle; pauses the round) ----
+function refreshAssistToggle() {
+  if (!assistToggle) return;
+  const on = !!(window.__fry && window.__fry.session && window.__fry.session.assist);
+  assistToggle.textContent = on ? '🎯 보정: 켬' : '🎯 보정: 끔';
+  assistToggle.classList.toggle('on', on);
+}
+function openHelp() {
+  if (!helpOverlay) return;
+  helpOverlay.classList.remove('hidden');
+  const s = window.__fry && window.__fry.session;
+  if (s) s.paused = true;
+  refreshAssistToggle();
+}
+function closeHelp() {
+  if (!helpOverlay) return;
+  helpOverlay.classList.add('hidden');
+  const s = window.__fry && window.__fry.session;
+  if (s) s.paused = false;
+}
+if (helpBtn) {
+  helpBtn.addEventListener('click', () => {
+    if (helpOverlay && helpOverlay.classList.contains('hidden')) openHelp();
+    else closeHelp();
+  });
+}
+if (helpClose) helpClose.addEventListener('click', closeHelp);
+if (helpOverlay) {
+  helpOverlay.addEventListener('click', (e) => {
+    if (e.target === helpOverlay) closeHelp(); // backdrop tap
+  });
+}
+if (assistToggle) {
+  assistToggle.addEventListener('click', () => {
+    const s = window.__fry && window.__fry.session;
+    if (s) { s.assist = !s.assist; refreshAssistToggle(); }
+  });
+}
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && helpOverlay && !helpOverlay.classList.contains('hidden')) closeHelp();
+});
 
 let game = null;
 try {
