@@ -3,7 +3,13 @@ import { test, expect, chromium } from "@playwright/test";
 declare global {
   interface Window {
     __fry?: {
-      session?: { height: number; placed?: unknown[]; azimuth?: number };
+      session?: {
+        height: number;
+        placed?: unknown[];
+        azimuth?: number;
+        bodies?: { position: { y: number }; velocity: { x: number } }[];
+        _applyWobble?: () => void;
+      };
     };
   }
 }
@@ -147,6 +153,40 @@ test.describe("Fryffel Tower fry-stacking game", () => {
     expect(errors, errors.join("\n")).toHaveLength(0);
 
     await ctx.close();
+  });
+
+  test("challenge: wobble applies a height-scaled sideways impulse to the tower", async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+    page.on("pageerror", (e) => errors.push(e.message));
+
+    await page.goto("/fry-tower-game/index.html");
+    await page.getByRole("button", { name: /쌓기 시작/ }).click();
+    await expect(page.locator("#hud")).toBeVisible();
+
+    // Drop a few fries so the tower has bodies.
+    for (let i = 0; i < 4; i++) {
+      await page.keyboard.press("Space");
+      await page.waitForTimeout(700);
+    }
+    await page.waitForTimeout(800);
+
+    // Lift the tower above the wobble threshold and force a wobble; assert it
+    // imparts horizontal velocity (the impulse path runs) with no error.
+    const wobbled = await page.evaluate(() => {
+      const s = window.__fry?.session;
+      if (!s || !s.bodies || !s.bodies.length) return false;
+      for (const b of s.bodies) b.position.y += 2.5;
+      const before = s.bodies.map((b) => b.velocity.x);
+      s._applyWobble?.();
+      const after = s.bodies.map((b) => b.velocity.x);
+      return after.some((v, i) => v !== before[i]);
+    });
+
+    expect(wobbled, "forced wobble should change body velocities").toBe(true);
+    expect(errors, errors.join("\n")).toHaveLength(0);
   });
 
   test("multi-mode bootstrap runs and recovers gracefully when server is unreachable", async ({ page }) => {
