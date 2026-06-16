@@ -15,6 +15,7 @@ export class Input {
     this._dropQueued = false;
     this._assistQueued = false;
     this._resetQueued = false;
+    this._viewQueued = false;
 
     this._onKey = (e, down) => {
       switch (e.code) {
@@ -50,6 +51,7 @@ export class Input {
     // --- Touch / pointer controls on the game canvas ---
     this._initPointer();
     this._initRotateButtons();
+    this._initViewButton();
   }
 
   _initPointer() {
@@ -149,6 +151,15 @@ export class Input {
     }
   }
 
+  _initViewButton() {
+    const view = document.getElementById('view-btn');
+    if (!view) return;
+    view.addEventListener('pointerdown', (e) => {
+      this._viewQueued = true;
+      e.preventDefault();
+    }, { passive: false });
+  }
+
   // Consume a queued drop (Space key OR canvas tap). Returns true at most once per trigger.
   takeDrop() { const d = this._dropQueued; this._dropQueued = false; return d; }
 
@@ -157,4 +168,7 @@ export class Input {
 
   // Consume a queued reset (KeyR). Returns true at most once per trigger.
   takeReset() { const d = this._resetQueued; this._resetQueued = false; return d; }
+
+  // Consume a queued camera view-step (🔄 button). Returns true at most once per tap.
+  takeViewStep() { const v = this._viewQueued; this._viewQueued = false; return v; }
 }
