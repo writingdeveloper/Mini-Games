@@ -7,6 +7,9 @@ declare global {
         height: number;
         placed?: unknown[];
         azimuth?: number;
+        assist?: boolean;
+        paused?: boolean;
+        round?: { timeLeft: number };
         bodies?: { position: { y: number }; velocity: { x: number } }[];
         _applyWobble?: () => void;
       };
@@ -186,6 +189,49 @@ test.describe("Fryffel Tower fry-stacking game", () => {
     });
 
     expect(wobbled, "forced wobble should change body velocities").toBe(true);
+    expect(errors, errors.join("\n")).toHaveLength(0);
+  });
+
+  test("help overlay: opens, pauses the round, toggles assist, closes", async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+    page.on("pageerror", (e) => errors.push(e.message));
+
+    await page.goto("/fry-tower-game/index.html");
+    await page.getByRole("button", { name: /쌓기 시작/ }).click();
+    await expect(page.locator("#hud")).toBeVisible();
+    await page.waitForTimeout(500);
+
+    // Open help -> overlay visible + round paused (timeLeft frozen).
+    await page.locator("#help-btn").click();
+    await expect(page.locator("#help-overlay")).toBeVisible();
+    const t1 = await page.evaluate(
+      () => window.__fry?.session?.round?.timeLeft ?? -1
+    );
+    await page.waitForTimeout(700);
+    const t2 = await page.evaluate(
+      () => window.__fry?.session?.round?.timeLeft ?? -1
+    );
+    expect(t2).toBe(t1); // paused: timer did not advance
+
+    // Toggle assist on.
+    await page.locator("#assist-toggle").click();
+    const assistOn = await page.evaluate(
+      () => !!window.__fry?.session?.assist
+    );
+    expect(assistOn).toBe(true);
+
+    // Close -> overlay hidden + round resumes (timer advances).
+    await page.locator("#help-close").click();
+    await expect(page.locator("#help-overlay")).toBeHidden();
+    await page.waitForTimeout(700);
+    const t3 = await page.evaluate(
+      () => window.__fry?.session?.round?.timeLeft ?? -1
+    );
+    expect(t3).toBeLessThan(t2);
+
     expect(errors, errors.join("\n")).toHaveLength(0);
   });
 

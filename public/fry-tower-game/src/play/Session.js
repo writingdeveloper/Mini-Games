@@ -45,6 +45,7 @@ export class Session {
     this._pendingSettle = [];  // bodies awaiting settle check
     this._wobbleT = 0;         // challenge wobble timer
     this._wobbleSign = 1;      // alternating sway direction
+    this.paused = false;       // help overlay open -> freeze update
 
     // ---- Hand rig + held-fry steering state (ported from proto/hand-proto.js) ----
     this.hand = new HandRig(scene);
@@ -170,6 +171,7 @@ export class Session {
   update(dt, input) {
     if (this._disposed) return;
     if (isOver(this.round)) return;
+    if (this.paused) return;
 
     // One-shot actions.
     if (input) {
