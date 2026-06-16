@@ -15,6 +15,7 @@ export const CONFIG = {
     xRange: 2.2, zRange: 2.2, hoverGap: 1.4,
     heightOffMin: -0.6, heightOffMax: 3.5, hoverYMin: 1.2, hoverYMax: 7.8,
     moveSpeed: 3.2, yawSpeed: 2.4, tiltSpeed: 1.8, tiltMax: 0.9, heightSpeed: 2.4, smoothK: 9,
+    respawnBeat: 0.5, // pause after release while the hand opens + grabs a fresh fry
   },
   // Released fry inherits the hand's recent velocity (skill); assist damps it for precision.
   momentum: { smooth: 0.5, max: 7, assistScale: 0.18, upClamp: 0.5 },

@@ -16,6 +16,9 @@ const _desired = new THREE.Vector3();
 const _gripNow = new THREE.Vector3();
 const _inst = new THREE.Vector3();
 const _tmp = new THREE.Vector3();
+const _euler = new THREE.Euler();
+const GRIP_CLOSED = 0.85; // fingers cupping a held fry
+const GRIP_OPEN = 0.2;    // fingers spread to release, during the respawn beat
 
 // Owns the cannon world, the IK chef hand + held fry, placed fries, and pure-logic state.
 // The fry is steered in 3D (x/z/yaw/tilt/height) and released with the hand's momentum.
@@ -47,7 +50,7 @@ export class Session {
     this.heightOff = 0;        // manual height nudge above the tower
     this.yaw = 0;             // fry spin around vertical axis (crisscross)
     this.tilt = 0;             // fry lean (pitch)
-    this.grip = 0.85;          // finger curl (0 open .. 1 gripped)
+    this.grip = GRIP_CLOSED;   // finger curl (0 open .. 1 gripped)
     this.assist = false;       // damps release momentum for precision
     this.azimuth = CONFIG.camera.startYaw; // camera orbit yaw; set each frame by main
     this.handVel = new THREE.Vector3();    // smoothed grip velocity (thrown into the fry)
@@ -56,6 +59,7 @@ export class Session {
     this._primed = false;      // prevents a huge first-frame velocity spike
 
     this.held = null;          // currently held fry mesh
+    this._respawn = 0;         // >0 during the post-release beat (no fry held)
     this._spawnHeld();
   }
 
@@ -64,7 +68,8 @@ export class Session {
     const mesh = makeFryMesh();
     this.scene.add(mesh);
     this.held = mesh;
-    this.grip = 0.85; // close the fingers around the new fry
+    // grip animates closed (GRIP_CLOSED) in update() so the fingers visibly
+    // cup the new fry rather than snapping shut.
   }
 
   // Convert the held fry into a dynamic body (release it) with the hand's momentum.
@@ -77,8 +82,8 @@ export class Session {
     body.position.set(_tmp.x, _tmp.y, _tmp.z);
 
     // Orientation = the held fry's orientation (tilt pitch, yaw + camera azimuth).
-    const e = new THREE.Euler(this.tilt, this.yaw + this.azimuth, 0, 'YXZ');
-    const q = new THREE.Quaternion().setFromEuler(e);
+    _euler.set(this.tilt, this.yaw + this.azimuth, 0, 'YXZ');
+    const q = new THREE.Quaternion().setFromEuler(_euler);
     body.quaternion.set(q.x, q.y, q.z, q.w);
 
     // Momentum: the released fry inherits the hand's recent velocity (capped/damped).
@@ -99,8 +104,9 @@ export class Session {
     this._pendingSettle.push({ body, t: 0 });
     if (this.audio) this.audio.place();
 
+    // Open the hand and pause briefly before grabbing the next fry (release gesture).
     this.held = null;
-    this._spawnHeld();
+    this._respawn = CONFIG.placement.respawnBeat;
   }
 
   _resolveSettles(dt) {
@@ -172,7 +178,14 @@ export class Session {
 
     const azi = this.azimuth;
 
+    // Release beat: the hand stays open for a moment, then grabs a fresh fry.
+    if (!this.held && this._respawn > 0) {
+      this._respawn -= dt;
+      if (this._respawn <= 0) this._spawnHeld();
+    }
+
     // Hover target sits above the current tower top, clamped to the reach envelope.
+    // trayTopY is 0, so towerHeight (height-above-tray) equals the absolute top here.
     const top = towerHeight(this.bodies, this.trayTopY);
     const hoverY = THREE.MathUtils.clamp(
       top + CONFIG.placement.hoverGap + this.heightOff,
@@ -188,15 +201,15 @@ export class Session {
     // Solve the arm IK to the smoothed wrist; the rig rotates its shoulder by azi.
     this.hand.solve(this._wrist, azi);
 
-    // Animate the grip toward closed (fingers cupping the held fry).
-    const gripTarget = 0.85;
+    // Animate the grip: closed while a fry is held, open during the release beat.
+    const gripTarget = this.held ? GRIP_CLOSED : GRIP_OPEN;
     this.grip += (gripTarget - this.grip) * (1 - Math.exp(-dt * 14));
     this.hand.setGrip(this.grip);
 
     // The held fry rides in the fingers and takes the steered orientation.
     if (this.held) {
       this.hand.gripWorldPos(this.held.position);
-      this.held.quaternion.setFromEuler(new THREE.Euler(this.tilt, this.yaw + azi, 0, 'YXZ'));
+      this.held.quaternion.setFromEuler(_euler.set(this.tilt, this.yaw + azi, 0, 'YXZ'));
     }
 
     // Hand velocity for momentum. Camera-orbit motion must NOT count as a throw.
