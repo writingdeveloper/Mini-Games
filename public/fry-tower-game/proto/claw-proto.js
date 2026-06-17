@@ -47,8 +47,8 @@ addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
-let camYaw = 0.34;
-const CAM_R = 16.0, CAM_H = 10.2, CAM_TARGET = new THREE.Vector3(0, 5.4, 0);
+let camYaw = 0.13;                                          // mostly front (slight angle for depth) — like standing at the machine
+const CAM_R = 12.8, CAM_H = 7.6, CAM_TARGET = new THREE.Vector3(0, 4.4, 0);
 let camShake = 0;
 function updateCamera(dt) {
   if (camShake > 0.001) camShake *= Math.pow(0.0015, dt);
@@ -134,14 +134,34 @@ function marqueeMat(text, bg, fg) {
 const CREAM = 0xf3e9f0;
 const bodyMat = new THREE.MeshStandardMaterial({ color: CREAM, roughness: 0.7, metalness: 0.05 });
 
-// --- Hero: lower cabinet body + control panel ---
-visBox(CAB.x, FLOOR_Y / 2, CAB.z, CAB.half + 0.35, FLOOR_Y / 2, CAB.half + 0.35, bodyMat);
-const panel = visBox(CAB.x + 0.9, FLOOR_Y - 0.18, CAB.z + CAB.half + 0.5, 0.95, 0.1, 0.55, emis(0x281148, 0.3));
-panel.rotation.x = -0.5;
-const joyStick = new THREE.Group(); joyStick.position.set(CAB.x + 0.9, FLOOR_Y + 0.02, CAB.z + CAB.half + 0.5); scene.add(joyStick); // tilts with input
+// --- Hero: detailed lower cabinet — body, control console, prize chute, feet, glass frame ---
+const accent = new THREE.MeshStandardMaterial({ color: 0xff3d7f, roughness: 0.5, metalness: 0.12 });  // pink frame
+const darkMat = new THREE.MeshStandardMaterial({ color: 0x221030, roughness: 0.6 });
+const BF = CAB.z + CAB.half + 0.36;                                                                    // base front face
+visBox(CAB.x, FLOOR_Y / 2, CAB.z, CAB.half + 0.35, FLOOR_Y / 2, CAB.half + 0.35, bodyMat);            // base body
+visBox(CAB.x, FLOOR_Y - 0.1, CAB.z, CAB.half + 0.42, 0.14, CAB.half + 0.42, accent);                  // rail at base/glass seam
+for (const fx of [-1, 1]) for (const fz of [-1, 1]) visBox(CAB.x + fx * (CAB.half + 0.16), 0.13, CAB.z + fz * (CAB.half + 0.16), 0.16, 0.13, 0.16, darkMat); // feet
+// glass-window bottom frame (all four sides)
+for (const pz of [-1, 1]) visBox(CAB.x, FLOOR_Y - 0.02, CAB.z + pz * (CAB.half + 0.05), CAB.half + 0.12, 0.1, 0.08, accent);
+for (const px of [-1, 1]) visBox(CAB.x + px * (CAB.half + 0.05), FLOOR_Y - 0.02, CAB.z, 0.08, 0.1, CAB.half + 0.12, accent);
+// prize chute door (framed translucent flap) + label
+visBox(CAB.x - 1.05, 1.0, BF + 0.02, 0.82, 0.6, 0.05, accent);
+visBox(CAB.x - 1.05, 0.96, BF + 0.06, 0.66, 0.46, 0.04, new THREE.MeshStandardMaterial({ color: 0x0c0716, roughness: 0.25, metalness: 0.35, transparent: true, opacity: 0.82 }));
+visBox(CAB.x - 1.05, 1.46, BF + 0.08, 0.5, 0.12, 0.02, marqueeMat('PRIZE', '#2a0a1a', '#ffd34d'));
+// --- front control console (slanted, toward the player) ---
+const FZ = CAB.z + CAB.half + 0.5;
+const consoleTop = visBox(CAB.x, FLOOR_Y - 0.5, FZ + 0.28, 2.25, 0.14, 0.44, bodyMat); consoleTop.rotation.x = -0.34;
+visBox(CAB.x, FLOOR_Y - 0.96, FZ + 0.1, 2.25, 0.5, 0.14, accent);                                     // console skirt
+const joyStick = new THREE.Group(); joyStick.position.set(CAB.x + 1.4, FLOOR_Y - 0.42, FZ + 0.34); scene.add(joyStick); // tilts with input
 const joyShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.5, 10), emis(0xff3d7f, 0.7)); joyShaft.position.y = 0.25; joyStick.add(joyShaft);
 const joyBall = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), emis(0xffe14a, 0.7)); joyBall.position.y = 0.52; joyStick.add(joyBall);
-visBox(CAB.x - 1.3, FLOOR_Y - 1.0, CAB.z + CAB.half + 0.37, 0.7, 0.5, 0.04, emis(0x140a22, 0.2));  // prize door
+visBox(CAB.x + 0.62, FLOOR_Y - 0.5, FZ + 0.36, 0.12, 0.06, 0.12, emis(0xff2d2d, 0.5));                 // button (red)
+visBox(CAB.x + 0.28, FLOOR_Y - 0.5, FZ + 0.36, 0.12, 0.06, 0.12, emis(0x36a0ff, 0.5));                 // button (blue)
+const disp = visBox(CAB.x - 0.28, FLOOR_Y - 0.5, FZ + 0.36, 0.5, 0.13, 0.02, marqueeMat('₩100  CR 1', '#04140e', '#7fffc0')); disp.rotation.x = -0.34; // credit display
+visBox(CAB.x - 0.92, FLOOR_Y - 0.52, FZ + 0.34, 0.2, 0.1, 0.13, emis(0x14385e, 0.4));                  // card reader
+visBox(CAB.x - 0.92, FLOOR_Y - 0.47, FZ + 0.4, 0.14, 0.02, 0.02, emis(0x6cf0ff, 0.7));                 // card slot glow
+visBox(CAB.x - 1.42, FLOOR_Y - 0.42, FZ + 0.34, 0.04, 0.16, 0.02, darkMat);                            // coin slot
+visBox(CAB.x - 1.42, FLOOR_Y - 0.8, FZ + 0.28, 0.16, 0.1, 0.1, darkMat);                               // coin return
 
 // --- Hero: neon corner strips + LED halo + marquee ---
 const neonMats = [];
