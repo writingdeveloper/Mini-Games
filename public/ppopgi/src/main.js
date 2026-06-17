@@ -631,7 +631,15 @@ function startGame() {
 }
 function endGame() {
   started = false; elPad.classList.remove('on');
-  elFinal.textContent = score; elGameover.classList.remove('off');
+  let best = 0;
+  try { best = +(localStorage.getItem('ppopgi_best') || 0); } catch (e) { /* */ }
+  const isRecord = score > best;
+  if (isRecord) { best = score; try { localStorage.setItem('ppopgi_best', String(best)); } catch (e) { /* */ } }
+  elFinal.textContent = score;
+  document.getElementById('final-got').textContent = delivered;
+  document.getElementById('final-best').textContent = best;
+  document.getElementById('final-record').textContent = isRecord ? '🎉 신기록!' : '시간 종료';
+  elGameover.classList.remove('off');
 }
 
 // Analog on-screen joystick (touch + mouse via Pointer Events).
@@ -677,6 +685,7 @@ window.__claw = {
   get slips() { return slips; }, get held() { return held.length; },
   get state() { return state; }, get handPos() { return handPos; },
   start() { startGame(); }, drop() { startPlunge(); }, setHand(x, z) { handPos.x = x; handPos.z = z; },
+  end() { if (started) endGame(); }, get started() { return started; },
   setCam(name) { setCamPreset(name); }, get camPitch() { return camState.pitch; },
   piles() { return fries.filter((f) => !f.delivered).map((f) => ({ x: f.body.position.x, y: f.body.position.y, z: f.body.position.z, value: f.value })); },
   get slipLog() { return slipLog; }, get maxStretch() { return maxStretch; },

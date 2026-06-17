@@ -153,8 +153,12 @@
   <div id="gameover" class="veil off">
     <div class="panel">
       <h1>GAME OVER</h1>
-      <div class="sub">시간 종료</div>
-      <div class="credit">담은 가치 <span id="final-score" style="color:#ffe14a">0</span></div>
+      <div id="final-record" class="sub" style="color:#8fff9d;min-height:18px"></div>
+      <div class="credit" style="line-height:1.7">
+        🧸 획득 <span id="final-got" style="color:#ffe14a">0</span>개<br>
+        💎 담은 가치 <span id="final-score" style="color:#ffe14a">0</span><br>
+        <span style="color:#36e0ff;font-size:14px">🏆 최고기록 <span id="final-best">0</span></span>
+      </div>
       <button id="replay" class="startbtn on">🪙 다시 하기</button>
       <div class="small">다시 동전을 넣고 한 판 더!</div>
     </div>
