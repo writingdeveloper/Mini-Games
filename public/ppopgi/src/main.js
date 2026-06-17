@@ -142,10 +142,36 @@ for (const fx of [-1, 1]) for (const fz of [-1, 1]) visBox(CAB.x + fx * (CAB.hal
 // glass-window bottom frame (all four sides)
 for (const pz of [-1, 1]) visBox(CAB.x, FLOOR_Y - 0.02, CAB.z + pz * (CAB.half + 0.05), CAB.half + 0.12, 0.1, 0.08, accent);
 for (const px of [-1, 1]) visBox(CAB.x + px * (CAB.half + 0.05), FLOOR_Y - 0.02, CAB.z, 0.08, 0.1, CAB.half + 0.12, accent);
-// prize chute door (framed translucent flap) + label
-visBox(CAB.x - 1.05, 1.0, BF + 0.02, 0.82, 0.6, 0.05, accent);
-visBox(CAB.x - 1.05, 0.96, BF + 0.06, 0.66, 0.46, 0.04, new THREE.MeshStandardMaterial({ color: 0x0c0716, roughness: 0.25, metalness: 0.35, transparent: true, opacity: 0.82 }));
-visBox(CAB.x - 1.05, 1.46, BF + 0.08, 0.5, 0.12, 0.02, marqueeMat('PRIZE', '#2a0a1a', '#ffd34d'));
+// --- prize collection bin: won prizes drop here through clear walls and pile up ---
+const G_BIN = 16, G_COLLECTED = 32;
+const BIN = { x: CAB.x - 1.05, z: BF + 0.45, floorY: 0.52, hx: 0.52, hz: 0.42, topY: 1.12 };
+const binClear = new THREE.MeshStandardMaterial({ color: 0xbfe9f5, transparent: true, opacity: 0.22, roughness: 0.1, metalness: 0.1 });
+const binDark = new THREE.MeshStandardMaterial({ color: 0x140a20, roughness: 0.5 });
+function binWall(cx, cy, cz, hx, hy, hz, mat) {
+  const body = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(hx, hy, hz)), collisionFilterGroup: G_BIN, collisionFilterMask: G_COLLECTED });
+  body.position.set(cx, cy, cz); world.addBody(body);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2), mat); m.position.set(cx, cy, cz); scene.add(m);
+}
+binWall(BIN.x, BIN.floorY - 0.05, BIN.z, BIN.hx + 0.06, 0.05, BIN.hz + 0.06, binDark);    // floor
+binWall(BIN.x, BIN.floorY + 0.28, BIN.z - BIN.hz, BIN.hx, 0.33, 0.04, binClear);          // back
+binWall(BIN.x, BIN.floorY + 0.28, BIN.z + BIN.hz, BIN.hx, 0.33, 0.04, binClear);          // front (clear window)
+binWall(BIN.x - BIN.hx, BIN.floorY + 0.28, BIN.z, 0.04, 0.33, BIN.hz, binClear);          // left
+binWall(BIN.x + BIN.hx, BIN.floorY + 0.28, BIN.z, 0.04, 0.33, BIN.hz, binClear);          // right
+visBox(BIN.x, BIN.floorY + 0.62, BIN.z, BIN.hx + 0.08, 0.05, BIN.hz + 0.08, accent);      // pink rim
+const binGlowMat = emis(0xffe14a, 0.0);                                                   // pulses on GET
+visBox(BIN.x, BIN.floorY + 0.62, BIN.z + BIN.hz + 0.04, BIN.hx + 0.06, 0.06, 0.02, binGlowMat);
+visBox(BIN.x, BIN.floorY + 0.86, BIN.z, 0.46, 0.12, 0.02, marqueeMat('경품 GET', '#2a0a1a', '#ffd34d'));
+let binFlash = 0;
+const collectedList = [];
+function rmBody(b) { const i = world.bodies.indexOf(b); if (i !== -1) world.removeBody(b); }
+function collectIntoBin(f) {
+  const b = f.body; b.wakeUp();
+  b.position.set(BIN.x + (Math.random() - 0.5) * 0.5, BIN.topY + 0.5, BIN.z + (Math.random() - 0.5) * 0.4);
+  b.velocity.set(0, -0.6, 0); b.angularVelocity.set(0, 0, 0);
+  b.collisionFilterGroup = G_COLLECTED; b.collisionFilterMask = G_BIN | G_COLLECTED;
+  collectedList.push(f); binFlash = 1;
+  if (collectedList.length > 8) { const old = collectedList.shift(); rmBody(old.body); scene.remove(old.mesh); old.gone = true; }
+}
 // --- front control console (slanted, toward the player) ---
 const FZ = CAB.z + CAB.half + 0.5;
 const consoleTop = visBox(CAB.x, FLOOR_Y - 0.5, FZ + 0.28, 2.25, 0.14, 0.44, bodyMat); consoleTop.rotation.x = -0.34;
@@ -443,7 +469,7 @@ function checkDeliveries() {
     if (Math.abs(p.x - HOLE.x) < HOLE.half + 0.3 && Math.abs(p.z - HOLE.z) < HOLE.half + 0.3 && p.y < FLOOR_Y - 0.7) {
       f.delivered = true; score += f.value; delivered++;
       popScore(f.value); camShake = 0.35; if (audioReady) sfx.get();
-      world.removeBody(f.body); f.mesh.visible = false;
+      collectIntoBin(f);                                    // drop it into the visible collection bin
     }
   }
 }
@@ -451,6 +477,7 @@ function checkDeliveries() {
 // ---- Loop ----
 const elScore = document.getElementById('r-score'), elHeld = document.getElementById('r-held');
 const elSlip = document.getElementById('r-slip'), elTime = document.getElementById('r-time');
+const elGot = document.getElementById('r-got');
 const PHASE = { aim: '조준 ←→ ↑↓', plunge: '내려가는 중', close: '집는 중', lift: '올리는 중', return: '배출구로', open: '놓는 중' };
 let timeLeft = ROUND_SEC, last = performance.now();
 const _handPrev = new THREE.Vector3().copy(handPos);
@@ -504,18 +531,22 @@ function frame(now) {
   hubMesh.position.copy(handPos);
   rodMesh.position.set(handPos.x, (handPos.y + 12.5) / 2, handPos.z);
   rodMesh.scale.y = Math.max(0.1, 12.5 - handPos.y);
-  for (const f of fries) if (!f.delivered) {
-    const v = f.body.velocity, sp = v.length();
-    if (sp > 10) v.scale(10 / sp, v);                        // anti-tunnel: cap fry speed
-    const p = f.body.position;                              // safety net: recycle a stray (fell out OR escaped sideways)
-    if ((p.y < -2 || Math.abs(p.x) > CAB.half + 0.5 || Math.abs(p.z) > CAB.half + 0.5) && !held.some((h) => h.fry === f)) {
-      f.body.position.set(CAB.x + (Math.random() - 0.5) * 3, FLOOR_Y + 3, CAB.z + (Math.random() - 0.5) * 2);
-      f.body.velocity.set(0, 0, 0); f.body.angularVelocity.set(0, 0, 0);
-      f.body.collisionFilterGroup = G_FRY; f.body.collisionFilterMask = G_SOLID | G_FRY | G_CLAW | G_HELD;
+  for (const f of fries) {
+    if (f.gone) continue;
+    if (!f.delivered) {                                     // play-area fries: anti-tunnel + stray recycle
+      const v = f.body.velocity, sp = v.length();
+      if (sp > 10) v.scale(10 / sp, v);
+      const p = f.body.position;
+      if ((p.y < -2 || Math.abs(p.x) > CAB.half + 0.5 || Math.abs(p.z) > CAB.half + 0.5) && !held.some((h) => h.fry === f)) {
+        f.body.position.set(CAB.x + (Math.random() - 0.5) * 3, FLOOR_Y + 3, CAB.z + (Math.random() - 0.5) * 2);
+        f.body.velocity.set(0, 0, 0); f.body.angularVelocity.set(0, 0, 0);
+        f.body.collisionFilterGroup = G_FRY; f.body.collisionFilterMask = G_SOLID | G_FRY | G_CLAW | G_HELD;
+      }
     }
-    f.sync();
+    f.sync();                                               // sync ALL (collected prizes track into the bin too)
   }
   checkDeliveries();
+  if (binFlash > 0) { binFlash = Math.max(0, binFlash - dt * 2); binGlowMat.emissiveIntensity = binFlash * 1.8; } // GET pulse
 
   reticle.position.set(handPos.x, FLOOR_Y + 0.04, handPos.z);
   reticle.material.color.setHex(state === 'aim' ? 0xffe14a : 0x888888);
@@ -529,6 +560,7 @@ function frame(now) {
   elScore.textContent = score;
   elHeld.textContent = (held.length ? `잡음 ×${held.length} · ` : '') + (PHASE[state] || '-');
   elSlip.textContent = slips;
+  elGot.textContent = delivered;
   elTime.textContent = Math.ceil(timeLeft);
   elTime.style.color = timeLeft <= 10 ? '#ff5a4a' : '#ffd479';
   requestAnimationFrame(frame);
@@ -575,8 +607,9 @@ if (replayBtn) replayBtn.addEventListener('click', () => {
 
 function resetFries() {
   held.length = 0;
-  for (const f of fries) { if (!f.delivered) world.removeBody(f.body); scene.remove(f.mesh); }
-  fries.length = 0; spawnFries(22); applyTheme(themeIdx);
+  for (const f of fries) { if (!f.gone) { rmBody(f.body); scene.remove(f.mesh); } }
+  fries.length = 0; collectedList.length = 0; binFlash = 0; binGlowMat.emissiveIntensity = 0;
+  spawnFries(22); applyTheme(themeIdx);
 }
 function startGame() {
   if (!firstGame) { resetFries(); score = 0; slips = 0; delivered = 0; drops = 0; }
