@@ -26,7 +26,7 @@ export const MSG = {
   ERROR: 'error',
 } as const;
 
-export type GameType = 'escape' | 'flight' | 'survival' | 'frytower';
+export type GameType = 'escape' | 'flight' | 'survival';
 
 export type RoomState = 'waiting' | 'countdown' | 'playing' | 'finished';
 

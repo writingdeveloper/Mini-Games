@@ -197,13 +197,13 @@ Mini-Games/
 │   ├── survival-game/page.tsx # 서바이벌 라우트 (모드 선택)
 │   ├── flight-game/page.tsx   # 비행 게임 라우트
 │   ├── desert-game/page.tsx   # Dust Drifter 라우트
-│   └── fry-tower-game/page.tsx # Fryffel Tower 라우트
+│   └── ppopgi/page.tsx        # POTATO CATCHER 뽑기(인형뽑기) 라우트
 ├── public/
 │   ├── escape-game/           # 2D Canvas 게임
 │   ├── survival-game/         # Babylon.js 3D (game-modular.js + src/)
 │   ├── flight-game/           # CesiumJS 3D (game.js + src/)
 │   ├── desert-game/           # Three.js 3D 로우폴리 (src/ ESM, importmap)
-│   ├── fry-tower-game/        # Three.js 0.184 + cannon-es 물리 타워 (src/ ESM, importmap)
+│   ├── ppopgi/                # Three.js 0.184 + cannon-es 물리 인형뽑기 (src/ ESM, importmap)
 │   └── shared/                # 멀티플레이어 공유 클라이언트
 │       ├── networking/        # GameClient · State/InputBuffer · MessageTypes
 │       └── lobby/             # LobbyUI

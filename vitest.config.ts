@@ -13,7 +13,7 @@ export default defineConfig({
         'public/escape-game/**',
         'public/survival-game/src/**',
         'public/desert-game/src/**',
-        'public/fry-tower-game/src/**',
+        'public/ppopgi/src/**',
         'server/src/**',
       ],
     },
