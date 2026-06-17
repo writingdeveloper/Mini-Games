@@ -138,7 +138,9 @@ const bodyMat = new THREE.MeshStandardMaterial({ color: CREAM, roughness: 0.7, m
 visBox(CAB.x, FLOOR_Y / 2, CAB.z, CAB.half + 0.35, FLOOR_Y / 2, CAB.half + 0.35, bodyMat);
 const panel = visBox(CAB.x + 0.9, FLOOR_Y - 0.18, CAB.z + CAB.half + 0.5, 0.95, 0.1, 0.55, emis(0x281148, 0.3));
 panel.rotation.x = -0.5;
-visBox(CAB.x + 0.9, FLOOR_Y + 0.02, CAB.z + CAB.half + 0.5, 0.06, 0.2, 0.06, emis(0xff3d7f, 0.7)); // joystick
+const joyStick = new THREE.Group(); joyStick.position.set(CAB.x + 0.9, FLOOR_Y + 0.02, CAB.z + CAB.half + 0.5); scene.add(joyStick); // tilts with input
+const joyShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.5, 10), emis(0xff3d7f, 0.7)); joyShaft.position.y = 0.25; joyStick.add(joyShaft);
+const joyBall = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), emis(0xffe14a, 0.7)); joyBall.position.y = 0.52; joyStick.add(joyBall);
 visBox(CAB.x - 1.3, FLOOR_Y - 1.0, CAB.z + CAB.half + 0.37, 0.7, 0.5, 0.04, emis(0x140a22, 0.2));  // prize door
 
 // --- Hero: neon corner strips + LED halo + marquee ---
@@ -390,7 +392,9 @@ addEventListener('keyup', (e) => { keys[e.code] = false; });
 // ---- State machine ----
 let state = 'aim', stateT = 0;
 let score = 0, slips = 0, drops = 0, delivered = 0;
-function startPlunge() { if (state === 'aim') { state = 'plunge'; stateT = 0; drops++; } }
+let started = false;                     // gated behind the coin/card payment screen
+const aimVec = { x: 0, z: 0 };           // analog joystick input (-1..1)
+function startPlunge() { if (started && state === 'aim') { state = 'plunge'; stateT = 0; drops++; } }
 function approach(cur, target, speed, dt) { const d = target - cur, st = speed * dt; return Math.abs(d) <= st ? target : cur + Math.sign(d) * st; }
 
 // Position the claw over the chute so the prize (hanging at its grab offset) drops INTO the hole.
@@ -435,20 +439,18 @@ const _handPrev = new THREE.Vector3().copy(handPos);
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   stateT += dt;
-  if (timeLeft > 0) timeLeft = Math.max(0, timeLeft - dt);
+  if (started && timeLeft > 0) { timeLeft = Math.max(0, timeLeft - dt); if (timeLeft === 0) endGame(); }
   if (keys.BracketLeft) camYaw += 1.1 * dt;
   if (keys.BracketRight) camYaw -= 1.1 * dt;
 
   if (state === 'aim') {
     handPos.y = approach(handPos.y, HOVER_Y, LIFT_SPEED, dt);
     gripT = Math.max(0, gripT - dt * 3);
-    if (timeLeft > 0) {                                       // free 2D aiming (both axes live)
-      if (keys.ArrowLeft) handPos.x -= AIM_SPEED * dt;
-      if (keys.ArrowRight) handPos.x += AIM_SPEED * dt;
-      if (keys.ArrowUp) handPos.z -= AIM_SPEED * dt;
-      if (keys.ArrowDown) handPos.z += AIM_SPEED * dt;
-      handPos.x = THREE.MathUtils.clamp(handPos.x, CAB.x - CAB.half + 0.6, CAB.x + CAB.half - 0.6);
-      handPos.z = THREE.MathUtils.clamp(handPos.z, CAB.z - CAB.half + 0.6, CAB.z + CAB.half - 0.6);
+    if (started && timeLeft > 0) {                            // free aim: analog joystick + arrow keys
+      const mx = aimVec.x + (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0);
+      const mz = aimVec.z + (keys.ArrowDown ? 1 : 0) - (keys.ArrowUp ? 1 : 0);
+      handPos.x = THREE.MathUtils.clamp(handPos.x + mx * AIM_SPEED * dt, CAB.x - CAB.half + 0.6, CAB.x + CAB.half - 0.6);
+      handPos.z = THREE.MathUtils.clamp(handPos.z + mz * AIM_SPEED * dt, CAB.z - CAB.half + 0.6, CAB.z + CAB.half - 0.6);
     }
   } else if (state === 'plunge') {
     handPos.y = approach(handPos.y, PLUNGE_Y, PLUNGE_SPEED, dt);
@@ -500,6 +502,8 @@ function frame(now) {
   reticle.position.set(handPos.x, FLOOR_Y + 0.04, handPos.z);
   reticle.material.color.setHex(state === 'aim' ? 0xffe14a : 0x888888);
   reticle.visible = state === 'aim';
+  joyStick.rotation.z = -aimVec.x * 0.5;                     // cabinet joystick leans with input
+  joyStick.rotation.x = aimVec.z * 0.5;
 
   updateCamera(dt);
   renderer.render(scene, camera);
@@ -513,12 +517,87 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 
+// ===================== Arcade: coin/card payment, start/replay, touch joystick =====================
+let actx = null;
+function beep(freq, dur, type, vol, when) {
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    const t = actx.currentTime + (when || 0);
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || 'square'; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol || 0.2, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur);
+  } catch (e) { /* no audio */ }
+}
+const coinSfx = () => { beep(900, 0.05, 'square', 0.18, 0); beep(1350, 0.07, 'square', 0.16, 0.05); beep(640, 0.13, 'triangle', 0.14, 0.13); };
+const cardSfx = () => { beep(1500, 0.05, 'sine', 0.2, 0); beep(2050, 0.08, 'sine', 0.18, 0.08); };
+const startSfx = () => { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.13, 'square', 0.18, i * 0.08)); };
+
+const elStart = document.getElementById('start'), elGameover = document.getElementById('gameover');
+const elPad = document.getElementById('pad'), elCredit = document.getElementById('credit'), elStartBtn = document.getElementById('startbtn');
+const elFinal = document.getElementById('final-score'), payCoin = document.getElementById('pay-coin'), payCard = document.getElementById('pay-card'), coinEl = document.getElementById('coin');
+let credited = false, firstGame = true;
+
+function ensureAudio() { if (!audioReady) { try { audio.init(); audio.resume(); } catch (e) { /* */ } audioReady = true; } }
+function addCredit(kind) {
+  ensureAudio();
+  if (kind === 'coin') { coinEl.classList.remove('drop'); void coinEl.offsetWidth; coinEl.classList.add('drop'); payCoin.classList.add('done'); coinSfx(); }
+  else { payCard.classList.add('done'); cardSfx(); }
+  if (!credited) { credited = true; elCredit.textContent = 'CREDIT  1'; elStartBtn.classList.add('on'); }
+}
+if (payCoin) payCoin.addEventListener('click', () => addCredit('coin'));
+if (payCard) payCard.addEventListener('click', () => addCredit('card'));
+if (elStartBtn) elStartBtn.addEventListener('click', () => { if (credited) startGame(); });
+const replayBtn = document.getElementById('replay');
+if (replayBtn) replayBtn.addEventListener('click', () => {
+  credited = false; elCredit.textContent = ''; elStartBtn.classList.remove('on');
+  payCoin.classList.remove('done'); payCard.classList.remove('done');
+  elGameover.classList.add('off'); elStart.classList.remove('off');
+});
+
+function resetFries() {
+  held.length = 0;
+  for (const f of fries) { if (!f.delivered) world.removeBody(f.body); scene.remove(f.mesh); }
+  fries.length = 0; spawnFries(22); applyTheme(themeIdx);
+}
+function startGame() {
+  if (!firstGame) { resetFries(); score = 0; slips = 0; delivered = 0; drops = 0; }
+  firstGame = false; credited = false; held.length = 0; gripT = 0;
+  timeLeft = ROUND_SEC; started = true; state = 'aim'; stateT = 0;
+  handPos.set(CAB.x, HOVER_Y, CAB.z); _handPrev.copy(handPos);
+  elStart.classList.add('off'); elGameover.classList.add('off'); elPad.classList.add('on');
+  startSfx();
+}
+function endGame() {
+  started = false; elPad.classList.remove('on');
+  elFinal.textContent = score; elGameover.classList.remove('off');
+}
+
+// Analog on-screen joystick (touch + mouse via Pointer Events).
+const joyEl = document.getElementById('joy'), knobEl = document.getElementById('knob'), dropEl = document.getElementById('drop');
+const JOY_R = 46; let joyId = null;
+function joyFrom(e) {
+  const r = joyEl.getBoundingClientRect();
+  let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+  const d = Math.hypot(dx, dy), m = d > 0 ? Math.min(1, d / JOY_R) : 0;
+  if (d > 0) { dx = dx / d * m * JOY_R; dy = dy / d * m * JOY_R; }
+  knobEl.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+  aimVec.x = dx / JOY_R; aimVec.z = dy / JOY_R;              // up(-dy) = back(-z), down = front(+z)
+}
+function joyEnd(e) { if (joyId !== null && e.pointerId !== joyId) return; joyId = null; aimVec.x = 0; aimVec.z = 0; knobEl.style.transform = 'translate(-50%, -50%)'; }
+if (joyEl) {
+  joyEl.addEventListener('pointerdown', (e) => { joyId = e.pointerId; try { joyEl.setPointerCapture(e.pointerId); } catch (er) { /* */ } joyFrom(e); });
+  joyEl.addEventListener('pointermove', (e) => { if (joyId === e.pointerId) joyFrom(e); });
+  joyEl.addEventListener('pointerup', joyEnd); joyEl.addEventListener('pointercancel', joyEnd);
+}
+if (dropEl) dropEl.addEventListener('pointerdown', (e) => { e.preventDefault(); ensureAudio(); startPlunge(); });
+
 // Verify / debug API.
 window.__claw = {
   get score() { return score; }, get drops() { return drops; }, get delivered() { return delivered; },
   get slips() { return slips; }, get held() { return held.length; },
   get state() { return state; }, get handPos() { return handPos; },
-  drop() { startPlunge(); }, setHand(x, z) { handPos.x = x; handPos.z = z; },
+  start() { startGame(); }, drop() { startPlunge(); }, setHand(x, z) { handPos.x = x; handPos.z = z; },
   piles() { return fries.filter((f) => !f.delivered).map((f) => ({ x: f.body.position.x, y: f.body.position.y, z: f.body.position.z, value: f.value })); },
   get slipLog() { return slipLog; }, get maxStretch() { return maxStretch; },
 };
