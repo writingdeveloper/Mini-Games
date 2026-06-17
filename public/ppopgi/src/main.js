@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { makePrizeMesh, Prize, FRY } from './prizes.js';
 import { sfx } from './sfx.js';
+import { rollValue, prizeMass, gripBreakDist, tickTime } from './logic.js';
 
 // ---- Tunables ----
 const FLOOR_Y = 3.0;
@@ -18,7 +19,7 @@ const HOVER_Y = 8.6, PLUNGE_Y = FLOOR_Y + 1.7;    // hub heights
 const PLUNGE_SPEED = 4.0, LIFT_SPEED = 3.2, RETURN_SPEED = 2.2, AIM_SPEED = 3.6; // lift yanks (tests the grip)
 const GRIP_R = 1.15, CAGE_BAND = 1.4, MAX_GRAB = 2;
 const K_BASE = 30, DAMP = 5.0;                    // grip spring stiffness / damping
-const BREAK_BASE = 0.42, BREAK_SPAN = 0.5;        // snap distance = (BASE + SPAN*centered) * weightPenalty / sqrt(n)
+// grip snap distance lives in logic.js (gripBreakDist) — pure + unit-tested
 const ROUND_SEC = 90;
 // Collision groups: held fries stop colliding with the claw (spring is the grip) but still hit walls/pile.
 const G_SOLID = 1, G_FRY = 2, G_CLAW = 4, G_HELD = 8;
@@ -335,8 +336,8 @@ const fries = [];
 function spawnFries(n) {
   for (let i = 0; i < n; i++) {
     const r = Math.random();
-    const value = r < 0.1 ? 5 : r < 0.32 ? 3 : 1;
-    const mass = value === 5 ? 0.5 : value === 3 ? 0.32 : 0.2; // heavier prize = harder to hold
+    const value = rollValue(r);
+    const mass = prizeMass(value);                          // heavier prize = harder to hold
     const f = FRY;
     const body = new CANNON.Body({ mass, material: fryMat,
       shape: new CANNON.Box(new CANNON.Vec3(f.length / 2, f.thickness / 2, f.thickness / 2)),
@@ -392,9 +393,8 @@ function tryGrab() {
   const n = take.length;
   for (const { f, dr } of take) {
     const center = 1 - (dr / GRIP_R) * 0.55;                 // centered grab = firmer
-    const wPen = f.value === 5 ? 0.72 : f.value === 3 ? 0.85 : 1; // heavy prize = weaker hold
     const k = K_BASE * center / n;                            // multi-grab splits grip budget
-    const breakDist = (BREAK_BASE + BREAK_SPAN * center) * wPen / Math.sqrt(n) + (Math.random() - 0.5) * 0.1;
+    const breakDist = gripBreakDist(center, f.value, n) + (Math.random() - 0.5) * 0.1;
     const anchor = new THREE.Vector3(f.body.position.x - hub.position.x,
       f.body.position.y - hub.position.y, f.body.position.z - hub.position.z);
     f.body.wakeUp();
@@ -494,7 +494,7 @@ const _handPrev = new THREE.Vector3().copy(handPos);
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   stateT += dt;
-  if (started && timeLeft > 0) { timeLeft = Math.max(0, timeLeft - dt); if (timeLeft === 0) endGame(); }
+  if (started && timeLeft > 0) { timeLeft = tickTime(timeLeft, dt); if (timeLeft === 0) endGame(); }
   if (keys.BracketLeft) { camState.az += 1.1 * dt; camGoal.az = camState.az; }
   if (keys.BracketRight) { camState.az -= 1.1 * dt; camGoal.az = camState.az; }
 
