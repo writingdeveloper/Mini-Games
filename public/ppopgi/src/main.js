@@ -32,7 +32,7 @@ renderer.setSize(innerWidth, innerHeight);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x150a22);          // dark arcade hall
 scene.fog = new THREE.Fog(0x150a22, 26, 64);           // the aisle fades into the distance
-const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.1, 200);
+const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.6, 200); // near 0.6 for depth precision (less z-fighting)
 scene.add(new THREE.HemisphereLight(0x7a5aa6, 0x241038, 0.55)); // dim purple ambient
 const sun = new THREE.DirectionalLight(0xfff0e0, 0.55);
 sun.position.set(8, 20, 10);
@@ -86,7 +86,7 @@ function staticBox(cx, cy, cz, hx, hy, hz, color, opacity = 1) {
   world.addBody(body);
   const mesh = new THREE.Mesh(
     new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2),
-    new THREE.MeshStandardMaterial({ color, roughness: 0.85, transparent: opacity < 1, opacity })
+    new THREE.MeshStandardMaterial({ color, roughness: 0.85, transparent: opacity < 1, opacity, depthWrite: opacity >= 1 }) // glass: no depth write -> no transparent-sort flicker
   );
   mesh.position.set(cx, cy, cz);
   scene.add(mesh);
@@ -115,7 +115,7 @@ rim.rotation.x = -Math.PI / 2; rim.position.set(HOLE.x, FLOOR_Y + 0.02, HOLE.z);
 
 // Aim reticle.
 const reticle = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.64, 30),
-  new THREE.MeshBasicMaterial({ color: 0xffe14a, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
+  new THREE.MeshBasicMaterial({ color: 0xffe14a, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
 reticle.rotation.x = -Math.PI / 2; scene.add(reticle);
 
 // ===================== Arcade dressing (real ゲーセン / UFO-catcher look) =====================
@@ -153,35 +153,36 @@ for (const fx of [-1, 1]) for (const fz of [-1, 1]) visBox(CAB.x + fx * (CAB.hal
 // glass-window bottom frame (all four sides)
 for (const pz of [-1, 1]) visBox(CAB.x, FLOOR_Y - 0.02, CAB.z + pz * (CAB.half + 0.05), CAB.half + 0.12, 0.1, 0.08, accent);
 for (const px of [-1, 1]) visBox(CAB.x + px * (CAB.half + 0.05), FLOOR_Y - 0.02, CAB.z, 0.08, 0.1, CAB.half + 0.12, accent);
-// --- prize collection bin: won prizes drop here through clear walls and pile up ---
+// --- prize chute + collection bin (front-center, below the console): won prizes drop in and pile up, fully visible ---
 const G_BIN = 16, G_COLLECTED = 32;
-const BIN = { x: CAB.x - 1.05, z: BF + 0.45, floorY: 0.52, hx: 0.52, hz: 0.42, topY: 1.12 };
-const binClear = new THREE.MeshStandardMaterial({ color: 0xbfe9f5, transparent: true, opacity: 0.22, roughness: 0.1, metalness: 0.1 });
+const BIN = { x: CAB.x, z: CAB.z + CAB.half + 1.0, floorY: 0.45, hx: 0.82, hz: 0.5, topY: 1.6 };
+const binClear = new THREE.MeshStandardMaterial({ color: 0xbfe9f5, transparent: true, opacity: 0.2, roughness: 0.1, metalness: 0.1, depthWrite: false });
 const binDark = new THREE.MeshStandardMaterial({ color: 0x140a20, roughness: 0.5 });
 function binWall(cx, cy, cz, hx, hy, hz, mat) {
   const body = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(hx, hy, hz)), collisionFilterGroup: G_BIN, collisionFilterMask: G_COLLECTED });
   body.position.set(cx, cy, cz); world.addBody(body);
   const m = new THREE.Mesh(new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2), mat); m.position.set(cx, cy, cz); scene.add(m);
 }
-binWall(BIN.x, BIN.floorY - 0.05, BIN.z, BIN.hx + 0.06, 0.05, BIN.hz + 0.06, binDark);    // floor
-binWall(BIN.x, BIN.floorY + 0.28, BIN.z - BIN.hz, BIN.hx, 0.33, 0.04, binClear);          // back
-binWall(BIN.x, BIN.floorY + 0.28, BIN.z + BIN.hz, BIN.hx, 0.33, 0.04, binClear);          // front (clear window)
-binWall(BIN.x - BIN.hx, BIN.floorY + 0.28, BIN.z, 0.04, 0.33, BIN.hz, binClear);          // left
-binWall(BIN.x + BIN.hx, BIN.floorY + 0.28, BIN.z, 0.04, 0.33, BIN.hz, binClear);          // right
-visBox(BIN.x, BIN.floorY + 0.62, BIN.z, BIN.hx + 0.08, 0.05, BIN.hz + 0.08, accent);      // pink rim
-const binGlowMat = emis(0xffe14a, 0.0);                                                   // pulses on GET
-visBox(BIN.x, BIN.floorY + 0.62, BIN.z + BIN.hz + 0.04, BIN.hx + 0.06, 0.06, 0.02, binGlowMat);
-visBox(BIN.x, BIN.floorY + 0.86, BIN.z, 0.46, 0.12, 0.02, marqueeMat('경품 GET', '#2a0a1a', '#ffd34d'));
+const binCY = (BIN.floorY + BIN.topY) / 2, binHY = (BIN.topY - BIN.floorY) / 2 + 0.05;
+binWall(BIN.x, BIN.floorY - 0.05, BIN.z, BIN.hx + 0.06, 0.06, BIN.hz + 0.06, binDark);     // floor
+binWall(BIN.x, binCY, BIN.z - BIN.hz, BIN.hx, binHY, 0.04, binClear);                      // back
+binWall(BIN.x, binCY, BIN.z + BIN.hz, BIN.hx, binHY, 0.04, binClear);                      // front (clear window)
+binWall(BIN.x - BIN.hx, binCY, BIN.z, 0.04, binHY, BIN.hz, binClear);                      // left
+binWall(BIN.x + BIN.hx, binCY, BIN.z, 0.04, binHY, BIN.hz, binClear);                      // right
+visBox(BIN.x, BIN.topY + 0.06, BIN.z, BIN.hx + 0.08, 0.05, BIN.hz + 0.08, accent);         // rim
+const binGlowMat = emis(0xffe14a, 0.0);                                                    // pulses on GET
+visBox(BIN.x, BIN.topY + 0.06, BIN.z + BIN.hz + 0.05, BIN.hx + 0.06, 0.06, 0.02, binGlowMat);
+visBox(BIN.x, BIN.topY + 0.28, BIN.z, 0.62, 0.13, 0.02, marqueeMat('경품 배출구', '#2a0a1a', '#ffd34d'));
 let binFlash = 0;
 const collectedList = [];
 function rmBody(b) { const i = world.bodies.indexOf(b); if (i !== -1) world.removeBody(b); }
 function collectIntoBin(f) {
   const b = f.body; b.wakeUp();
-  b.position.set(BIN.x + (Math.random() - 0.5) * 0.5, BIN.topY + 0.5, BIN.z + (Math.random() - 0.5) * 0.4);
-  b.velocity.set(0, -0.6, 0); b.angularVelocity.set(0, 0, 0);
+  b.position.set(BIN.x + (Math.random() - 0.5) * 0.7, BIN.topY - 0.05, BIN.z + (Math.random() - 0.5) * 0.4); // emerge at the chute mouth
+  b.velocity.set(0, -1.0, 0); b.angularVelocity.set(0, 0, 0);                              // fall into the bin (visible)
   b.collisionFilterGroup = G_COLLECTED; b.collisionFilterMask = G_BIN | G_COLLECTED;
   collectedList.push(f); binFlash = 1;
-  if (collectedList.length > 8) { const old = collectedList.shift(); rmBody(old.body); scene.remove(old.mesh); old.gone = true; }
+  if (collectedList.length > 10) { const old = collectedList.shift(); rmBody(old.body); scene.remove(old.mesh); old.gone = true; }
 }
 // --- front control console (slanted, toward the player) ---
 const FZ = CAB.z + CAB.half + 0.5;
@@ -228,7 +229,7 @@ function makeNeighbor(x, z, neon, name, bg, fg) {
   const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
   visBox(0, FLOOR_Y / 2, 0, 1.7, FLOOR_Y / 2, 1.7, bodyMat, g);
   visBox(0, FLOOR_Y + 1.4, 0, 1.55, 1.4, 1.55,
-    new THREE.MeshStandardMaterial({ color: 0xbfe9f5, transparent: true, opacity: 0.18, roughness: 0.1 }), g);
+    new THREE.MeshStandardMaterial({ color: 0xbfe9f5, transparent: true, opacity: 0.18, roughness: 0.1, depthWrite: false }), g);
   const blobC = [0xff7ab8, 0xffd34d, 0x8fd3ff, 0xb98cff, 0xff9d5c];
   for (let i = 0; i < 5; i++) {
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 10), emis(blobC[i % 5], 0.55));
@@ -419,7 +420,7 @@ function applyGripForces() {
       h.fry.body.collisionFilterMask = G_SOLID | G_FRY | G_CLAW | G_HELD;
       slipLog.push({ state, dist: +dist.toFixed(2), v: h.fry.value }); if (slipLog.length > 40) slipLog.shift();
       held.splice(i, 1);
-      slips++; flash(); camShake = 0.5; if (audioReady) sfx.slip();
+      slips++; flash(); camShake = 0.2; if (audioReady) sfx.slip();
       continue;
     }
     if (dist > maxStretch) maxStretch = dist;
@@ -478,7 +479,7 @@ function checkDeliveries() {
     const p = f.body.position;
     if (Math.abs(p.x - HOLE.x) < HOLE.half + 0.3 && Math.abs(p.z - HOLE.z) < HOLE.half + 0.3 && p.y < FLOOR_Y - 0.7) {
       f.delivered = true; score += f.value; delivered++;
-      popScore(f.value); camShake = 0.35; if (audioReady) sfx.get();
+      popScore(f.value); camShake = 0.12; if (audioReady) sfx.get();
       collectIntoBin(f);                                    // drop it into the visible collection bin
     }
   }
