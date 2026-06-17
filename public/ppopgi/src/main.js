@@ -5,9 +5,11 @@
 // (no magic, not unconditional). Japanese-arcade dressing. Self-contained (no fry-tower deps).
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { makePrizeMesh, Prize, FRY } from './prizes.js';
+import { Prize, PRIZE_SETS } from './prizes.js';
 import { sfx } from './sfx.js';
 import { rollValue, prizeMass, gripBreakDist, tickTime } from './logic.js';
+
+let currentSet = PRIZE_SETS[0]; // the selected machine (PrizeSet) — see machine-select
 
 // ---- Tunables ----
 const FLOOR_Y = 3.0;
@@ -48,7 +50,7 @@ addEventListener('resize', () => {
 });
 // Settable camera: spherical orbit (azimuth/pitch/radius) with drag + preset angles.
 const CAM_PRESETS = {
-  play: { az: 0.13, pitch: 0.25, r: 13.0, ty: 4.4 },       // standing-at-machine (default)
+  play: { az: 0.13, pitch: 0.28, r: 13.6, ty: 4.05 },      // standing-at-machine (default; bin in frame at the bottom)
   front: { az: 0.0, pitch: 0.10, r: 12.5, ty: 4.7 },        // straight-on
   side: { az: 1.32, pitch: 0.22, r: 12.5, ty: 4.4 },        // judge depth from the side
   top: { az: 0.0, pitch: 0.62, r: 12.0, ty: 4.0 },          // high-front angle (marquee blocks true top-down)
@@ -129,7 +131,9 @@ function visBox(cx, cy, cz, hx, hy, hz, mat, parent = scene) {
 function drawMarquee(cv, text, bg, fg) {
   const g = cv.getContext('2d');
   g.fillStyle = bg; g.fillRect(0, 0, 512, 130);
-  g.fillStyle = fg; g.font = 'bold 64px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle';
+  let size = 66;                                            // auto-fit: shrink until the name fits (no clipping)
+  do { g.font = `bold ${size}px system-ui, sans-serif`; size -= 3; } while (g.measureText(text).width > 472 && size > 22);
   g.fillText(text, 256, 70);
 }
 function marqueeMat(text, bg, fg) {
@@ -254,24 +258,16 @@ for (let i = 0; i < 5; i++) {
     emis([0xff2d8f, 0x36e0ff, 0xffd34d, 0xb98cff, 0x8fff9d][i], 1.1));
 }
 
-// --- Machine "versions" you flip through with Q / E ---
-const THEMES = [
-  { name: 'POTATO CATCHER', bg: '#2a0a3a', fg: '#ffe14a', neon: 0xff2d8f, prize: 0xffb24a },
-  { name: 'PUNI PLUSH', bg: '#3a0a22', fg: '#ff9ecb', neon: 0x36e0ff, prize: 0xff7ab8 },
-  { name: 'CANDY POP', bg: '#0a323a', fg: '#bff4ff', neon: 0xffd34d, prize: 0x7affd0 },
-  { name: 'STAR GET', bg: '#1f0a3a', fg: '#d7c2ff', neon: 0xb98cff, prize: 0x9d7bff },
-];
-let themeIdx = 0;
-function applyTheme(i) {
-  themeIdx = (i + THEMES.length) % THEMES.length;
-  const t = THEMES[themeIdx];
-  drawMarquee(heroMarquee.userData.cv, t.name, t.bg, t.fg); heroMarquee.userData.tex.needsUpdate = true;
-  for (const m of neonMats) { m.color.setHex(t.neon); m.emissive.setHex(t.neon); }
-  for (const f of fries) if (f.value === 1) f.mesh.traverse((o) => {
-    if (o.material && o.material.emissive) { o.material.emissive.setHex(t.prize); o.material.emissiveIntensity = 0.22; }
-  });
-  const el = document.getElementById('pop');
-  if (el) { el.textContent = t.name; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); }
+// --- Machines (PrizeSets): theme the cabinet + swap the prizes. Picked via machine-select / Q·E ---
+function applyMachineTheme(set) {
+  drawMarquee(heroMarquee.userData.cv, set.name, set.marqueeBg, set.marqueeFg); heroMarquee.userData.tex.needsUpdate = true;
+  for (const m of neonMats) { m.color.setHex(set.neon); m.emissive.setHex(set.neon); }
+  accent.color.setHex(set.accent);
+}
+function loadMachine(set) {
+  currentSet = set;
+  resetFries();                 // respawn with this machine's prizes (count + shape)
+  applyMachineTheme(set);
 }
 
 // ---- The metal claw: kinematic hub + 3 kinematic animated fingers ----
@@ -339,9 +335,9 @@ function spawnFries(n) {
     const r = Math.random();
     const value = rollValue(r);
     const mass = prizeMass(value);                          // heavier prize = harder to hold
-    const f = FRY;
+    const h = currentSet.half;
     const body = new CANNON.Body({ mass, material: fryMat,
-      shape: new CANNON.Box(new CANNON.Vec3(f.length / 2, f.thickness / 2, f.thickness / 2)),
+      shape: new CANNON.Box(new CANNON.Vec3(h.x, h.y, h.z)),
       collisionFilterGroup: G_FRY, collisionFilterMask: G_SOLID | G_FRY | G_CLAW | G_HELD });
     body.sleepSpeedLimit = 0.2; body.sleepTimeLimit = 0.5;
     body.position.set(
@@ -351,7 +347,7 @@ function spawnFries(n) {
     );
     body.quaternion.setFromEuler(Math.random() * 3, Math.random() * 3, Math.random() * 3);
     world.addBody(body);
-    const mesh = makePrizeMesh();
+    const mesh = currentSet.makeMesh();
     scene.add(mesh);
     const fry = new Prize(body, mesh);
     fry.value = value; fry.delivered = false;
@@ -365,7 +361,7 @@ function spawnFries(n) {
     fries.push(fry);
   }
 }
-spawnFries(22);
+spawnFries(currentSet.spawn);
 
 // ---- Juice ----
 const elFlash = document.getElementById('flash'), elPop = document.getElementById('pop');
@@ -439,8 +435,8 @@ addEventListener('keydown', (e) => {
   if (!audioReady) { sfx.init(); sfx.resume(); audioReady = true; }
   keys[e.code] = true;
   if (e.code === 'Space') { e.preventDefault(); startPlunge(); }
-  if (e.code === 'KeyE') applyTheme(themeIdx + 1);
-  if (e.code === 'KeyQ') applyTheme(themeIdx - 1);
+  if (e.code === 'KeyE') loadMachine(PRIZE_SETS[(PRIZE_SETS.indexOf(currentSet) + 1) % PRIZE_SETS.length]);
+  if (e.code === 'KeyQ') loadMachine(PRIZE_SETS[(PRIZE_SETS.indexOf(currentSet) + PRIZE_SETS.length - 1) % PRIZE_SETS.length]);
 });
 addEventListener('keyup', (e) => { keys[e.code] = false; });
 
@@ -597,6 +593,7 @@ const startSfx = () => { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.13, '
 const elStart = document.getElementById('start'), elGameover = document.getElementById('gameover');
 const elPad = document.getElementById('pad'), elCredit = document.getElementById('credit'), elStartBtn = document.getElementById('startbtn');
 const elFinal = document.getElementById('final-score'), payCoin = document.getElementById('pay-coin'), payCard = document.getElementById('pay-card'), coinEl = document.getElementById('coin');
+const elMachineSelect = document.getElementById('machineselect'), elPayTitle = document.getElementById('pay-title'), elPaySub = document.getElementById('pay-sub');
 let credited = false, firstGame = true;
 
 function ensureAudio() { if (!audioReady) { try { sfx.init(); sfx.resume(); } catch (e) { /* */ } audioReady = true; } }
@@ -613,21 +610,37 @@ const replayBtn = document.getElementById('replay');
 if (replayBtn) replayBtn.addEventListener('click', () => {
   credited = false; elCredit.textContent = ''; elStartBtn.classList.remove('on');
   payCoin.classList.remove('done'); payCard.classList.remove('done');
-  elGameover.classList.add('off'); elStart.classList.remove('off');
+  elGameover.classList.add('off'); elMachineSelect.classList.remove('off');  // back to machine select
+});
+
+// Machine select: build a card per PrizeSet; pick -> load that machine + go to payment.
+const cardsEl = document.getElementById('machinecards');
+if (cardsEl) PRIZE_SETS.forEach((set) => {
+  const c = document.createElement('div'); c.className = 'mcard';
+  c.style.borderColor = '#' + set.neon.toString(16).padStart(6, '0');
+  c.innerHTML = `<div class="ico">${set.emoji}</div><div class="t">${set.name}</div><div class="s">${set.sub}</div><div class="go" style="background:${set.marqueeFg}">선택 ▶</div>`;
+  c.addEventListener('click', () => {
+    ensureAudio();
+    loadMachine(set);
+    elPayTitle.textContent = set.emoji + ' ' + set.name;
+    elPaySub.textContent = set.sub + ' · CRANE GAME';
+    elMachineSelect.classList.add('off'); elStart.classList.remove('off');
+  });
+  cardsEl.appendChild(c);
 });
 
 function resetFries() {
   held.length = 0;
   for (const f of fries) { if (!f.gone) { rmBody(f.body); scene.remove(f.mesh); } }
   fries.length = 0; collectedList.length = 0; binFlash = 0; binGlowMat.emissiveIntensity = 0;
-  spawnFries(22); applyTheme(themeIdx);
+  spawnFries(currentSet.spawn);
 }
 function startGame() {
   if (!firstGame) { resetFries(); score = 0; slips = 0; delivered = 0; drops = 0; }
   firstGame = false; credited = false; held.length = 0; gripT = 0;
   timeLeft = ROUND_SEC; started = true; state = 'aim'; stateT = 0;
   handPos.set(CAB.x, HOVER_Y, CAB.z); _handPrev.copy(handPos);
-  elStart.classList.add('off'); elGameover.classList.add('off'); elPad.classList.add('on');
+  elStart.classList.add('off'); elGameover.classList.add('off'); elMachineSelect.classList.add('off'); elPad.classList.add('on');
   startSfx();
 }
 function endGame() {

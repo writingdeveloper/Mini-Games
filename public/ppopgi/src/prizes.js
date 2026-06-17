@@ -1,9 +1,8 @@
-// Self-contained prize content for the 뽑기 claw game (V1 = fries).
-// Ported from the fry-tower fryMesh variant system so /ppopgi has NO external deps.
+// Prize content for the 뽑기 claw game. Each PrizeSet = a themed machine (swappable).
+// Self-contained (no fry-tower deps). V1 = fries, V2 = candy/jelly (procedural).
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
-export const FRY = { length: 1.6, thickness: 0.18, mass: 0.2, variants: 7 };
 const OUTLINE = 0x2a1b08;
 
 // Pairs a cannon body with a three group; sync() copies the transform.
@@ -16,18 +15,20 @@ export class Prize {
   }
 }
 
-let _variants = null, _fill = null, _outline = null, _grad = null;
-
+let _grad = null;
 function stepGrad() {
   if (_grad) return _grad;
-  const data = new Uint8Array([60, 115, 175, 230]);
+  const data = new Uint8Array([70, 125, 180, 235]);
   _grad = new THREE.DataTexture(data, data.length, 1, THREE.RedFormat);
   _grad.needsUpdate = true;
   return _grad;
 }
 
-// Build ONE irregular fry geometry with vertex colours.
-function buildVariant(rng) {
+// ===================== V1 — fries =====================
+const FRY_VARIANTS = 7;
+let _fryVariants = null, _fryFill = null, _fryOutline = null;
+
+function buildFryVariant(rng) {
   const L = 1.42 + rng() * 0.46, T = 0.22 + rng() * 0.06, r = Math.min(0.08, T * 0.34), half = L / 2;
   const geo = new RoundedBoxGeometry(L, T, T, 4, r);
   const pos = geo.attributes.position;
@@ -61,24 +62,50 @@ function buildVariant(rng) {
   geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   return geo;
 }
-
-function assets() {
-  if (_variants) return;
+function fryAssets() {
+  if (_fryVariants) return;
   let s = 0x9e3779b1 >>> 0;
   const rng = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
-  _variants = [];
-  for (let i = 0; i < FRY.variants; i++) _variants.push(buildVariant(rng));
-  _fill = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: stepGrad() });
-  _outline = new THREE.MeshBasicMaterial({ color: OUTLINE, side: THREE.BackSide });
+  _fryVariants = [];
+  for (let i = 0; i < FRY_VARIANTS; i++) _fryVariants.push(buildFryVariant(rng));
+  _fryFill = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: stepGrad() });
+  _fryOutline = new THREE.MeshBasicMaterial({ color: OUTLINE, side: THREE.BackSide });
 }
-
-// Returns a Group containing one of the varied fry meshes (random pick).
-export function makePrizeMesh() {
-  assets();
-  const geo = _variants[(Math.random() * _variants.length) | 0];
+function makeFryMesh() {
+  fryAssets();
+  const geo = _fryVariants[(Math.random() * _fryVariants.length) | 0];
   const g = new THREE.Group();
-  const o = new THREE.Mesh(geo, _outline); o.scale.multiplyScalar(1.07);
-  g.add(o);
-  g.add(new THREE.Mesh(geo, _fill));
+  const o = new THREE.Mesh(geo, _fryOutline); o.scale.multiplyScalar(1.07); g.add(o);
+  g.add(new THREE.Mesh(geo, _fryFill));
   return g;
 }
+
+// ===================== V2 — candy / jelly (procedural) =====================
+const CANDY_COLORS = [0xff5a7a, 0x5ab0ff, 0x6be08a, 0xffd44d, 0xff8ad0, 0xff9a4d, 0xb98cff, 0x4de0d0];
+let _candyGeo = null, _candyOutline = null;
+function candyAssets() {
+  if (_candyGeo) return;
+  _candyGeo = new RoundedBoxGeometry(0.74, 0.64, 0.74, 5, 0.26); // chubby rounded gummy
+  _candyOutline = new THREE.MeshBasicMaterial({ color: OUTLINE, side: THREE.BackSide });
+}
+function makeCandyMesh() {
+  candyAssets();
+  const col = CANDY_COLORS[(Math.random() * CANDY_COLORS.length) | 0];
+  const g = new THREE.Group();
+  const o = new THREE.Mesh(_candyGeo, _candyOutline); o.scale.multiplyScalar(1.09); g.add(o);
+  const fill = new THREE.MeshToonMaterial({ color: col, gradientMap: stepGrad() });
+  fill.emissive = new THREE.Color(col); fill.emissiveIntensity = 0.18;   // glossy candy pop
+  g.add(new THREE.Mesh(_candyGeo, fill));
+  return g;
+}
+
+// ===================== PrizeSets (machines) =====================
+// half = cannon box half-extents (visual/physics split). spawn = pile count.
+export const PRIZE_SETS = [
+  { id: 'fry', name: 'POTATO CATCHER', sub: '감자튀김', emoji: '🍟',
+    marqueeBg: '#2a0a3a', marqueeFg: '#ffe14a', neon: 0xff2d8f, accent: 0xff3d7f,
+    spawn: 22, makeMesh: makeFryMesh, half: { x: 0.8, y: 0.09, z: 0.09 } },
+  { id: 'candy', name: 'JELLY CATCHER', sub: '젤리·캔디', emoji: '🍬',
+    marqueeBg: '#10243a', marqueeFg: '#bff4ff', neon: 0x36e0ff, accent: 0x4ab8ff,
+    spawn: 26, makeMesh: makeCandyMesh, half: { x: 0.36, y: 0.31, z: 0.36 } },
+];

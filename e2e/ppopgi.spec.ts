@@ -26,14 +26,24 @@ test.describe("뽑기 (ppopgi) claw machine", () => {
     expect(errors, errors.join("\n")).toHaveLength(0);
   });
 
-  test("payment → start reveals the touch controls", async ({ page }) => {
+  test("machine select → payment → start reveals the touch controls", async ({ page }) => {
     await page.goto("/ppopgi/index.html");
     await page.waitForFunction(() => !!(window as unknown as { __claw?: Claw }).__claw);
+    await page.locator("#machinecards .mcard").first().click();   // pick a machine
+    await expect(page.locator("#start")).not.toHaveClass(/off/);
     await page.locator("#pay-coin").click();
     await expect(page.locator("#startbtn")).toHaveClass(/on/);
     await page.locator("#startbtn").click();
     await expect(page.locator("#pad")).toHaveClass(/on/);
     expect(await page.evaluate(() => (window as unknown as { __claw: Claw }).__claw.started)).toBe(true);
+  });
+
+  test("machine select offers both machines", async ({ page }) => {
+    await page.goto("/ppopgi/index.html");
+    await page.waitForFunction(() => !!(window as unknown as { __claw?: Claw }).__claw);
+    await expect(page.locator("#machinecards .mcard")).toHaveCount(2);
+    await expect(page.locator("#machinecards")).toContainText("POTATO CATCHER");
+    await expect(page.locator("#machinecards")).toContainText("JELLY CATCHER");
   });
 
   test("grabbing a prize collects it into the bin", async ({ page }) => {

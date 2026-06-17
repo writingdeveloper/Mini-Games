@@ -64,6 +64,16 @@
     .pay .ico { font-size: 40px; line-height: 1; }
     .pay .t { font-weight: 800; margin-top: 8px; font-size: 15px; }
     .pay .s { color: #c7b3e0; font-size: 12px; margin-top: 2px; }
+    /* machine select */
+    .machines { display: flex; gap: 14px; justify-content: center; margin: 14px 0 14px; flex-wrap: wrap; }
+    .mcard { flex: 1; min-width: 130px; border-radius: 16px; padding: 18px 10px 14px; cursor: pointer; pointer-events: auto;
+      background: rgba(255,255,255,.05); border: 2px solid #6a4a8a; transition: transform .1s, border-color .15s, box-shadow .15s; }
+    .mcard:hover { transform: translateY(-3px); }
+    .mcard:active { transform: scale(.97); }
+    .mcard .ico { font-size: 48px; line-height: 1; }
+    .mcard .t { font-weight: 900; margin-top: 8px; font-size: 17px; letter-spacing: .5px; }
+    .mcard .s { color: #c7b3e0; font-size: 12px; margin-top: 3px; }
+    .mcard .go { margin-top: 10px; font-size: 12px; font-weight: 800; color: #14210a; border-radius: 999px; padding: 5px 0; }
     /* coin slot */
     .slot { width: 64px; height: 10px; border-radius: 6px; background: #0a0414; margin: 10px auto 0; border: 2px solid #7a5aa6; position: relative; overflow: visible; }
     .coin { position: absolute; left: 50%; top: -54px; width: 30px; height: 30px; border-radius: 50%; transform: translateX(-50%);
@@ -124,11 +134,21 @@
     <div id="drop">잡기!</div>
   </div>
 
-  <!-- Arcade payment / start -->
-  <div id="start" class="veil">
+  <!-- Machine select -->
+  <div id="machineselect" class="veil">
     <div class="panel">
-      <h1>🕹️ POTATO CATCHER</h1>
-      <div class="sub">인형뽑기 · CRANE GAME</div>
+      <h1>🕹️ 뽑기</h1>
+      <div class="sub">머신 선택 · PICK A MACHINE</div>
+      <div id="machinecards" class="machines"></div>
+      <div class="small">플레이할 머신을 고르세요. 게임 중 <b>Q / E</b>로도 바꿀 수 있어요.</div>
+    </div>
+  </div>
+
+  <!-- Arcade payment / start -->
+  <div id="start" class="veil off">
+    <div class="panel">
+      <h1 id="pay-title">🕹️ POTATO CATCHER</h1>
+      <div class="sub" id="pay-sub">인형뽑기 · CRANE GAME</div>
       <div class="pays">
         <div id="pay-coin" class="pay">
           <div class="ico">🪙</div>
