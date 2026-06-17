@@ -45,14 +45,24 @@ addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
-let camYaw = 0.13;                                          // mostly front (slight angle for depth) — like standing at the machine
-const CAM_R = 12.8, CAM_H = 7.6, CAM_TARGET = new THREE.Vector3(0, 4.4, 0);
-let camShake = 0;
+// Settable camera: spherical orbit (azimuth/pitch/radius) with drag + preset angles.
+const CAM_PRESETS = {
+  play: { az: 0.13, pitch: 0.25, r: 13.0, ty: 4.4 },       // standing-at-machine (default)
+  front: { az: 0.0, pitch: 0.10, r: 12.5, ty: 4.7 },        // straight-on
+  side: { az: 1.32, pitch: 0.22, r: 12.5, ty: 4.4 },        // judge depth from the side
+  top: { az: 0.0, pitch: 0.62, r: 12.0, ty: 4.0 },          // high-front angle (marquee blocks true top-down)
+};
+const camState = { ...CAM_PRESETS.play };
+const camGoal = { ...CAM_PRESETS.play };
+let camShake = 0, camDrag = false;
+function setCamPreset(name) { if (CAM_PRESETS[name]) Object.assign(camGoal, CAM_PRESETS[name]); }
 function updateCamera(dt) {
   if (camShake > 0.001) camShake *= Math.pow(0.0015, dt);
+  if (!camDrag) { const k = Math.min(1, dt * 6); for (const p of ['az', 'pitch', 'r', 'ty']) camState[p] += (camGoal[p] - camState[p]) * k; }
   const sx = (Math.random() - 0.5) * camShake, sy = (Math.random() - 0.5) * camShake;
-  camera.position.set(Math.sin(camYaw) * CAM_R + sx, CAM_H + sy, Math.cos(camYaw) * CAM_R);
-  camera.lookAt(CAM_TARGET);
+  const cp = Math.cos(camState.pitch), sp = Math.sin(camState.pitch);
+  camera.position.set(Math.sin(camState.az) * cp * camState.r + sx, camState.ty + sp * camState.r + sy, Math.cos(camState.az) * cp * camState.r);
+  camera.lookAt(0, camState.ty, 0);
 }
 // audio handled by the sfx module
 
@@ -485,8 +495,8 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   stateT += dt;
   if (started && timeLeft > 0) { timeLeft = Math.max(0, timeLeft - dt); if (timeLeft === 0) endGame(); }
-  if (keys.BracketLeft) camYaw += 1.1 * dt;
-  if (keys.BracketRight) camYaw -= 1.1 * dt;
+  if (keys.BracketLeft) { camState.az += 1.1 * dt; camGoal.az = camState.az; }
+  if (keys.BracketRight) { camState.az -= 1.1 * dt; camGoal.az = camState.az; }
 
   if (state === 'aim') {
     handPos.y = approach(handPos.y, HOVER_Y, LIFT_SPEED, dt);
@@ -643,12 +653,31 @@ if (joyEl) {
 }
 if (dropEl) dropEl.addEventListener('pointerdown', (e) => { e.preventDefault(); ensureAudio(); startPlunge(); });
 
+// Drag the scene to orbit the camera (judge depth like leaning around the machine).
+const gameCanvas = document.getElementById('game');
+let dragX = 0, dragY = 0, dragId = null;
+if (gameCanvas) {
+  gameCanvas.addEventListener('pointerdown', (e) => { camDrag = true; dragId = e.pointerId; dragX = e.clientX; dragY = e.clientY; });
+  gameCanvas.addEventListener('pointermove', (e) => {
+    if (!camDrag || e.pointerId !== dragId) return;
+    const dx = e.clientX - dragX, dy = e.clientY - dragY; dragX = e.clientX; dragY = e.clientY;
+    camState.az -= dx * 0.006;
+    camState.pitch = THREE.MathUtils.clamp(camState.pitch + dy * 0.005, 0.05, 1.45);
+    camGoal.az = camState.az; camGoal.pitch = camState.pitch; camGoal.r = camState.r; camGoal.ty = camState.ty;
+  });
+  const endDrag = (e) => { if (e.pointerId === dragId) { camDrag = false; dragId = null; } };
+  gameCanvas.addEventListener('pointerup', endDrag); gameCanvas.addEventListener('pointercancel', endDrag);
+}
+// Preset angle buttons (정면/측면/위/기본).
+document.querySelectorAll('#cambtns button').forEach((b) => b.addEventListener('click', () => setCamPreset(b.dataset.cam)));
+
 // Verify / debug API.
 window.__claw = {
   get score() { return score; }, get drops() { return drops; }, get delivered() { return delivered; },
   get slips() { return slips; }, get held() { return held.length; },
   get state() { return state; }, get handPos() { return handPos; },
   start() { startGame(); }, drop() { startPlunge(); }, setHand(x, z) { handPos.x = x; handPos.z = z; },
+  setCam(name) { setCamPreset(name); }, get camPitch() { return camState.pitch; },
   piles() { return fries.filter((f) => !f.delivered).map((f) => ({ x: f.body.position.x, y: f.body.position.y, z: f.body.position.z, value: f.value })); },
   get slipLog() { return slipLog; }, get maxStretch() { return maxStretch; },
 };

@@ -13,6 +13,11 @@
     #readout { position: fixed; right: 12px; top: 12px; background: rgba(30,16,40,.85); color: #ffe9c2;
       padding: 8px 12px; border-radius: 10px; font-size: 14px; line-height: 1.6; border: 2px solid #36e0ff; min-width: 140px; }
     #readout span { color: #ffd479; font-weight: 800; }
+    #cambtns { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 5; }
+    #cambtns button { pointer-events: auto; touch-action: manipulation; cursor: pointer; border: 2px solid #36e0ff;
+      background: rgba(30,16,40,.85); color: #cdefff; font-size: 13px; font-weight: 700;
+      padding: 7px 11px; border-radius: 9px; }
+    #cambtns button:active { background: rgba(54,224,255,.3); }
     #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .12s ease-out;
       background: radial-gradient(circle, rgba(220,40,40,0) 38%, rgba(220,40,40,.5) 100%); }
     #pop { position: fixed; left: 50%; top: 38%; transform: translateX(-50%); pointer-events: none; opacity: 0;
@@ -104,6 +109,13 @@
     들고 있음: <span id="r-held">-</span><br>
     미끄러짐: <span id="r-slip">0</span><br>
     남은 시간: <span id="r-time">--</span>
+  </div>
+
+  <div id="cambtns">
+    <button data-cam="front">정면</button>
+    <button data-cam="side">측면</button>
+    <button data-cam="top">위</button>
+    <button data-cam="play">기본</button>
   </div>
 
   <!-- Touch controls -->
