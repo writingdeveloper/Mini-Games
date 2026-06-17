@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Claw Proto — 뽑기 손맛</title>
   <style>
-    html, body { margin: 0; height: 100%; overflow: hidden; background: #ffe39a; font-family: system-ui, sans-serif; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #150a22; font-family: system-ui, sans-serif; }
     #game { display: block; width: 100vw; height: 100vh; touch-action: none; }
     #hint { position: fixed; left: 12px; bottom: 12px; background: rgba(40,24,8,.8); color: #ffe9c2;
       padding: 8px 12px; border-radius: 10px; font-size: 13px; line-height: 1.5; border: 2px solid #ffce7a; }
@@ -35,9 +35,9 @@
 <body>
   <canvas id="game"></canvas>
   <div id="hint">
-    <b>← →</b> 좌우 조준 → <b>Space</b> 확정 → <b>↑ ↓</b> 앞뒤 조준 → <b>Space</b> 집게 내림! · <b>[ ]</b> 카메라<br>
-    한 축씩 정하면 <b>되돌릴 수 없습니다</b>. 자동으로 하강·집기·올려 <b>구멍</b>으로 떨굼.<br>
-    집게 힘이 약해 <b>치우치거나 무겁게 잡으면 가는 길에 놓칩니다</b> — 정확히 노려서!
+    <b>← → ↑ ↓</b> 집게 조준 → <b>Space</b> 집게 내림! · <b>[ ]</b> 카메라 · <b>Q / E</b> 머신 바꾸기<br>
+    <b>진짜 금속 집게</b>가 물리로 집습니다.<br>
+    집게 힘이 약해 <b>제대로 못 집거나 무거우면 가는 길에 미끄러져 떨어집니다</b> — 정확히!
   </div>
   <div id="flash"></div>
   <div id="pop"></div>
