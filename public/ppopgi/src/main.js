@@ -84,7 +84,7 @@ const solidMat = new CANNON.Material('solid');
 const clawMat = new CANNON.Material('claw');
 world.addContactMaterial(new CANNON.ContactMaterial(fryMat, fryMat, { friction: 0.45, restitution: 0.02 }));
 world.addContactMaterial(new CANNON.ContactMaterial(fryMat, solidMat, { friction: 0.6, restitution: 0.02 }));
-world.addContactMaterial(new CANNON.ContactMaterial(fryMat, clawMat, { friction: 0.9, restitution: 0.0 }));
+world.addContactMaterial(new CANNON.ContactMaterial(fryMat, clawMat, { friction: 0.9, restitution: 0.0, contactEquationStiffness: 5e6, contactEquationRelaxation: 4 })); // softer claw contact -> prongs nudge, not pop
 world.addContactMaterial(new CANNON.ContactMaterial(clawMat, solidMat, { friction: 0.3, restitution: 0.0 }));
 
 function staticBox(cx, cy, cz, hx, hy, hz, color, opacity = 1) {
@@ -296,6 +296,7 @@ function applyMachineTheme(set) {
 }
 function loadMachine(set) {
   currentSet = set;
+  gripClose = computeGripClose(set);   // prong close depth tracks this machine's prize size
   resetFries();                 // respawn with this machine's prizes (count + shape)
   applyMachineTheme(set);
 }
@@ -341,6 +342,14 @@ for (let i = 0; i < 3; i++) {
   prongs.push({ body, mesh, d, ax, qOrient, prev: new THREE.Vector3() });
 }
 let gripT = 0; // 0 open -> 1 closed
+// How far the prongs close: stop at the prize SURFACE so they clamp it instead of passing
+// through (kills the "막 튀는"/pop from sweeping past + the "중첩" overlap of fully-closed prongs).
+function computeGripClose(set) {
+  const wantRadial = set.half.x + FINGER_R * 0.8;            // prong tip ends just at the prize surface
+  const sinW = THREE.MathUtils.clamp((wantRadial - R_ATTACH) / (FINGER_LEN / 2), -1, 1);
+  return THREE.MathUtils.clamp((Math.asin(sinW) - OPEN_ANG) / (CLOSE_ANG - OPEN_ANG), 0.42, 1);
+}
+let gripClose = computeGripClose(currentSet);
 
 // Place every prong from handPos + current gripT; set kinematic velocity for pile contact.
 const _tmpV = new THREE.Vector3(), _tmpC = new THREE.Vector3(), _qZ = new THREE.Quaternion();
@@ -491,6 +500,7 @@ let state = 'aim', stateT = 0;
 let score = 0, slips = 0, drops = 0, delivered = 0;
 let started = false;                     // gated behind the coin/card payment screen
 const aimVec = { x: 0, z: 0 };           // analog joystick input (-1..1)
+const joyVis = { x: 0, z: 0 };           // smoothed visual tilt of the 3D cabinet joystick (combines joystick + keys)
 function startPlunge() { if (started && state === 'aim') { state = 'plunge'; stateT = 0; drops++; } }
 function approach(cur, target, speed, dt) { const d = target - cur, st = speed * dt; return Math.abs(d) <= st ? target : cur + Math.sign(d) * st; }
 
@@ -556,8 +566,8 @@ function frame(now) {
     handPos.y = approach(handPos.y, PLUNGE_Y, PLUNGE_SPEED, dt);
     if (handPos.y <= PLUNGE_Y + 0.01) { state = 'close'; stateT = 0; if (audioReady) sfx.place(); }
   } else if (state === 'close') {
-    gripT = Math.min(1, gripT + dt * 1.7);
-    if (gripT >= 1 && stateT > 0.4) {
+    gripT = Math.min(gripClose, gripT + dt * 1.5);            // ease the prongs onto the prize surface (gentler -> less shove)
+    if (gripT >= gripClose - 0.01 && stateT > 0.45) {
       const got = tryGrab();
       state = 'lift'; stateT = 0;
       if (audioReady) sfx.grab();
@@ -617,8 +627,13 @@ function frame(now) {
   reticle.position.set(clawPos.x, FLOOR_Y + 0.04, clawPos.z);
   reticle.material.color.setHex(state === 'aim' ? 0xffe14a : 0x888888);
   reticle.visible = state === 'aim';
-  joyStick.rotation.z = -aimVec.x * 0.5;                     // cabinet joystick leans with input
-  joyStick.rotation.x = aimVec.z * 0.5;
+  // Cabinet joystick leans with the COMBINED input (analog joystick + arrow keys), smoothed.
+  const jvx = (state === 'aim' && started) ? THREE.MathUtils.clamp(aimVec.x + (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0), -1, 1) : 0;
+  const jvz = (state === 'aim' && started) ? THREE.MathUtils.clamp(aimVec.z + (keys.ArrowDown ? 1 : 0) - (keys.ArrowUp ? 1 : 0), -1, 1) : 0;
+  joyVis.x += (jvx - joyVis.x) * Math.min(1, dt * 12);
+  joyVis.z += (jvz - joyVis.z) * Math.min(1, dt * 12);
+  joyStick.rotation.z = -joyVis.x * 0.5;
+  joyStick.rotation.x = joyVis.z * 0.5;
 
   updateCamera(dt);
   renderer.render(scene, camera);
