@@ -327,68 +327,74 @@ function swayed() { return Math.abs(bob.x - handPos.x) < 0.07 && Math.abs(bob.z 
 const hub = new CANNON.Body({ mass: 0, type: CANNON.Body.KINEMATIC });
 hub.position.set(handPos.x, handPos.y, handPos.z);
 world.addBody(hub);
-const hubMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.44, 18),
-  new THREE.MeshStandardMaterial({ color: 0xb8c0cc, metalness: 0.7, roughness: 0.3, emissive: 0x3a4250, emissiveIntensity: 0.55 }));
+// chrome housing where the arms hinge + the cable attaches (the claw "head")
+const clawHeadMat = new THREE.MeshStandardMaterial({ color: 0xd9dee7, metalness: 0.88, roughness: 0.18, emissive: 0x2e3640, emissiveIntensity: 0.5 });
+const hubMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.32, 0.42, 20), clawHeadMat);
 hubMesh.castShadow = true;
 scene.add(hubMesh);
-const rodMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 1, 12),
-  new THREE.MeshStandardMaterial({ color: 0x6b7178, metalness: 0.6, roughness: 0.4 }));
+const collarMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.16, 16), clawHeadMat); // swivel collar the arms hinge on
+collarMesh.castShadow = true; scene.add(collarMesh);
+// thin CABLE the claw dangles from (not a thick rod)
+const rodMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1, 8),
+  new THREE.MeshStandardMaterial({ color: 0x9097a1, metalness: 0.4, roughness: 0.5 }));
 scene.add(rodMesh);
 
+// ---- 2 curved CLAW ARMS (the 갈고리): a chrome tube that bows OUT then hooks IN to a rounded tip ----
 const UP = new THREE.Vector3(0, 1, 0);
+const ARM_PIVOT_R = 0.12;                                   // arms hinge near the head center -> a compact pincer
+const clawArmMat = new THREE.MeshStandardMaterial({ color: 0xe1e6ee, metalness: 0.9, roughness: 0.16, emissive: 0x2e3640, emissiveIntensity: 0.5 });
+function makeClawArm() {
+  const pts = [new THREE.Vector3(0.02, 0.06, 0), new THREE.Vector3(0.17, -0.36, 0), new THREE.Vector3(0.33, -0.86, 0),
+    new THREE.Vector3(0.30, -1.30, 0), new THREE.Vector3(0.12, -1.58, 0), new THREE.Vector3(0.25, -1.72, 0)]; // bow out, hook in
+  const g = new THREE.Group();
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 32, 0.065, 8, false), clawArmMat);
+  tube.castShadow = true; g.add(tube);
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 10), clawArmMat); // rounded hook end
+  tip.position.copy(pts[pts.length - 1]); tip.castShadow = true; g.add(tip);
+  return g;
+}
 const prongs = [];
-for (let i = 0; i < 3; i++) {
-  const ang = i * (Math.PI * 2 / 3) + Math.PI / 6;
+for (let i = 0; i < 2; i++) {
+  const ang = i * Math.PI;                            // 0 + 180 -> a 2-arm pincer
   const c = Math.cos(ang), s = Math.sin(ang);
-  const d = new THREE.Vector3(c, 0, s);              // radial (outward)
-  const ax = new THREE.Vector3(-s, 0, c);            // tangential (hinge axis)
+  const d = new THREE.Vector3(c, 0, s);              // the arm bows this way
+  const ax = new THREE.Vector3(-s, 0, c);            // hinge axis (tangential)
   const qOrient = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(d, UP, ax));
   const body = new CANNON.Body({ mass: 0, type: CANNON.Body.KINEMATIC, material: clawMat,
-    collisionFilterGroup: G_CLAW, collisionFilterMask: G_SOLID }); // prongs DON'T crush free prizes (kinematic crush -> explosion); the cage-grab is proximity-based, the held prize is sprung
-  body.addShape(new CANNON.Box(new CANNON.Vec3(FINGER_R, FINGER_LEN / 2, FINGER_R)));
-  body.addShape(new CANNON.Box(new CANNON.Vec3(0.26, FINGER_R, FINGER_R)),   // inward foot at the tip
-    new CANNON.Vec3(-0.26, -FINGER_LEN / 2 + FINGER_R, 0));
+    collisionFilterGroup: G_CLAW, collisionFilterMask: G_SOLID }); // approx box (prongs only avoid walls; cage-grab is proximity)
+  body.addShape(new CANNON.Box(new CANNON.Vec3(0.14, FINGER_LEN / 2, 0.14)));
   world.addBody(body);
-  const mesh = new THREE.Group();
-  const fingerMesh = new THREE.Mesh(new THREE.BoxGeometry(FINGER_R * 2, FINGER_LEN, FINGER_R * 2),
-    new THREE.MeshStandardMaterial({ color: 0xd2d9e2, metalness: 0.66, roughness: 0.3, emissive: 0x3a4250, emissiveIntensity: 0.55 }));
-  // sharp tapered TALON at the tip (the 갈고리) instead of a blunt foot
-  const tipMesh = new THREE.Mesh(new THREE.ConeGeometry(FINGER_R * 1.15, 0.46, 6),
-    new THREE.MeshStandardMaterial({ color: 0xcdd4de, metalness: 0.72, roughness: 0.24, emissive: 0x3a4250, emissiveIntensity: 0.55 }));
-  tipMesh.rotation.x = Math.PI;                            // apex points straight down
-  tipMesh.position.set(-0.12, -FINGER_LEN / 2 - 0.14, 0); // talon at the finger tip, nudged inward (hook)
-  fingerMesh.castShadow = true; tipMesh.castShadow = true;
-  mesh.add(fingerMesh, tipMesh);
+  const mesh = makeClawArm();
   scene.add(mesh);
   prongs.push({ body, mesh, d, ax, qOrient, prev: new THREE.Vector3() });
 }
+const clawTiltQ = new THREE.Quaternion();                   // pendulum dangle tilt (흔들흔들) — set in the loop
 let gripT = 0; // 0 open -> 1 closed
 // How far the prongs close: stop at the prize SURFACE so they clamp it instead of passing
 // through (kills the "막 튀는"/pop from sweeping past + the "중첩" overlap of fully-closed prongs).
-function computeGripClose(set) {
-  const wantRadial = set.half.x + FINGER_R * 0.8;            // prong tip ends just at the prize surface
-  const sinW = THREE.MathUtils.clamp((wantRadial - R_ATTACH) / (FINGER_LEN / 2), -1, 1);
-  return THREE.MathUtils.clamp((Math.asin(sinW) - OPEN_ANG) / (CLOSE_ANG - OPEN_ANG), 0.42, 1);
+function computeGripClose() {
+  return 0.9;   // curved arms close ~90% (hooks come together around the prize); grab itself is the proximity cage
 }
 let gripClose = computeGripClose(currentSet);
 
 // Place every prong from handPos + current gripT; set kinematic velocity for pile contact.
 const _tmpV = new THREE.Vector3(), _tmpC = new THREE.Vector3(), _qZ = new THREE.Quaternion();
 const ZAXIS = new THREE.Vector3(0, 0, 1);
+const _armQ = new THREE.Quaternion(), _tiltE = new THREE.Euler(), _cabBot = new THREE.Vector3(), _cabTop = new THREE.Vector3(), _cabDir = new THREE.Vector3();
 function placeProngs(dt) {
   const theta = OPEN_ANG + (CLOSE_ANG - OPEN_ANG) * gripT;
-  const sinT = Math.sin(theta), cosT = Math.cos(theta), half = FINGER_LEN / 2;
   _qZ.setFromAxisAngle(ZAXIS, theta);
   for (const p of prongs) {
-    const ppiv = _tmpV.copy(p.d).multiplyScalar(R_ATTACH).add(clawPos);    // pivot on hub (claw sways)
-    const local = _tmpC.set(half * sinT, -half * cosT, 0).applyQuaternion(p.qOrient);
-    const px = ppiv.x + local.x, py = ppiv.y + local.y, pz = ppiv.z + local.z;
-    if (dt > 0) p.body.velocity.set((px - p.prev.x) / dt, (py - p.prev.y) / dt, (pz - p.prev.z) / dt);
-    p.body.position.set(px, py, pz);
-    p.prev.set(px, py, pz);
-    p.body.quaternion.copy(p.qOrient).mult(_qZ);
-    p.mesh.position.copy(p.body.position);
-    p.mesh.quaternion.copy(p.body.quaternion);
+    const pivOff = _tmpC.copy(p.d).multiplyScalar(ARM_PIVOT_R).applyQuaternion(clawTiltQ); // hinge offset, tilted with the claw
+    const ppiv = _tmpV.copy(pivOff).add(clawPos);
+    if (dt > 0) p.body.velocity.set((ppiv.x - p.prev.x) / dt, (ppiv.y - p.prev.y) / dt, (ppiv.z - p.prev.z) / dt);
+    p.body.position.copy(ppiv);
+    p.prev.copy(ppiv);
+    // arm = head tilt (sway)  ×  arm orientation  ×  open/close angle
+    _armQ.copy(clawTiltQ).multiply(p.qOrient).multiply(_qZ);
+    p.body.quaternion.copy(_armQ);
+    p.mesh.position.copy(ppiv);
+    p.mesh.quaternion.copy(_armQ);
   }
 }
 
@@ -635,6 +641,11 @@ function frame(now) {
   bob.vz += ((handPos.z - bob.z) * SWAY_K - bob.vz * SWAY_DAMP) * dt;
   bob.x += bob.vx * dt; bob.z += bob.vz * dt;
   clawPos.set(bob.x, handPos.y, bob.z);
+  // pendulum dangle (흔들흔들): the claw head leans by how far it lags the aim, plus its swing velocity,
+  // so it visibly wobbles + overshoots + settles. The underdamped sway makes this oscillate naturally.
+  const leanX = THREE.MathUtils.clamp((clawPos.x - handPos.x) * 1.9 + bob.vx * 0.16, -0.5, 0.5);
+  const leanZ = THREE.MathUtils.clamp((clawPos.z - handPos.z) * 1.9 + bob.vz * 0.16, -0.5, 0.5);
+  clawTiltQ.setFromEuler(_tiltE.set(-leanZ, 0, leanX));
   if (dt > 0) hub.velocity.set((clawPos.x - _handPrev.x) / dt, (clawPos.y - _handPrev.y) / dt, (clawPos.z - _handPrev.z) / dt);
   _handPrev.copy(clawPos);
   hub.position.set(clawPos.x, clawPos.y, clawPos.z);
@@ -644,9 +655,15 @@ function frame(now) {
   for (const f of fries) { if (f.gone || f.delivered) continue; const v = f.body.velocity, sp = v.length(); if (sp > 4) v.scale(4 / sp, v); } // pre-step cap so the integrator never flings a squeezed prize
   world.step(1 / 60, dt, 3);
 
-  hubMesh.position.copy(handPos);
-  rodMesh.position.set(handPos.x, (handPos.y + 12.5) / 2, handPos.z);
-  rodMesh.scale.y = Math.max(0.1, 12.5 - handPos.y);
+  // claw head + collar: ride the swaying clawPos, tilted by the pendulum dangle
+  hubMesh.position.copy(clawPos); hubMesh.quaternion.copy(clawTiltQ);
+  collarMesh.position.copy(clawPos); collarMesh.position.y -= 0.27; collarMesh.quaternion.copy(clawTiltQ);
+  // cable: connects the swaying head (clawPos) to the FIXED gantry above the aim -> it leans as the claw swings
+  _cabBot.copy(clawPos); _cabBot.y += 0.2;
+  _cabTop.set(handPos.x, 12.5, handPos.z);
+  rodMesh.position.copy(_cabBot).add(_cabTop).multiplyScalar(0.5);
+  rodMesh.scale.y = Math.max(0.1, _cabBot.distanceTo(_cabTop));
+  rodMesh.quaternion.setFromUnitVectors(UP, _cabDir.copy(_cabTop).sub(_cabBot).normalize());
   const LIM = CAB.half - 0.18;                              // interior limit, just inside the glass
   for (const f of fries) {
     if (f.gone) continue;
