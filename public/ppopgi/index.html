@@ -41,7 +41,8 @@
       color: #ffb3df; font-size: 12px; font-weight: 700; }
     #drop { position: fixed; right: calc(22px + env(safe-area-inset-right)); bottom: calc(34px + env(safe-area-inset-bottom));
       width: 118px; height: 118px; border-radius: 50%; pointer-events: auto; touch-action: none; cursor: pointer;
-      border: 4px solid #ffe14a; color: #2a0a3a; font-weight: 900; font-size: 22px; letter-spacing: 1px;
+      display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1;
+      border: 4px solid #ffe14a; color: #2a0a3a; font-weight: 900; font-size: 21px; letter-spacing: 0.5px;
       background: radial-gradient(circle at 42% 34%, #fff3b0, #ffd23d 55%, #f2a400);
       box-shadow: 0 0 20px rgba(255,210,60,.6), 0 6px 0 #b67c00; }
     #drop:active { transform: translateY(4px); box-shadow: 0 0 20px rgba(255,210,60,.6), 0 2px 0 #b67c00; }

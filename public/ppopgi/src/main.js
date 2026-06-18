@@ -159,7 +159,7 @@ for (const pz of [-1, 1]) visBox(CAB.x, FLOOR_Y - 0.02, CAB.z + pz * (CAB.half +
 for (const px of [-1, 1]) visBox(CAB.x + px * (CAB.half + 0.05), FLOOR_Y - 0.02, CAB.z, 0.08, 0.1, CAB.half + 0.12, accent);
 // --- prize chute + collection bin (front-center, below the console): won prizes drop in and pile up, fully visible ---
 const G_BIN = 16, G_COLLECTED = 32;
-const BIN = { x: CAB.x, z: CAB.z + CAB.half + 1.0, floorY: 0.45, hx: 0.82, hz: 0.5, topY: 1.6 };
+const BIN = { x: CAB.x, z: CAB.z + CAB.half + 0.9, floorY: 0.45, hx: 0.82, hz: 0.5, topY: 1.6 }; // back wall meets the cabinet front
 const binClear = new THREE.MeshStandardMaterial({ color: 0xbfe9f5, transparent: true, opacity: 0.2, roughness: 0.1, metalness: 0.1, depthWrite: false });
 const binDark = new THREE.MeshStandardMaterial({ color: 0x140a20, roughness: 0.5 });
 function binWall(cx, cy, cz, hx, hy, hz, mat) {
@@ -173,6 +173,11 @@ binWall(BIN.x, binCY, BIN.z - BIN.hz, BIN.hx, binHY, 0.04, binClear);           
 binWall(BIN.x, binCY, BIN.z + BIN.hz, BIN.hx, binHY, 0.04, binClear);                      // front (clear window)
 binWall(BIN.x - BIN.hx, binCY, BIN.z, 0.04, binHY, BIN.hz, binClear);                      // left
 binWall(BIN.x + BIN.hx, binCY, BIN.z, 0.04, binHY, BIN.hz, binClear);                      // right
+// 배출구 (visible outlet on the cabinet front, at the bin's back — prizes emerge here)
+const OUT_Z = BIN.z - BIN.hz - 0.02;
+visBox(BIN.x, 1.42, OUT_Z - 0.04, 0.52, 0.44, 0.04, accent);                               // outlet frame
+visBox(BIN.x, 1.42, OUT_Z, 0.42, 0.34, 0.03, binDark);                                     // dark opening
+const outLip = visBox(BIN.x, 1.2, OUT_Z + 0.24, 0.4, 0.04, 0.28, binDark); outLip.rotation.x = 0.55; // chute lip into the bin
 visBox(BIN.x, BIN.topY + 0.06, BIN.z, BIN.hx + 0.08, 0.05, BIN.hz + 0.08, accent);         // rim
 const binGlowMat = emis(0xffe14a, 0.0);                                                    // pulses on GET
 visBox(BIN.x, BIN.topY + 0.06, BIN.z + BIN.hz + 0.05, BIN.hx + 0.06, 0.06, 0.02, binGlowMat);
@@ -182,8 +187,8 @@ const collectedList = [];
 function rmBody(b) { const i = world.bodies.indexOf(b); if (i !== -1) world.removeBody(b); }
 function collectIntoBin(f) {
   const b = f.body; b.wakeUp();
-  b.position.set(BIN.x + (Math.random() - 0.5) * 0.7, BIN.topY - 0.05, BIN.z + (Math.random() - 0.5) * 0.4); // emerge at the chute mouth
-  b.velocity.set(0, -1.0, 0); b.angularVelocity.set(0, 0, 0);                              // fall into the bin (visible)
+  b.position.set(BIN.x + (Math.random() - 0.5) * 0.35, 1.45, BIN.z - BIN.hz + 0.18);       // emerge from the 배출구 (back)
+  b.velocity.set(0, -0.4, 1.0); b.angularVelocity.set(0, 0, 0);                            // slide out of the outlet into the bin (visible)
   b.collisionFilterGroup = G_COLLECTED; b.collisionFilterMask = G_BIN | G_COLLECTED;
   collectedList.push(f); binFlash = 1;
   if (collectedList.length > 10) { const old = collectedList.shift(); rmBody(old.body); scene.remove(old.mesh); old.gone = true; }
@@ -271,7 +276,11 @@ function loadMachine(set) {
 }
 
 // ---- The metal claw: kinematic hub + 3 kinematic animated fingers ----
-const handPos = new THREE.Vector3(HOLE.x, HOVER_Y, HOLE.z);
+const handPos = new THREE.Vector3(HOLE.x, HOVER_Y, HOLE.z);   // aim target (input-driven)
+const clawPos = new THREE.Vector3().copy(handPos);            // ACTUAL claw position — swings/lags handPos (고리 흔들림)
+const bob = { x: handPos.x, z: handPos.z, vx: 0, vz: 0 };     // pendulum sway state
+const SWAY_K = 78, SWAY_DAMP = 8.5;                           // claw swing stiffness / damping
+function swayed() { return Math.abs(bob.x - handPos.x) < 0.07 && Math.abs(bob.z - handPos.z) < 0.07 && Math.hypot(bob.vx, bob.vz) < 0.25; }
 const hub = new CANNON.Body({ mass: 0, type: CANNON.Body.KINEMATIC });
 hub.position.set(handPos.x, handPos.y, handPos.z);
 world.addBody(hub);
@@ -316,7 +325,7 @@ function placeProngs(dt) {
   const sinT = Math.sin(theta), cosT = Math.cos(theta), half = FINGER_LEN / 2;
   _qZ.setFromAxisAngle(ZAXIS, theta);
   for (const p of prongs) {
-    const ppiv = _tmpV.copy(p.d).multiplyScalar(R_ATTACH).add(handPos);    // pivot on hub
+    const ppiv = _tmpV.copy(p.d).multiplyScalar(R_ATTACH).add(clawPos);    // pivot on hub (claw sways)
     const local = _tmpC.set(half * sinT, -half * cosT, 0).applyQuaternion(p.qOrient);
     const px = ppiv.x + local.x, py = ppiv.y + local.y, pz = ppiv.z + local.z;
     if (dt > 0) p.body.velocity.set((px - p.prev.x) / dt, (py - p.prev.y) / dt, (pz - p.prev.z) / dt);
@@ -381,17 +390,18 @@ function tryGrab() {
   for (const f of fries) {
     if (f.delivered || held.some((h) => h.fry === f)) continue;
     const p = f.body.position;
-    const dx = p.x - handPos.x, dz = p.z - handPos.z;
+    const dx = p.x - clawPos.x, dz = p.z - clawPos.z;        // cage at the ACTUAL (swaying) claw
     const dr = Math.hypot(dx, dz);
     if (dr < GRIP_R && Math.abs(p.y - tipY) < CAGE_BAND) cand.push({ f, dr });
   }
   cand.sort((a, b) => a.dr - b.dr);
   const take = cand.slice(0, MAX_GRAB);
   const n = take.length;
+  const gripPower = 0.5 + Math.random() * 0.62;             // 강약: the machine's grip strength THIS grab (rigged — sometimes weak)
   for (const { f, dr } of take) {
     const center = 1 - (dr / GRIP_R) * 0.55;                 // centered grab = firmer
     const k = K_BASE * center / n;                            // multi-grab splits grip budget
-    const breakDist = gripBreakDist(center, f.value, n) + (Math.random() - 0.5) * 0.1;
+    const breakDist = gripBreakDist(center, f.value, n) * gripPower + (Math.random() - 0.5) * 0.06;
     const anchor = new THREE.Vector3(f.body.position.x - hub.position.x,
       f.body.position.y - hub.position.y, f.body.position.z - hub.position.z);
     f.body.wakeUp();
@@ -521,16 +531,21 @@ function frame(now) {
   } else if (state === 'return') {
     handPos.x = approach(handPos.x, returnX, RETURN_SPEED, dt);
     handPos.z = approach(handPos.z, returnZ, RETURN_SPEED, dt);
-    if (Math.abs(handPos.x - returnX) < 0.02 && Math.abs(handPos.z - returnZ) < 0.02) { state = 'open'; stateT = 0; }
+    if (Math.abs(handPos.x - returnX) < 0.02 && Math.abs(handPos.z - returnZ) < 0.02 && (swayed() || stateT > 3.5)) { state = 'open'; stateT = 0; } // let the swing settle over the chute
   } else if (state === 'open') {
     gripT = Math.max(0, gripT - dt * 3);
     if (stateT > 0.15 && held.length) releaseAll();
     if (stateT > 0.9) { state = 'aim'; stateT = 0; }
   }
 
-  if (dt > 0) hub.velocity.set((handPos.x - _handPrev.x) / dt, (handPos.y - _handPrev.y) / dt, (handPos.z - _handPrev.z) / dt);
-  _handPrev.copy(handPos);
-  hub.position.set(handPos.x, handPos.y, handPos.z);
+  // claw sway (고리 흔들림): a pendulum that lags the aim — must settle to grab/drop accurately
+  bob.vx += ((handPos.x - bob.x) * SWAY_K - bob.vx * SWAY_DAMP) * dt;
+  bob.vz += ((handPos.z - bob.z) * SWAY_K - bob.vz * SWAY_DAMP) * dt;
+  bob.x += bob.vx * dt; bob.z += bob.vz * dt;
+  clawPos.set(bob.x, handPos.y, bob.z);
+  if (dt > 0) hub.velocity.set((clawPos.x - _handPrev.x) / dt, (clawPos.y - _handPrev.y) / dt, (clawPos.z - _handPrev.z) / dt);
+  _handPrev.copy(clawPos);
+  hub.position.set(clawPos.x, clawPos.y, clawPos.z);
   placeProngs(dt);
   applyGripForces();
   world.step(1 / 60, dt, 3);
@@ -555,7 +570,7 @@ function frame(now) {
   checkDeliveries();
   if (binFlash > 0) { binFlash = Math.max(0, binFlash - dt * 2); binGlowMat.emissiveIntensity = binFlash * 1.8; } // GET pulse
 
-  reticle.position.set(handPos.x, FLOOR_Y + 0.04, handPos.z);
+  reticle.position.set(clawPos.x, FLOOR_Y + 0.04, clawPos.z);
   reticle.material.color.setHex(state === 'aim' ? 0xffe14a : 0x888888);
   reticle.visible = state === 'aim';
   joyStick.rotation.z = -aimVec.x * 0.5;                     // cabinet joystick leans with input
@@ -639,7 +654,7 @@ function startGame() {
   if (!firstGame) { resetFries(); score = 0; slips = 0; delivered = 0; drops = 0; }
   firstGame = false; credited = false; held.length = 0; gripT = 0;
   timeLeft = ROUND_SEC; started = true; state = 'aim'; stateT = 0;
-  handPos.set(CAB.x, HOVER_Y, CAB.z); _handPrev.copy(handPos);
+  handPos.set(CAB.x, HOVER_Y, CAB.z); bob.x = CAB.x; bob.z = CAB.z; bob.vx = 0; bob.vz = 0; clawPos.copy(handPos); _handPrev.copy(handPos);
   elStart.classList.add('off'); elGameover.classList.add('off'); elMachineSelect.classList.add('off'); elPad.classList.add('on');
   startSfx();
 }
