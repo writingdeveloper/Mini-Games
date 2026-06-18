@@ -18,7 +18,7 @@ const CAB = { x: 0, z: 0, half: 3.0 };
 const HOLE = { x: -1.85, z: -1.85, half: 1.0 };
 const R_ATTACH = 0.55, FINGER_LEN = 1.9, FINGER_R = 0.13;
 const OPEN_ANG = 0.4, CLOSE_ANG = -0.42;          // prong tilt: + splays out, - tips in
-const HOVER_Y = 8.6, PLUNGE_Y = FLOOR_Y + 2.0;    // hub heights (prong tips stop ~0.3 above the floor -> no crush against it)
+const HOVER_Y = 6.8, PLUNGE_Y = FLOOR_Y + 2.0;    // hub heights — rest INSIDE the glass (8.6 was above it = claw hidden), tips stop ~0.3 above the floor
 const PLUNGE_SPEED = 2.8, LIFT_SPEED = 3.2, RETURN_SPEED = 2.2, AIM_SPEED = 3.6; // gentler plunge -> the prongs ease into the pile (no shove-pop)
 const GRIP_R = 1.15, CAGE_BAND = 1.4, MAX_GRAB = 2;
 const K_BASE = 30, DAMP = 5.0;                    // grip spring stiffness / damping
@@ -32,21 +32,30 @@ const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;                     // prizes/claw cast shadows -> depth + realism (the flat look)
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x150a22);          // dark arcade hall
 scene.fog = new THREE.Fog(0x150a22, 26, 64);           // the aisle fades into the distance
 const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.6, 200); // near 0.6 for depth precision (less z-fighting)
-scene.add(new THREE.HemisphereLight(0x7a5aa6, 0x241038, 0.55)); // dim purple ambient
-const sun = new THREE.DirectionalLight(0xfff0e0, 0.55);
-sun.position.set(8, 20, 10);
-scene.add(sun);
+scene.add(new THREE.HemisphereLight(0x7a5aa6, 0x241038, 0.5)); // dim purple ambient
+const sun = new THREE.DirectionalLight(0xfff0e0, 1.0);  // dominant enough that its cast shadows read on the floor
+sun.position.set(6, 16, 7);
+sun.castShadow = true;                                 // the shadow caster (directional -> one cheap shadow map)
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -7; sun.shadow.camera.right = 7;
+sun.shadow.camera.top = 9; sun.shadow.camera.bottom = -3;
+sun.shadow.camera.near = 2; sun.shadow.camera.far = 50;
+sun.shadow.bias = -0.0007;
+sun.target.position.set(CAB.x, FLOOR_Y, CAB.z);
+scene.add(sun); scene.add(sun.target);
 // Warm light INSIDE the hero cabinet so the prize area glows like a real UFO catcher.
-const cabLight = new THREE.PointLight(0xffe7b2, 1.7, 18, 1.5);
+const cabLight = new THREE.PointLight(0xffe7b2, 1.1, 18, 1.5);  // softened fill so the sun's shadows aren't washed out
 cabLight.position.set(CAB.x, FLOOR_Y + 3.0, CAB.z);
 scene.add(cabLight);
 // A small light riding just under the claw so the metal prongs + the held prize stay readable
 // even when the claw lifts above the cabinet light (sells the grip).
-const clawLight = new THREE.PointLight(0xfff2d8, 0.95, 7, 1.8);
+const clawLight = new THREE.PointLight(0xfff2d8, 1.7, 10, 1.6);
 scene.add(clawLight);
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
@@ -98,6 +107,7 @@ function staticBox(cx, cy, cz, hx, hy, hz, color, opacity = 1) {
     new THREE.MeshStandardMaterial({ color, roughness: 0.85, transparent: opacity < 1, opacity, depthWrite: opacity >= 1 }) // glass: no depth write -> no transparent-sort flicker
   );
   mesh.position.set(cx, cy, cz);
+  mesh.receiveShadow = opacity >= 1;                    // opaque solids (floor/body) catch prize shadows; glass doesn't
   scene.add(mesh);
   return body;
 }
@@ -124,11 +134,14 @@ rim.rotation.x = -Math.PI / 2; rim.position.set(HOLE.x, FLOOR_Y + 0.02, HOLE.z);
 // raised + bouncy LIP around the prize hole: a dropped prize can catch the edge and bounce OUT (miss) — real difficulty
 const lipMatC = new CANNON.Material('lip');
 world.addContactMaterial(new CANNON.ContactMaterial(fryMat, lipMatC, { friction: 0.45, restitution: 0.25 }));
-const lipVis = new THREE.MeshStandardMaterial({ color: 0xc26a92, roughness: 0.4, metalness: 0.5 }); // bright metal rim (visible walls)
+const lipVis = new THREE.MeshStandardMaterial({ color: 0x2a1a38, roughness: 0.5, metalness: 0.55 }); // dark rim wall — recedes (not a red box)
+const lipNeonMat = new THREE.MeshBasicMaterial({ color: 0x36e0ff }); // bright neon cap -> reads as a glowing chute opening
 function lipWall(cx, cy, cz, hx, hy, hz) {
   const b = new CANNON.Body({ mass: 0, material: lipMatC, shape: new CANNON.Box(new CANNON.Vec3(hx, hy, hz)) });
   b.position.set(cx, cy, cz); world.addBody(b);
-  const m = new THREE.Mesh(new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2), lipVis); m.position.set(cx, cy, cz); scene.add(m);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2), lipVis); m.position.set(cx, cy, cz); m.receiveShadow = true; scene.add(m);
+  const n = new THREE.Mesh(new THREE.BoxGeometry(hx * 2 + 0.03, 0.07, hz * 2 + 0.03), lipNeonMat); // neon rim cap on top of the wall
+  n.position.set(cx, cy + hy + 0.04, cz); scene.add(n);
 }
 const LIP_Y = FLOOR_Y + 0.5, LIP_H = 0.5, LH = HOLE.half;  // tall walls (to FLOOR_Y+1.0) — block popped prizes from the hole; the claw still drops in from above
 // dark inner shaft so the hole reads as a deep opening going down
@@ -153,21 +166,23 @@ function emis(color, intensity = 1) {
 }
 function visBox(cx, cy, cz, hx, hy, hz, mat, parent = scene) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2), mat);
-  m.position.set(cx, cy, cz); parent.add(m); return m;
+  m.position.set(cx, cy, cz); m.receiveShadow = !mat.transparent; parent.add(m); return m;
 }
 function drawMarquee(cv, text, bg, fg) {
   const g = cv.getContext('2d');
   g.fillStyle = bg; g.fillRect(0, 0, 512, 130);
-  g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
   let size = 66;                                            // auto-fit: shrink until the name fits (no clipping)
   do { g.font = `bold ${size}px system-ui, sans-serif`; size -= 3; } while (g.measureText(text).width > 472 && size > 22);
-  g.fillText(text, 256, 70);
+  g.shadowColor = fg; g.shadowBlur = 24;                    // neon halo
+  g.fillStyle = fg; g.fillText(text, 256, 70); g.fillText(text, 256, 70); // double-pass = stronger glow
+  g.shadowBlur = 0; g.globalAlpha = 0.9; g.fillStyle = '#ffffff'; g.fillText(text, 256, 70); g.globalAlpha = 1; // white-hot core
 }
 function marqueeMat(text, bg, fg) {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 130;
   drawMarquee(cv, text, bg, fg);
   const tex = new THREE.CanvasTexture(cv);
-  const mat = new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 1.0, roughness: 0.6 });
+  const mat = new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 1.45, roughness: 0.6 });
   mat.userData = { cv, tex };
   return mat;
 }
@@ -313,7 +328,8 @@ const hub = new CANNON.Body({ mass: 0, type: CANNON.Body.KINEMATIC });
 hub.position.set(handPos.x, handPos.y, handPos.z);
 world.addBody(hub);
 const hubMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.44, 18),
-  new THREE.MeshStandardMaterial({ color: 0x9aa2ad, metalness: 0.7, roughness: 0.32 }));
+  new THREE.MeshStandardMaterial({ color: 0xb8c0cc, metalness: 0.7, roughness: 0.3, emissive: 0x3a4250, emissiveIntensity: 0.55 }));
+hubMesh.castShadow = true;
 scene.add(hubMesh);
 const rodMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 1, 12),
   new THREE.MeshStandardMaterial({ color: 0x6b7178, metalness: 0.6, roughness: 0.4 }));
@@ -335,10 +351,11 @@ for (let i = 0; i < 3; i++) {
   world.addBody(body);
   const mesh = new THREE.Group();
   const fingerMesh = new THREE.Mesh(new THREE.BoxGeometry(FINGER_R * 2, FINGER_LEN, FINGER_R * 2),
-    new THREE.MeshStandardMaterial({ color: 0xc2c9d2, metalness: 0.66, roughness: 0.32 }));
+    new THREE.MeshStandardMaterial({ color: 0xd2d9e2, metalness: 0.66, roughness: 0.3, emissive: 0x3a4250, emissiveIntensity: 0.55 }));
   const footMesh = new THREE.Mesh(new THREE.BoxGeometry(0.52, FINGER_R * 2, FINGER_R * 2),
-    new THREE.MeshStandardMaterial({ color: 0xb6bdc7, metalness: 0.66, roughness: 0.32 }));
+    new THREE.MeshStandardMaterial({ color: 0xc6cdd7, metalness: 0.66, roughness: 0.3, emissive: 0x3a4250, emissiveIntensity: 0.55 }));
   footMesh.position.set(-0.26, -FINGER_LEN / 2 + FINGER_R, 0);
+  fingerMesh.castShadow = true; footMesh.castShadow = true;
   mesh.add(fingerMesh, footMesh);
   scene.add(mesh);
   prongs.push({ body, mesh, d, ax, qOrient, prev: new THREE.Vector3() });
@@ -380,7 +397,8 @@ function spawnFries(n) {
   // Spawn on a jittered GRID (no initial interpenetration) in the front play area, clear of the
   // back-left chute, stacked in a few layers. No overlap at t=0 -> the solver never has to explosively
   // separate bodies, so the pile settles like a real heap instead of flinging prizes around.
-  const padX = h.x * 2 + 0.12, padZ = h.z * 2 + 0.12;
+  const SMIN = 0.82, SMAX = 1.2;                            // per-prize size variation -> natural heap, not a uniform grid
+  const padX = h.x * 2 * SMAX + 0.18, padZ = h.z * 2 * SMAX + 0.18; // cells fit the biggest prize + its tilt -> still no t=0 overlap
   const x0 = -1.55, x1 = 1.75, z0 = -0.3, z1 = 2.05;
   const cols = Math.max(1, Math.floor((x1 - x0) / padX) + 1);
   const rows = Math.max(1, Math.floor((z1 - z0) / padZ) + 1);
@@ -390,8 +408,9 @@ function spawnFries(n) {
   for (let i = 0; i < n; i++) {
     const value = rollValue(Math.random());
     const mass = prizeMass(value);                          // heavier prize = harder to hold
+    const s = SMIN + Math.random() * (SMAX - SMIN);          // this prize's size
     const body = new CANNON.Body({ mass, material: fryMat,
-      shape: new CANNON.Box(new CANNON.Vec3(h.x, h.y, h.z)),
+      shape: new CANNON.Box(new CANNON.Vec3(h.x * s, h.y * s, h.z * s)),
       collisionFilterGroup: G_FRY, collisionFilterMask: G_SOLID | G_FRY | G_CLAW | G_HELD });
     body.linearDamping = 0.1; body.angularDamping = 0.3;     // bleed energy -> settles, no perpetual jitter
     body.sleepSpeedLimit = 0.26; body.sleepTimeLimit = 0.4;
@@ -402,9 +421,11 @@ function spawnFries(n) {
       FLOOR_Y + h.y + 0.05 + layer * (h.y * 2 + 0.07),       // rest on the floor + stack layers (tiny gap, small settle)
       startZ + cz * padZ + (Math.random() - 0.5) * 0.06
     );
-    body.quaternion.setFromEuler((Math.random() - 0.5) * 0.3, Math.random() * 3, (Math.random() - 0.5) * 0.3); // mostly upright + random yaw
+    body.quaternion.setFromEuler((Math.random() - 0.5) * 0.42, Math.random() * 3, (Math.random() - 0.5) * 0.42); // slight tilt + random yaw; settling adds the rest of the tumble
     world.addBody(body);
     const mesh = currentSet.makeMesh();
+    mesh.scale.setScalar(s);
+    mesh.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); // prizes cast/receive shadows
     scene.add(mesh);
     const fry = new Prize(body, mesh);
     fry.value = value; fry.delivered = false; fry.everHeld = false; // only a GRABBED prize can score (no free start-of-game drop-ins)
@@ -445,7 +466,7 @@ function tryGrab() {
   cand.sort((a, b) => a.dr - b.dr);
   const take = cand.slice(0, MAX_GRAB);
   const n = take.length;
-  const gripPower = 0.72 + Math.random() * 0.45;            // 강약: the machine's grip strength THIS grab (rigged — sometimes weak)
+  const gripPower = 0.84 + Math.random() * 0.42;            // 강약: the machine's grip strength THIS grab (rigged — sometimes weak)
   for (const { f, dr } of take) {
     const center = 1 - (dr / GRIP_R) * 0.55;                 // centered grab = firmer
     const k = K_BASE * center / n;                            // multi-grab splits grip budget
@@ -638,6 +659,15 @@ function frame(now) {
       if (state !== 'aim' && p.y > FLOOR_Y + 1.4 && !held.some((h) => h.fry === f)) {
         const dx = p.x - clawPos.x, dz = p.z - clawPos.z, dr = Math.hypot(dx, dz) || 1;
         if (dr < 0.55) { v.x = (dx / dr) * 0.9; v.z = (dz / dr) * 0.9; v.y = Math.min(v.y, -0.7); }
+      }
+      // soft shove: as the claw descends into the pile, gently PART free prizes around its column.
+      // Non-explosive replacement for the removed prong-pile crush -> the claw visibly disturbs the pile again.
+      if (clawPos.y < FLOOR_Y + 3.2 && !held.some((h) => h.fry === f)) {
+        const dx = p.x - clawPos.x, dz = p.z - clawPos.z, dr = Math.hypot(dx, dz) || 0.01;
+        if (dr < 0.74) {
+          const ux = dx / dr, uz = dz / dr, push = (0.74 - dr) * 1.4; // gentle ~1 m/s outward at the axis — parts the pile without flinging into the chute
+          if (v.x * ux + v.z * uz < push) { v.x = ux * push; v.z = uz * push; } // only add outward push if not already parting
+        }
       }
       if (p.y < -2 && !held.some((h) => h.fry === f)) {     // somehow escaped the play area -> COLLECT it (no score, no jarring reload)
         f.delivered = true; collectIntoBin(f);

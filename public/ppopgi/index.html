@@ -7,16 +7,16 @@
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #150a22; font-family: system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
     #game { display: block; width: 100vw; height: 100vh; touch-action: none; }
-    #hint { position: fixed; left: 12px; top: 12px; background: rgba(30,16,40,.8); color: #ffe9c2;
-      padding: 8px 12px; border-radius: 10px; font-size: 12px; line-height: 1.5; border: 2px solid #ff5fae; max-width: 46vw; }
+    #hint { position: fixed; left: 12px; top: 12px; background: rgba(18,10,28,.93); color: #ffeccb;
+      padding: 8px 12px; border-radius: 10px; font-size: 12px; line-height: 1.5; border: 2px solid #ff5fae; max-width: 46vw; text-shadow: 0 1px 3px #000; box-shadow: 0 4px 16px rgba(0,0,0,.5); }
     #hint b { color: #fff; }
-    #readout { position: fixed; right: 12px; top: 12px; background: rgba(30,16,40,.85); color: #ffe9c2;
-      padding: 8px 12px; border-radius: 10px; font-size: 14px; line-height: 1.6; border: 2px solid #36e0ff; min-width: 140px; }
-    #readout span { color: #ffd479; font-weight: 800; }
+    #readout { position: fixed; right: 12px; top: 12px; background: rgba(18,10,28,.93); color: #ffeccb;
+      padding: 8px 12px; border-radius: 10px; font-size: 14px; line-height: 1.6; border: 2px solid #36e0ff; min-width: 140px; text-shadow: 0 1px 3px #000; box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+    #readout span { color: #ffe06a; font-weight: 800; }
     #cambtns { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 5; }
     #cambtns button { pointer-events: auto; touch-action: manipulation; cursor: pointer; border: 2px solid #36e0ff;
-      background: rgba(30,16,40,.85); color: #cdefff; font-size: 13px; font-weight: 700;
-      padding: 7px 11px; border-radius: 9px; }
+      background: rgba(18,10,28,.93); color: #d7f2ff; font-size: 13px; font-weight: 700;
+      padding: 7px 11px; border-radius: 9px; box-shadow: 0 4px 16px rgba(0,0,0,.5); }
     #cambtns button:active { background: rgba(54,224,255,.3); }
     #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .12s ease-out;
       background: radial-gradient(circle, rgba(220,40,40,0) 38%, rgba(220,40,40,.5) 100%); }
@@ -92,7 +92,13 @@
     .startbtn.on { display: block; animation: blink 1s infinite; }
     @keyframes blink { 0%,100% { box-shadow: 0 0 22px rgba(143,255,106,.6); } 50% { box-shadow: 0 0 34px rgba(143,255,106,1); } }
     .small { color: #b89ed0; font-size: 12px; margin-top: 12px; line-height: 1.5; }
-    @media (max-width: 480px) { .panel h1 { font-size: 25px; } #hint { display: none; } #drop { width: 104px; height: 104px; font-size: 20px; } }
+    @media (max-width: 560px) {
+      .panel h1 { font-size: 25px; } #hint { display: none; } #drop { width: 104px; height: 104px; font-size: 20px; }
+      /* #hint is hidden -> move the camera buttons into the free top-left so they don't overlap the stats */
+      #cambtns { left: 8px; transform: none; gap: 4px; }
+      #cambtns button { padding: 5px 8px; font-size: 11px; }
+      #readout { right: 8px; top: 8px; min-width: 0; padding: 6px 9px; font-size: 12px; line-height: 1.5; }
+    }
   </style>
   <script type="importmap">
   {
