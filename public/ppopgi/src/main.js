@@ -43,6 +43,10 @@ scene.add(sun);
 const cabLight = new THREE.PointLight(0xffe7b2, 1.7, 18, 1.5);
 cabLight.position.set(CAB.x, FLOOR_Y + 3.0, CAB.z);
 scene.add(cabLight);
+// A small light riding just under the claw so the metal prongs + the held prize stay readable
+// even when the claw lifts above the cabinet light (sells the grip).
+const clawLight = new THREE.PointLight(0xfff2d8, 0.95, 7, 1.8);
+scene.add(clawLight);
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
@@ -417,33 +421,42 @@ function tryGrab() {
   cand.sort((a, b) => a.dr - b.dr);
   const take = cand.slice(0, MAX_GRAB);
   const n = take.length;
-  const gripPower = 0.62 + Math.random() * 0.5;             // 강약: the machine's grip strength THIS grab (rigged — sometimes weak)
+  const gripPower = 0.72 + Math.random() * 0.45;            // 강약: the machine's grip strength THIS grab (rigged — sometimes weak)
   for (const { f, dr } of take) {
     const center = 1 - (dr / GRIP_R) * 0.55;                 // centered grab = firmer
     const k = K_BASE * center / n;                            // multi-grab splits grip budget
     const breakDist = gripBreakDist(center, f.value, n) * gripPower + (Math.random() - 0.5) * 0.06;
-    const anchor = new THREE.Vector3(f.body.position.x - hub.position.x,
-      f.body.position.y - hub.position.y, f.body.position.z - hub.position.z);
+    const offX = f.body.position.x - hub.position.x, offZ = f.body.position.z - hub.position.z;
+    // Start the anchor at the caught spot, then ramp it toward the claw AXIS (the prongs drag the
+    // prize to center as they grip). cf = how off-center it ends up: multi-grab keeps a spread so the
+    // two prizes don't overlap; a single prize centers nearly under the claw, cradled by the prongs.
+    const cf = n > 1 ? 0.42 : 0.14;
+    const anchor = new THREE.Vector3(offX, f.body.position.y + 0.18 - hub.position.y, offZ); // grip point hangs below
     f.body.wakeUp();
     f.body.velocity.set(0, 0, 0);                            // arrest the bat from the closing fingers
     f.body.angularVelocity.set(0, 0, 0);
+    f.body.angularDamping = 0.72;                            // smooth dangle (not a chaotic spin)
     f.body.collisionFilterGroup = G_HELD;                    // ignore claw, pile, and each other
     f.body.collisionFilterMask = G_SOLID;                    // only bonks the cabinet (walls)
-    held.push({ fry: f, anchor, k, breakDist });
+    held.push({ fry: f, anchor, homeX: offX * cf, homeZ: offZ * cf, k, breakDist });
   }
   return n;
 }
-const _fpos = new THREE.Vector3(), _target = new THREE.Vector3(), _stretch = new THREE.Vector3();
-function applyGripForces() {
+const _fpos = new THREE.Vector3(), _target = new THREE.Vector3(), _stretch = new THREE.Vector3(), _gripPt = new CANNON.Vec3();
+function applyGripForces(dt) {
+  const ramp = Math.min(1, dt * 5);                          // ~0.3s pull-to-center as the claw grips + lifts
   for (let i = held.length - 1; i >= 0; i--) {
     const h = held[i];
+    h.anchor.x += (h.homeX - h.anchor.x) * ramp;             // drag the prize under the claw axis (cradled by the prongs)
+    h.anchor.z += (h.homeZ - h.anchor.z) * ramp;
     _target.set(hub.position.x + h.anchor.x, hub.position.y + h.anchor.y, hub.position.z + h.anchor.z);
-    _fpos.copy(h.fry.body.position);
+    _fpos.set(h.fry.body.position.x, h.fry.body.position.y + 0.18, h.fry.body.position.z); // measure the GRIP POINT (top), so the swing below shows as slip risk
     _stretch.subVectors(_fpos, _target);
     const dist = _stretch.length();
     if (dist > h.breakDist) {                                // grip exceeded -> SLIP
       h.fry.body.collisionFilterGroup = G_FRY;
       h.fry.body.collisionFilterMask = G_SOLID | G_FRY | G_CLAW | G_HELD;
+      h.fry.body.angularDamping = 0.01;
       slipLog.push({ state, dist: +dist.toFixed(2), v: h.fry.value }); if (slipLog.length > 40) slipLog.shift();
       held.splice(i, 1);
       slips++; flash(); camShake = 0.2; if (audioReady) sfx.slip();
@@ -451,10 +464,11 @@ function applyGripForces() {
     }
     if (dist > maxStretch) maxStretch = dist;
     const b = h.fry.body, v = b.velocity, hv = hub.velocity;
+    _gripPt.set(b.position.x, b.position.y + 0.18, b.position.z);  // grip near the top -> the prize hangs + swings below (not dragged)
     b.applyForce(new CANNON.Vec3(
       -h.k * _stretch.x - DAMP * (v.x - hv.x),
       -h.k * _stretch.y - DAMP * (v.y - hv.y),
-      -h.k * _stretch.z - DAMP * (v.z - hv.z)), b.position);
+      -h.k * _stretch.z - DAMP * (v.z - hv.z)), _gripPt);
   }
 }
 
@@ -494,6 +508,7 @@ function releaseAll() {
     const b = h.fry.body; b.wakeUp();
     b.velocity.set((Math.random() - 0.5) * 0.12 + bob.vx * 0.5, -0.4, (Math.random() - 0.5) * 0.12 + bob.vz * 0.5); // let go WITH the swing -> a residual swing can catch the wall
     b.angularVelocity.set((Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.6);
+    b.angularDamping = 0.01;
     b.collisionFilterGroup = G_FRY;
     b.collisionFilterMask = G_SOLID | G_FRY | G_CLAW | G_HELD; // full physics: hits the lip/floor/pile, bounces, can be re-grabbed
   }
@@ -548,7 +563,7 @@ function frame(now) {
   } else if (state === 'lift') {
     handPos.y = approach(handPos.y, HOVER_Y, LIFT_SPEED, dt);
     if (handPos.y >= HOVER_Y - 0.01) {
-      for (const h of held) h.fry.body.velocity.set((Math.random() - 0.5) * 1.5, 0.2, (Math.random() - 0.5) * 1.5); // 천장 충격 — the claw clunks at the top, can knock the prize loose
+      for (const h of held) h.fry.body.velocity.set((Math.random() - 0.5) * 1.0, 0.15, (Math.random() - 0.5) * 1.0); // 천장 충격 — the claw clunks at the top, can knock the prize loose
       camShake = 0.18; computeReturnTarget(); state = 'return'; stateT = 0;
     }
   } else if (state === 'return') {
@@ -570,25 +585,28 @@ function frame(now) {
   _handPrev.copy(clawPos);
   hub.position.set(clawPos.x, clawPos.y, clawPos.z);
   placeProngs(dt);
-  applyGripForces();
+  applyGripForces(dt);
+  clawLight.position.set(clawPos.x, clawPos.y - 0.7, clawPos.z); // travels with the claw so the prongs + held prize read
   world.step(1 / 60, dt, 3);
 
   hubMesh.position.copy(handPos);
   rodMesh.position.set(handPos.x, (handPos.y + 12.5) / 2, handPos.z);
   rodMesh.scale.y = Math.max(0.1, 12.5 - handPos.y);
+  const LIM = CAB.half - 0.18;                              // interior limit, just inside the glass
   for (const f of fries) {
     if (f.gone) continue;
-    if (!f.delivered) {                                     // play-area fries: anti-tunnel + stray recycle
-      const v = f.body.velocity, sp = v.length();
-      if (sp > 10) v.scale(10 / sp, v);
-      const p = f.body.position;
-      if ((p.y < -2 || Math.abs(p.x) > CAB.half + 0.5 || Math.abs(p.z) > CAB.half + 0.5) && !held.some((h) => h.fry === f)) {
-        f.body.position.set(CAB.x + (Math.random() - 0.5) * 3, FLOOR_Y + 3, CAB.z + (Math.random() - 0.5) * 2);
-        f.body.velocity.set(0, 0, 0); f.body.angularVelocity.set(0, 0, 0);
+    if (!f.delivered) {
+      const v = f.body.velocity, sp = v.length(), p = f.body.position;
+      if (sp > 9) v.scale(9 / sp, v);                       // anti-tunnel speed cap
+      if (p.x > LIM) { p.x = LIM; if (v.x > 0) v.x *= -0.2; } else if (p.x < -LIM) { p.x = -LIM; if (v.x < 0) v.x *= -0.2; } // HARD containment: can never leave the glass
+      if (p.z > LIM) { p.z = LIM; if (v.z > 0) v.z *= -0.2; } else if (p.z < -LIM) { p.z = -LIM; if (v.z < 0) v.z *= -0.2; }
+      if (p.y < -2 && !held.some((h) => h.fry === f)) {     // fell through the floor -> recycle into the pile
+        p.set(CAB.x + (Math.random() - 0.5) * 3, FLOOR_Y + 3, CAB.z + (Math.random() - 0.5) * 2);
+        v.set(0, 0, 0); f.body.angularVelocity.set(0, 0, 0);
         f.body.collisionFilterGroup = G_FRY; f.body.collisionFilterMask = G_SOLID | G_FRY | G_CLAW | G_HELD;
       }
     }
-    f.sync();                                               // sync ALL (collected prizes track into the bin too)
+    f.sync();
   }
   checkDeliveries();
   if (binFlash > 0) { binFlash = Math.max(0, binFlash - dt * 2); binGlowMat.emissiveIntensity = binFlash * 1.8; } // GET pulse
