@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>POTATO CATCHER — 뽑기</title>
+  <title>JELLY CATCHER — 뽑기</title>
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #150a22; font-family: system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
     #game { display: block; width: 100vw; height: 100vh; touch-action: none; }
@@ -135,21 +135,21 @@
     <div id="drop">잡기!</div>
   </div>
 
-  <!-- Machine select -->
-  <div id="machineselect" class="veil">
+  <!-- Machine select (hidden for a single machine; shown by JS when more machines exist) -->
+  <div id="machineselect" class="veil off">
     <div class="panel">
       <h1>🕹️ 뽑기</h1>
       <div class="sub">머신 선택 · PICK A MACHINE</div>
       <div id="machinecards" class="machines"></div>
-      <div class="small">플레이할 머신을 고르세요. 게임 중 <b>Q / E</b>로도 바꿀 수 있어요.</div>
+      <div class="small">플레이할 머신을 고르세요.</div>
     </div>
   </div>
 
-  <!-- Arcade payment / start -->
-  <div id="start" class="veil off">
+  <!-- Arcade payment / start (entry screen) -->
+  <div id="start" class="veil">
     <div class="panel">
-      <h1 id="pay-title">🕹️ POTATO CATCHER</h1>
-      <div class="sub" id="pay-sub">인형뽑기 · CRANE GAME</div>
+      <h1 id="pay-title">🍬 JELLY CATCHER</h1>
+      <div class="sub" id="pay-sub">젤리·캔디 · CRANE GAME</div>
       <div class="pays">
         <div id="pay-coin" class="pay">
           <div class="ico">🪙</div>

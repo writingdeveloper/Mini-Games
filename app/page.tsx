@@ -115,14 +115,14 @@ export default function Home() {
           </Link>
 
           {/* 뽑기 (인형뽑기) 카드 */}
-          <Link href="/ppopgi" aria-label="POTATO CATCHER 인형뽑기 플레이하기">
-            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-pink-500 to-purple-600 p-8 shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-pink-500/50 cursor-pointer">
+          <Link href="/ppopgi" aria-label="JELLY CATCHER 인형뽑기 플레이하기">
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 p-8 shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-cyan-500/50 cursor-pointer">
               <div aria-hidden="true" className="absolute -right-8 -top-8 text-9xl opacity-20">
-                🕹️
+                🍬
               </div>
               <div className="relative z-10">
                 <h2 className="mb-3 text-3xl font-bold text-white">
-                  POTATO CATCHER
+                  JELLY CATCHER
                 </h2>
                 <p className="mb-4 text-white/90">
                   진짜 물리 집게로 경품을 뽑으세요!

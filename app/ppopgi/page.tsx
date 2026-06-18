@@ -26,7 +26,7 @@ export default function PpopgiGame() {
       <iframe
         src="/ppopgi/index.html"
         className="h-full w-full border-0"
-        title="POTATO CATCHER - 뽑기"
+        title="JELLY CATCHER - 뽑기"
         allow="fullscreen"
         onLoad={() => setLoading(false)}
       />

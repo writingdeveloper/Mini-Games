@@ -4,15 +4,15 @@ import { test, expect } from "@playwright/test";
 type Claw = any;
 
 test.describe("뽑기 (ppopgi) claw machine", () => {
-  test("hub has a POTATO CATCHER card linking to /ppopgi", async ({ page }) => {
+  test("hub has a JELLY CATCHER card linking to /ppopgi", async ({ page }) => {
     await page.goto("/");
-    const link = page.getByRole("link", { name: /POTATO CATCHER/ });
+    const link = page.getByRole("link", { name: /JELLY CATCHER/ });
     await expect(link).toHaveAttribute("href", "/ppopgi");
   });
 
   test("the /ppopgi page embeds the game", async ({ page }) => {
     await page.goto("/ppopgi");
-    await expect(page.locator('iframe[title*="POTATO CATCHER"]')).toBeVisible();
+    await expect(page.locator('iframe[title*="JELLY CATCHER"]')).toBeVisible();
   });
 
   test("game mounts without console errors", async ({ page }) => {
@@ -26,11 +26,10 @@ test.describe("뽑기 (ppopgi) claw machine", () => {
     expect(errors, errors.join("\n")).toHaveLength(0);
   });
 
-  test("machine select → payment → start reveals the touch controls", async ({ page }) => {
+  test("payment → start reveals the touch controls", async ({ page }) => {
     await page.goto("/ppopgi/index.html");
     await page.waitForFunction(() => !!(window as unknown as { __claw?: Claw }).__claw);
-    await page.locator("#machinecards .mcard").first().click();   // pick a machine
-    await expect(page.locator("#start")).not.toHaveClass(/off/);
+    await expect(page.locator("#start")).not.toHaveClass(/off/);   // single machine: payment is the entry
     await page.locator("#pay-coin").click();
     await expect(page.locator("#startbtn")).toHaveClass(/on/);
     await page.locator("#startbtn").click();
@@ -38,12 +37,12 @@ test.describe("뽑기 (ppopgi) claw machine", () => {
     expect(await page.evaluate(() => (window as unknown as { __claw: Claw }).__claw.started)).toBe(true);
   });
 
-  test("machine select offers both machines", async ({ page }) => {
+  test("single machine: payment is the entry, select screen hidden", async ({ page }) => {
     await page.goto("/ppopgi/index.html");
     await page.waitForFunction(() => !!(window as unknown as { __claw?: Claw }).__claw);
-    await expect(page.locator("#machinecards .mcard")).toHaveCount(2);
-    await expect(page.locator("#machinecards")).toContainText("POTATO CATCHER");
-    await expect(page.locator("#machinecards")).toContainText("JELLY CATCHER");
+    await expect(page.locator("#machineselect")).toHaveClass(/off/);  // no pointless 1-card select
+    await expect(page.locator("#start")).not.toHaveClass(/off/);
+    await expect(page.locator("#pay-title")).toContainText("JELLY CATCHER");
   });
 
   test("a delivered prize is collected (count + bin)", async ({ page }) => {

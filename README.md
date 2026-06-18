@@ -197,7 +197,7 @@ Mini-Games/
 │   ├── survival-game/page.tsx # 서바이벌 라우트 (모드 선택)
 │   ├── flight-game/page.tsx   # 비행 게임 라우트
 │   ├── desert-game/page.tsx   # Dust Drifter 라우트
-│   └── ppopgi/page.tsx        # POTATO CATCHER 뽑기(인형뽑기) 라우트
+│   └── ppopgi/page.tsx        # JELLY CATCHER 뽑기(인형뽑기) 라우트
 ├── public/
 │   ├── escape-game/           # 2D Canvas 게임
 │   ├── survival-game/         # Babylon.js 3D (game-modular.js + src/)

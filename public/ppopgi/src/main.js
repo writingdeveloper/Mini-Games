@@ -10,6 +10,7 @@ import { sfx } from './sfx.js';
 import { rollValue, prizeMass, gripBreakDist, tickTime } from './logic.js';
 
 let currentSet = PRIZE_SETS[0]; // the selected machine (PrizeSet) — see machine-select
+const SINGLE_MACHINE = PRIZE_SETS.length === 1; // one machine -> skip the select screen, go straight to payment
 
 // ---- Tunables ----
 const FLOOR_Y = 3.0;
@@ -244,7 +245,7 @@ visBox(CAB.x, wallY + wallH, CAB.z - CAB.half, CAB.half, 0.08, 0.08, haloMat);
 visBox(CAB.x + CAB.half, wallY + wallH, CAB.z, 0.08, 0.08, CAB.half, haloMat);
 visBox(CAB.x - CAB.half, wallY + wallH, CAB.z, 0.08, 0.08, CAB.half, haloMat);
 const marqueeY = wallY + wallH + 0.55;
-const heroMarquee = marqueeMat('POTATO CATCHER', '#2a0a3a', '#ffe14a');
+const heroMarquee = marqueeMat(currentSet.name, currentSet.marqueeBg, currentSet.marqueeFg);
 visBox(CAB.x, marqueeY, CAB.z, CAB.half + 0.45, 0.6, CAB.half + 0.45, bodyMat);                       // housing
 const M = CAB.half + 0.47, MH = 0.5;                                                                   // illuminated signs on 4 faces
 visBox(CAB.x, marqueeY, CAB.z + M, CAB.half + 0.35, MH, 0.04, heroMarquee);
@@ -383,7 +384,7 @@ function spawnFries(n) {
     const mesh = currentSet.makeMesh();
     scene.add(mesh);
     const fry = new Prize(body, mesh);
-    fry.value = value; fry.delivered = false;
+    fry.value = value; fry.delivered = false; fry.everHeld = false; // only a GRABBED prize can score (no free start-of-game drop-ins)
     if (value > 1) mesh.traverse((o) => {
       if (o.material && o.material.emissive) {
         o.material = o.material.clone();
@@ -432,6 +433,7 @@ function tryGrab() {
     // two prizes don't overlap; a single prize centers nearly under the claw, cradled by the prongs.
     const cf = n > 1 ? 0.42 : 0.14;
     const anchor = new THREE.Vector3(offX, f.body.position.y + 0.18 - hub.position.y, offZ); // grip point hangs below
+    f.everHeld = true;                                       // grabbed at least once -> now eligible to score
     f.body.wakeUp();
     f.body.velocity.set(0, 0, 0);                            // arrest the bat from the closing fingers
     f.body.angularVelocity.set(0, 0, 0);
@@ -515,8 +517,9 @@ function releaseAll() {
   held.length = 0;
 }
 function checkDeliveries() {
+  if (!started) return;                                       // no scoring before the game starts (pile still settling)
   for (const f of fries) {
-    if (f.delivered) continue;
+    if (f.delivered || !f.everHeld) continue;                 // must have been grabbed by the claw — not just fallen in
     const p = f.body.position;
     if (Math.abs(p.x - HOLE.x) < HOLE.half + 0.05 && Math.abs(p.z - HOLE.z) < HOLE.half + 0.05 && p.y < FLOOR_Y - 0.95) {
       f.delivered = true; score += f.value; delivered++;
@@ -666,24 +669,28 @@ const replayBtn = document.getElementById('replay');
 if (replayBtn) replayBtn.addEventListener('click', () => {
   credited = false; elCredit.textContent = ''; elStartBtn.classList.remove('on');
   payCoin.classList.remove('done'); payCard.classList.remove('done');
-  elGameover.classList.add('off'); elMachineSelect.classList.remove('off');  // back to machine select
+  elGameover.classList.add('off');
+  if (SINGLE_MACHINE) elStart.classList.remove('off');        // one machine: straight back to payment
+  else elMachineSelect.classList.remove('off');               // back to machine select
 });
 
 // Machine select: build a card per PrizeSet; pick -> load that machine + go to payment.
+function enterMachine(set) {
+  loadMachine(set);
+  elPayTitle.textContent = set.emoji + ' ' + set.name;
+  elPaySub.textContent = set.sub + ' · CRANE GAME';
+  elMachineSelect.classList.add('off'); elStart.classList.remove('off');
+}
 const cardsEl = document.getElementById('machinecards');
 if (cardsEl) PRIZE_SETS.forEach((set) => {
   const c = document.createElement('div'); c.className = 'mcard';
   c.style.borderColor = '#' + set.neon.toString(16).padStart(6, '0');
   c.innerHTML = `<div class="ico">${set.emoji}</div><div class="t">${set.name}</div><div class="s">${set.sub}</div><div class="go" style="background:${set.marqueeFg}">선택 ▶</div>`;
-  c.addEventListener('click', () => {
-    ensureAudio();
-    loadMachine(set);
-    elPayTitle.textContent = set.emoji + ' ' + set.name;
-    elPaySub.textContent = set.sub + ' · CRANE GAME';
-    elMachineSelect.classList.add('off'); elStart.classList.remove('off');
-  });
+  c.addEventListener('click', () => { ensureAudio(); enterMachine(set); });
   cardsEl.appendChild(c);
 });
+if (SINGLE_MACHINE) enterMachine(PRIZE_SETS[0]);               // skip the 1-card select; payment is the entry
+else { elMachineSelect.classList.remove('off'); elStart.classList.add('off'); } // 2+ machines: show the select first
 
 function resetFries() {
   held.length = 0;
