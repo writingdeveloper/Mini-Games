@@ -114,6 +114,26 @@ staticBox(HOLE.x, FLOOR_Y - 1.4, HOLE.z, HOLE.half + 0.35, 0.1, HOLE.half + 0.35
 const rim = new THREE.Mesh(new THREE.RingGeometry(HOLE.half * 0.6, HOLE.half + 0.22, 30),
   new THREE.MeshBasicMaterial({ color: 0x141414, side: THREE.DoubleSide }));
 rim.rotation.x = -Math.PI / 2; rim.position.set(HOLE.x, FLOOR_Y + 0.02, HOLE.z); scene.add(rim);
+// raised + bouncy LIP around the prize hole: a dropped prize can catch the edge and bounce OUT (miss) — real difficulty
+const lipMatC = new CANNON.Material('lip');
+world.addContactMaterial(new CANNON.ContactMaterial(fryMat, lipMatC, { friction: 0.22, restitution: 0.45 }));
+const lipVis = new THREE.MeshStandardMaterial({ color: 0xc26a92, roughness: 0.4, metalness: 0.5 }); // bright metal rim (visible walls)
+function lipWall(cx, cy, cz, hx, hy, hz) {
+  const b = new CANNON.Body({ mass: 0, material: lipMatC, shape: new CANNON.Box(new CANNON.Vec3(hx, hy, hz)) });
+  b.position.set(cx, cy, cz); world.addBody(b);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2), lipVis); m.position.set(cx, cy, cz); scene.add(m);
+}
+const LIP_Y = FLOOR_Y + 0.12, LIP_H = 0.15, LH = HOLE.half;
+// dark inner shaft so the hole reads as a deep opening going down
+const shaftMat = new THREE.MeshStandardMaterial({ color: 0x07040c, roughness: 1, side: THREE.DoubleSide });
+for (const [dx, dz, w] of [[LH, 0, 0.04], [-LH, 0, 0.04], [0, LH, 0.04], [0, -LH, 0.04]]) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(dx ? w : LH * 2, 0.9, dz ? w : LH * 2), shaftMat);
+  m.position.set(HOLE.x + dx, FLOOR_Y - 0.4, HOLE.z + dz); scene.add(m);
+}
+lipWall(HOLE.x, LIP_Y, HOLE.z + LH, LH + 0.07, LIP_H, 0.07);    // inner +z edge (facing the pile)
+lipWall(HOLE.x + LH, LIP_Y, HOLE.z, 0.07, LIP_H, LH + 0.07);    // inner +x edge
+lipWall(HOLE.x, LIP_Y, HOLE.z - LH, LH + 0.07, LIP_H, 0.07);    // back edge
+lipWall(HOLE.x - LH, LIP_Y, HOLE.z, 0.07, LIP_H, LH + 0.07);    // left edge
 
 // Aim reticle.
 const reticle = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.64, 30),
@@ -397,7 +417,7 @@ function tryGrab() {
   cand.sort((a, b) => a.dr - b.dr);
   const take = cand.slice(0, MAX_GRAB);
   const n = take.length;
-  const gripPower = 0.5 + Math.random() * 0.62;             // 강약: the machine's grip strength THIS grab (rigged — sometimes weak)
+  const gripPower = 0.62 + Math.random() * 0.5;             // 강약: the machine's grip strength THIS grab (rigged — sometimes weak)
   for (const { f, dr } of take) {
     const center = 1 - (dr / GRIP_R) * 0.55;                 // centered grab = firmer
     const k = K_BASE * center / n;                            // multi-grab splits grip budget
@@ -471,11 +491,11 @@ function computeReturnTarget() {
 
 function releaseAll() {
   for (const h of held) {
-    h.fry.body.wakeUp();
-    h.fry.body.velocity.set(0, 0, 0);                       // drop straight down — no fling
-    h.fry.body.angularVelocity.set(0, 0, 0);
-    h.fry.body.collisionFilterGroup = G_FRY;
-    h.fry.body.collisionFilterMask = G_SOLID | G_FRY;        // ignore the opening claw on the way down
+    const b = h.fry.body; b.wakeUp();
+    b.velocity.set((Math.random() - 0.5) * 0.3 + bob.vx * 0.55, -0.4, (Math.random() - 0.5) * 0.3 + bob.vz * 0.55); // let go WITH the swing -> can miss the hole / catch the lip
+    b.angularVelocity.set((Math.random() - 0.5) * 1.3, (Math.random() - 0.5) * 1.3, (Math.random() - 0.5) * 1.3);
+    b.collisionFilterGroup = G_FRY;
+    b.collisionFilterMask = G_SOLID | G_FRY | G_CLAW | G_HELD; // full physics: hits the lip/floor/pile, bounces, can be re-grabbed
   }
   held.length = 0;
 }
@@ -527,7 +547,10 @@ function frame(now) {
     }
   } else if (state === 'lift') {
     handPos.y = approach(handPos.y, HOVER_Y, LIFT_SPEED, dt);
-    if (handPos.y >= HOVER_Y - 0.01) { computeReturnTarget(); state = 'return'; stateT = 0; }
+    if (handPos.y >= HOVER_Y - 0.01) {
+      for (const h of held) h.fry.body.velocity.set((Math.random() - 0.5) * 1.5, 0.2, (Math.random() - 0.5) * 1.5); // 천장 충격 — the claw clunks at the top, can knock the prize loose
+      camShake = 0.18; computeReturnTarget(); state = 'return'; stateT = 0;
+    }
   } else if (state === 'return') {
     handPos.x = approach(handPos.x, returnX, RETURN_SPEED, dt);
     handPos.z = approach(handPos.z, returnZ, RETURN_SPEED, dt);

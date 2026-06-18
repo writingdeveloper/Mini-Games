@@ -51,7 +51,9 @@ test.describe("뽑기 (ppopgi) claw machine", () => {
     await page.waitForFunction(() => !!(window as unknown as { __claw?: Claw }).__claw);
     await page.waitForTimeout(1500);
     await page.evaluate(() => (window as unknown as { __claw: Claw }).__claw.start());
-    for (let i = 0; i < 14; i++) {
+    // the game is realistically hard (swing + variable grip + the hole can be missed),
+    // so the bot makes many patient attempts (settles the swing before each drop) to land ≥1.
+    for (let i = 0; i < 30; i++) {
       const done = await page.evaluate(() => {
         const c = (window as unknown as { __claw: Claw }).__claw;
         if (c.delivered >= 1) return true;
@@ -63,7 +65,7 @@ test.describe("뽑기 (ppopgi) claw machine", () => {
         return false;
       });
       if (done) break;
-      await page.waitForTimeout(180);
+      await page.waitForTimeout(700); // let the swing settle before dropping
       await page.evaluate(() => (window as unknown as { __claw: Claw }).__claw.drop());
       await page.waitForFunction(() => (window as unknown as { __claw: Claw }).__claw.state === "aim", null, { timeout: 12000 });
     }
