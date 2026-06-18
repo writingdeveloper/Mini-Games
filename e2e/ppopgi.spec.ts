@@ -62,7 +62,7 @@ test.describe("뽑기 (ppopgi) claw machine", () => {
     await page.waitForFunction(() => !!(window as unknown as { __claw?: Claw }).__claw);
     const before = await page.evaluate(() => (window as unknown as { __claw: Claw }).__claw.camPitch);
     await page.evaluate(() => (window as unknown as { __claw: Claw }).__claw.setCam("top"));
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(1600);   // camera eases over time; allow the lerp to advance on slow (headless) renders
     const after = await page.evaluate(() => (window as unknown as { __claw: Claw }).__claw.camPitch);
     expect(after).toBeGreaterThan(before + 0.2);
   });

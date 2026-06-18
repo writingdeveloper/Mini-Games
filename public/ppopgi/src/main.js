@@ -20,7 +20,7 @@ const R_ATTACH = 0.55, FINGER_LEN = 1.9, FINGER_R = 0.13;
 const OPEN_ANG = 0.4, CLOSE_ANG = -0.42;          // prong tilt: + splays out, - tips in
 const HOVER_Y = 6.8, PLUNGE_Y = FLOOR_Y + 2.0;    // hub heights — rest INSIDE the glass (8.6 was above it = claw hidden), tips stop ~0.3 above the floor
 const PLUNGE_SPEED = 2.8, LIFT_SPEED = 3.2, RETURN_SPEED = 2.2, AIM_SPEED = 3.6; // gentler plunge -> the prongs ease into the pile (no shove-pop)
-const GRIP_R = 1.15, CAGE_BAND = 1.4, MAX_GRAB = 2;
+const GRIP_R = 0.72, CAGE_BAND = 1.1, MAX_GRAB = 1; // SINGLE grab (only the closest prize -> never a clump/neighbor); GRIP_R is just aim forgiveness now
 const K_BASE = 30, DAMP = 5.0;                    // grip spring stiffness / damping
 // grip snap distance lives in logic.js (gripBreakDist) — pure + unit-tested
 const ROUND_SEC = 90;
@@ -42,7 +42,7 @@ scene.add(new THREE.HemisphereLight(0x7a5aa6, 0x241038, 0.5)); // dim purple amb
 const sun = new THREE.DirectionalLight(0xfff0e0, 1.0);  // dominant enough that its cast shadows read on the floor
 sun.position.set(6, 16, 7);
 sun.castShadow = true;                                 // the shadow caster (directional -> one cheap shadow map)
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(1024, 1024);     // 1024 is plenty for the tight cabinet shadow camera — cheaper (mobile + render cost)
 sun.shadow.camera.left = -7; sun.shadow.camera.right = 7;
 sun.shadow.camera.top = 9; sun.shadow.camera.bottom = -3;
 sun.shadow.camera.near = 2; sun.shadow.camera.far = 50;
@@ -352,11 +352,13 @@ for (let i = 0; i < 3; i++) {
   const mesh = new THREE.Group();
   const fingerMesh = new THREE.Mesh(new THREE.BoxGeometry(FINGER_R * 2, FINGER_LEN, FINGER_R * 2),
     new THREE.MeshStandardMaterial({ color: 0xd2d9e2, metalness: 0.66, roughness: 0.3, emissive: 0x3a4250, emissiveIntensity: 0.55 }));
-  const footMesh = new THREE.Mesh(new THREE.BoxGeometry(0.52, FINGER_R * 2, FINGER_R * 2),
-    new THREE.MeshStandardMaterial({ color: 0xc6cdd7, metalness: 0.66, roughness: 0.3, emissive: 0x3a4250, emissiveIntensity: 0.55 }));
-  footMesh.position.set(-0.26, -FINGER_LEN / 2 + FINGER_R, 0);
-  fingerMesh.castShadow = true; footMesh.castShadow = true;
-  mesh.add(fingerMesh, footMesh);
+  // sharp tapered TALON at the tip (the 갈고리) instead of a blunt foot
+  const tipMesh = new THREE.Mesh(new THREE.ConeGeometry(FINGER_R * 1.15, 0.46, 6),
+    new THREE.MeshStandardMaterial({ color: 0xcdd4de, metalness: 0.72, roughness: 0.24, emissive: 0x3a4250, emissiveIntensity: 0.55 }));
+  tipMesh.rotation.x = Math.PI;                            // apex points straight down
+  tipMesh.position.set(-0.12, -FINGER_LEN / 2 - 0.14, 0); // talon at the finger tip, nudged inward (hook)
+  fingerMesh.castShadow = true; tipMesh.castShadow = true;
+  mesh.add(fingerMesh, tipMesh);
   scene.add(mesh);
   prongs.push({ body, mesh, d, ax, qOrient, prev: new THREE.Vector3() });
 }
@@ -466,9 +468,9 @@ function tryGrab() {
   cand.sort((a, b) => a.dr - b.dr);
   const take = cand.slice(0, MAX_GRAB);
   const n = take.length;
-  const gripPower = 0.84 + Math.random() * 0.42;            // 강약: the machine's grip strength THIS grab (rigged — sometimes weak)
+  const gripPower = 0.95 + Math.random() * 0.4;             // 강약: firm grip — a caught prize mostly holds (difficulty is in the AIM, not random slips)
   for (const { f, dr } of take) {
-    const center = 1 - (dr / GRIP_R) * 0.55;                 // centered grab = firmer
+    const center = 1 - (dr / GRIP_R) * 0.3;                  // centered grab firmer; edge catches still hold reasonably
     const k = K_BASE * center / n;                            // multi-grab splits grip budget
     const breakDist = gripBreakDist(center, f.value, n) * gripPower + (Math.random() - 0.5) * 0.06;
     const offX = f.body.position.x - hub.position.x, offZ = f.body.position.z - hub.position.z;
@@ -660,12 +662,13 @@ function frame(now) {
         const dx = p.x - clawPos.x, dz = p.z - clawPos.z, dr = Math.hypot(dx, dz) || 1;
         if (dr < 0.55) { v.x = (dx / dr) * 0.9; v.z = (dz / dr) * 0.9; v.y = Math.min(v.y, -0.7); }
       }
-      // soft shove: as the claw descends into the pile, gently PART free prizes around its column.
-      // Non-explosive replacement for the removed prong-pile crush -> the claw visibly disturbs the pile again.
-      if (clawPos.y < FLOOR_Y + 3.2 && !held.some((h) => h.fry === f)) {
+      // soft shove: ONLY while the claw is descending ('plunge') — part free prizes in a RING around
+      // its column (NOT the central grab target dr<GRIP_R). Stops at 'close' so the pile settles before
+      // the grab, and so shoved neighbors don't bump the target out of the grasp.
+      if (state === 'plunge' && !held.some((h) => h.fry === f)) {
         const dx = p.x - clawPos.x, dz = p.z - clawPos.z, dr = Math.hypot(dx, dz) || 0.01;
-        if (dr < 0.74) {
-          const ux = dx / dr, uz = dz / dr, push = (0.74 - dr) * 1.4; // gentle ~1 m/s outward at the axis — parts the pile without flinging into the chute
+        if (dr > GRIP_R + 0.06 && dr < 1.0) {                 // ring just OUTSIDE the grasp -> never pushes the grab target
+          const ux = dx / dr, uz = dz / dr, push = (1.0 - dr) * 1.9; // gentle outward part (capped by the 3.5 clamp)
           if (v.x * ux + v.z * uz < push) { v.x = ux * push; v.z = uz * push; } // only add outward push if not already parting
         }
       }
