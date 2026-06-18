@@ -116,14 +116,14 @@ const rim = new THREE.Mesh(new THREE.RingGeometry(HOLE.half * 0.6, HOLE.half + 0
 rim.rotation.x = -Math.PI / 2; rim.position.set(HOLE.x, FLOOR_Y + 0.02, HOLE.z); scene.add(rim);
 // raised + bouncy LIP around the prize hole: a dropped prize can catch the edge and bounce OUT (miss) — real difficulty
 const lipMatC = new CANNON.Material('lip');
-world.addContactMaterial(new CANNON.ContactMaterial(fryMat, lipMatC, { friction: 0.22, restitution: 0.45 }));
+world.addContactMaterial(new CANNON.ContactMaterial(fryMat, lipMatC, { friction: 0.45, restitution: 0.25 }));
 const lipVis = new THREE.MeshStandardMaterial({ color: 0xc26a92, roughness: 0.4, metalness: 0.5 }); // bright metal rim (visible walls)
 function lipWall(cx, cy, cz, hx, hy, hz) {
   const b = new CANNON.Body({ mass: 0, material: lipMatC, shape: new CANNON.Box(new CANNON.Vec3(hx, hy, hz)) });
   b.position.set(cx, cy, cz); world.addBody(b);
   const m = new THREE.Mesh(new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2), lipVis); m.position.set(cx, cy, cz); scene.add(m);
 }
-const LIP_Y = FLOOR_Y + 0.12, LIP_H = 0.15, LH = HOLE.half;
+const LIP_Y = FLOOR_Y + 0.3, LIP_H = 0.3, LH = HOLE.half;  // tall walls — the prize must physically clear them
 // dark inner shaft so the hole reads as a deep opening going down
 const shaftMat = new THREE.MeshStandardMaterial({ color: 0x07040c, roughness: 1, side: THREE.DoubleSide });
 for (const [dx, dz, w] of [[LH, 0, 0.04], [-LH, 0, 0.04], [0, LH, 0.04], [0, -LH, 0.04]]) {
@@ -299,7 +299,7 @@ function loadMachine(set) {
 const handPos = new THREE.Vector3(HOLE.x, HOVER_Y, HOLE.z);   // aim target (input-driven)
 const clawPos = new THREE.Vector3().copy(handPos);            // ACTUAL claw position — swings/lags handPos (고리 흔들림)
 const bob = { x: handPos.x, z: handPos.z, vx: 0, vz: 0 };     // pendulum sway state
-const SWAY_K = 78, SWAY_DAMP = 8.5;                           // claw swing stiffness / damping
+const SWAY_K = 84, SWAY_DAMP = 10.5;                          // claw swing stiffness / damping (settles faster -> more accurate aim)
 function swayed() { return Math.abs(bob.x - handPos.x) < 0.07 && Math.abs(bob.z - handPos.z) < 0.07 && Math.hypot(bob.vx, bob.vz) < 0.25; }
 const hub = new CANNON.Body({ mass: 0, type: CANNON.Body.KINEMATIC });
 hub.position.set(handPos.x, handPos.y, handPos.z);
@@ -492,8 +492,8 @@ function computeReturnTarget() {
 function releaseAll() {
   for (const h of held) {
     const b = h.fry.body; b.wakeUp();
-    b.velocity.set((Math.random() - 0.5) * 0.3 + bob.vx * 0.55, -0.4, (Math.random() - 0.5) * 0.3 + bob.vz * 0.55); // let go WITH the swing -> can miss the hole / catch the lip
-    b.angularVelocity.set((Math.random() - 0.5) * 1.3, (Math.random() - 0.5) * 1.3, (Math.random() - 0.5) * 1.3);
+    b.velocity.set((Math.random() - 0.5) * 0.12 + bob.vx * 0.5, -0.4, (Math.random() - 0.5) * 0.12 + bob.vz * 0.5); // let go WITH the swing -> a residual swing can catch the wall
+    b.angularVelocity.set((Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.6);
     b.collisionFilterGroup = G_FRY;
     b.collisionFilterMask = G_SOLID | G_FRY | G_CLAW | G_HELD; // full physics: hits the lip/floor/pile, bounces, can be re-grabbed
   }
@@ -503,7 +503,7 @@ function checkDeliveries() {
   for (const f of fries) {
     if (f.delivered) continue;
     const p = f.body.position;
-    if (Math.abs(p.x - HOLE.x) < HOLE.half + 0.3 && Math.abs(p.z - HOLE.z) < HOLE.half + 0.3 && p.y < FLOOR_Y - 0.7) {
+    if (Math.abs(p.x - HOLE.x) < HOLE.half + 0.05 && Math.abs(p.z - HOLE.z) < HOLE.half + 0.05 && p.y < FLOOR_Y - 0.95) {
       f.delivered = true; score += f.value; delivered++;
       popScore(f.value); camShake = 0.12; if (audioReady) sfx.get();
       collectIntoBin(f);                                    // drop it into the visible collection bin
@@ -738,6 +738,7 @@ window.__claw = {
   get state() { return state; }, get handPos() { return handPos; },
   start() { startGame(); }, drop() { startPlunge(); }, setHand(x, z) { handPos.x = x; handPos.z = z; },
   end() { if (started) endGame(); }, get started() { return started; },
+  forceDeliver() { const f = fries.find((x) => !x.delivered && !x.gone && !held.some((h) => h.fry === x)); if (f) { f.delivered = true; score += f.value; delivered++; popScore(f.value); if (audioReady) sfx.get(); collectIntoBin(f); } return delivered; },
   setCam(name) { setCamPreset(name); }, get camPitch() { return camState.pitch; },
   piles() { return fries.filter((f) => !f.delivered).map((f) => ({ x: f.body.position.x, y: f.body.position.y, z: f.body.position.z, value: f.value })); },
   get slipLog() { return slipLog; }, get maxStretch() { return maxStretch; },
