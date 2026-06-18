@@ -18,8 +18,8 @@ const CAB = { x: 0, z: 0, half: 3.0 };
 const HOLE = { x: -1.85, z: -1.85, half: 1.0 };
 const R_ATTACH = 0.55, FINGER_LEN = 1.9, FINGER_R = 0.13;
 const OPEN_ANG = 0.4, CLOSE_ANG = -0.42;          // prong tilt: + splays out, - tips in
-const HOVER_Y = 8.6, PLUNGE_Y = FLOOR_Y + 1.7;    // hub heights
-const PLUNGE_SPEED = 4.0, LIFT_SPEED = 3.2, RETURN_SPEED = 2.2, AIM_SPEED = 3.6; // lift yanks (tests the grip)
+const HOVER_Y = 8.6, PLUNGE_Y = FLOOR_Y + 2.0;    // hub heights (prong tips stop ~0.3 above the floor -> no crush against it)
+const PLUNGE_SPEED = 2.8, LIFT_SPEED = 3.2, RETURN_SPEED = 2.2, AIM_SPEED = 3.6; // gentler plunge -> the prongs ease into the pile (no shove-pop)
 const GRIP_R = 1.15, CAGE_BAND = 1.4, MAX_GRAB = 2;
 const K_BASE = 30, DAMP = 5.0;                    // grip spring stiffness / damping
 // grip snap distance lives in logic.js (gripBreakDist) — pure + unit-tested
@@ -78,13 +78,15 @@ function updateCamera(dt) {
 const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
 world.broadphase = new CANNON.SAPBroadphase(world);
 world.allowSleep = true;
-world.solver.iterations = 16;
+world.solver.iterations = 24;            // big boxes stacked deep -> more iterations for a stable, non-jittery pile
+world.solver.tolerance = 0.002;
 const fryMat = new CANNON.Material('fry');
 const solidMat = new CANNON.Material('solid');
 const clawMat = new CANNON.Material('claw');
-world.addContactMaterial(new CANNON.ContactMaterial(fryMat, fryMat, { friction: 0.45, restitution: 0.02 }));
+// prize↔prize: no bounce + a soft, relaxed contact so a dense pile settles instead of exploding apart
+world.addContactMaterial(new CANNON.ContactMaterial(fryMat, fryMat, { friction: 0.5, restitution: 0.0, contactEquationStiffness: 5e6, contactEquationRelaxation: 4 }));
 world.addContactMaterial(new CANNON.ContactMaterial(fryMat, solidMat, { friction: 0.6, restitution: 0.02 }));
-world.addContactMaterial(new CANNON.ContactMaterial(fryMat, clawMat, { friction: 0.9, restitution: 0.0, contactEquationStiffness: 5e6, contactEquationRelaxation: 4 })); // softer claw contact -> prongs nudge, not pop
+world.addContactMaterial(new CANNON.ContactMaterial(fryMat, clawMat, { friction: 0.9, restitution: 0.0, contactEquationStiffness: 2.5e6, contactEquationRelaxation: 5 })); // soft claw contact -> prongs nudge, never squeeze-pop
 world.addContactMaterial(new CANNON.ContactMaterial(clawMat, solidMat, { friction: 0.3, restitution: 0.0 }));
 
 function staticBox(cx, cy, cz, hx, hy, hz, color, opacity = 1) {
@@ -103,8 +105,8 @@ function staticBox(cx, cy, cz, hx, hy, hz, color, opacity = 1) {
 // Cabinet — floor with a back-left hole, glass walls, posts. (No solid base: the hole must drop through.)
 const FLOORC = 0xefe6ee; // prize floor (tucked just under the cabinet's cream floor; cream body shows on top)
 // Floor = two strips leaving the back-left hole uncovered (x<-0.85 & z<-0.85 open).
-staticBox(0.95, FLOOR_Y - 0.66, 0, CAB.half - 0.85, 0.6, CAB.half, FLOORC);       // right strip (thick slab)
-staticBox(-1.95, FLOOR_Y - 0.66, 1.05, 1.05, 0.6, CAB.half - 1.05, FLOORC);       // left-front strip (thick slab)
+staticBox(0.95, FLOOR_Y - 1.06, 0, CAB.half - 0.85, 1.0, CAB.half, FLOORC);       // right strip (deep slab — top unchanged, extends down so nothing tunnels through)
+staticBox(-1.95, FLOOR_Y - 1.06, 1.05, 1.05, 1.0, CAB.half - 1.05, FLOORC);       // left-front strip (deep slab)
 // Walls sit ENTIRELY outside the interior (inner face exactly at ±CAB.half) so they never
 // overlap floor-resting fries; corners overlapped so nothing escapes diagonally.
 const wallY = FLOOR_Y + 1.9, wallH = 2.5, WT = 0.3;
@@ -115,7 +117,7 @@ staticBox(CAB.x, wallY, CAB.z - CAB.half - WT, CAB.half + WT, wallH, WT, 0x8fd3e
 for (const px of [-1, 1]) for (const pz of [-1, 1]) {
   staticBox(CAB.x + px * CAB.half, wallY, CAB.z + pz * CAB.half, 0.13, wallH, 0.13, 0x2a1a3a); // dark posts (neon on top)
 }
-staticBox(HOLE.x, FLOOR_Y - 1.4, HOLE.z, HOLE.half + 0.35, 0.1, HOLE.half + 0.35, 0x161616); // bin floor
+staticBox(HOLE.x, FLOOR_Y - 1.9, HOLE.z, HOLE.half + 0.35, 0.6, HOLE.half + 0.35, 0x161616); // bin floor (deep — catches chute-fallers, nothing reaches y<-2)
 const rim = new THREE.Mesh(new THREE.RingGeometry(HOLE.half * 0.6, HOLE.half + 0.22, 30),
   new THREE.MeshBasicMaterial({ color: 0x141414, side: THREE.DoubleSide }));
 rim.rotation.x = -Math.PI / 2; rim.position.set(HOLE.x, FLOOR_Y + 0.02, HOLE.z); scene.add(rim);
@@ -128,7 +130,7 @@ function lipWall(cx, cy, cz, hx, hy, hz) {
   b.position.set(cx, cy, cz); world.addBody(b);
   const m = new THREE.Mesh(new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2), lipVis); m.position.set(cx, cy, cz); scene.add(m);
 }
-const LIP_Y = FLOOR_Y + 0.3, LIP_H = 0.3, LH = HOLE.half;  // tall walls — the prize must physically clear them
+const LIP_Y = FLOOR_Y + 0.5, LIP_H = 0.5, LH = HOLE.half;  // tall walls (to FLOOR_Y+1.0) — block popped prizes from the hole; the claw still drops in from above
 // dark inner shaft so the hole reads as a deep opening going down
 const shaftMat = new THREE.MeshStandardMaterial({ color: 0x07040c, roughness: 1, side: THREE.DoubleSide });
 for (const [dx, dz, w] of [[LH, 0, 0.04], [-LH, 0, 0.04], [0, LH, 0.04], [0, -LH, 0.04]]) {
@@ -326,7 +328,7 @@ for (let i = 0; i < 3; i++) {
   const ax = new THREE.Vector3(-s, 0, c);            // tangential (hinge axis)
   const qOrient = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(d, UP, ax));
   const body = new CANNON.Body({ mass: 0, type: CANNON.Body.KINEMATIC, material: clawMat,
-    collisionFilterGroup: G_CLAW, collisionFilterMask: G_SOLID | G_FRY }); // claw shoves pile, ignores held
+    collisionFilterGroup: G_CLAW, collisionFilterMask: G_SOLID }); // prongs DON'T crush free prizes (kinematic crush -> explosion); the cage-grab is proximity-based, the held prize is sprung
   body.addShape(new CANNON.Box(new CANNON.Vec3(FINGER_R, FINGER_LEN / 2, FINGER_R)));
   body.addShape(new CANNON.Box(new CANNON.Vec3(0.26, FINGER_R, FINGER_R)),   // inward foot at the tip
     new CANNON.Vec3(-0.26, -FINGER_LEN / 2 + FINGER_R, 0));
@@ -374,21 +376,33 @@ function placeProngs(dt) {
 // ---- Prizes ----
 const fries = [];
 function spawnFries(n) {
+  const h = currentSet.half;
+  // Spawn on a jittered GRID (no initial interpenetration) in the front play area, clear of the
+  // back-left chute, stacked in a few layers. No overlap at t=0 -> the solver never has to explosively
+  // separate bodies, so the pile settles like a real heap instead of flinging prizes around.
+  const padX = h.x * 2 + 0.12, padZ = h.z * 2 + 0.12;
+  const x0 = -1.55, x1 = 1.75, z0 = -0.3, z1 = 2.05;
+  const cols = Math.max(1, Math.floor((x1 - x0) / padX) + 1);
+  const rows = Math.max(1, Math.floor((z1 - z0) / padZ) + 1);
+  const startX = (x0 + x1) / 2 - (cols - 1) * padX / 2;
+  const startZ = (z0 + z1) / 2 - (rows - 1) * padZ / 2;
+  const perLayer = cols * rows;
   for (let i = 0; i < n; i++) {
-    const r = Math.random();
-    const value = rollValue(r);
+    const value = rollValue(Math.random());
     const mass = prizeMass(value);                          // heavier prize = harder to hold
-    const h = currentSet.half;
     const body = new CANNON.Body({ mass, material: fryMat,
       shape: new CANNON.Box(new CANNON.Vec3(h.x, h.y, h.z)),
       collisionFilterGroup: G_FRY, collisionFilterMask: G_SOLID | G_FRY | G_CLAW | G_HELD });
-    body.sleepSpeedLimit = 0.2; body.sleepTimeLimit = 0.5;
+    body.linearDamping = 0.1; body.angularDamping = 0.3;     // bleed energy -> settles, no perpetual jitter
+    body.sleepSpeedLimit = 0.26; body.sleepTimeLimit = 0.4;
+    const layer = Math.floor(i / perLayer), idx = i % perLayer;
+    const cx = idx % cols, cz = Math.floor(idx / cols);
     body.position.set(
-      CAB.x + (Math.random() - 0.5) * 3.2,
-      FLOOR_Y + 0.6 + Math.random() * 2.8,
-      CAB.z + (Math.random() - 0.5) * 2.6 + 0.7
+      startX + cx * padX + (Math.random() - 0.5) * 0.06,
+      FLOOR_Y + h.y + 0.05 + layer * (h.y * 2 + 0.07),       // rest on the floor + stack layers (tiny gap, small settle)
+      startZ + cz * padZ + (Math.random() - 0.5) * 0.06
     );
-    body.quaternion.setFromEuler(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+    body.quaternion.setFromEuler((Math.random() - 0.5) * 0.3, Math.random() * 3, (Math.random() - 0.5) * 0.3); // mostly upright + random yaw
     world.addBody(body);
     const mesh = currentSet.makeMesh();
     scene.add(mesh);
@@ -498,6 +512,7 @@ addEventListener('keyup', (e) => { keys[e.code] = false; });
 // ---- State machine ----
 let state = 'aim', stateT = 0;
 let score = 0, slips = 0, drops = 0, delivered = 0;
+let recycles = 0, maxObsSpeed = 0, maxSpeedTag = ''; // debug: floor-tunnel recycles + peak prize speed (instability)
 let started = false;                     // gated behind the coin/card payment screen
 const aimVec = { x: 0, z: 0 };           // analog joystick input (-1..1)
 const joyVis = { x: 0, z: 0 };           // smoothed visual tilt of the 3D cabinet joystick (combines joystick + keys)
@@ -529,12 +544,15 @@ function releaseAll() {
 function checkDeliveries() {
   if (!started) return;                                       // no scoring before the game starts (pile still settling)
   for (const f of fries) {
-    if (f.delivered || !f.everHeld) continue;                 // must have been grabbed by the claw — not just fallen in
+    if (f.delivered) continue;
     const p = f.body.position;
     if (Math.abs(p.x - HOLE.x) < HOLE.half + 0.05 && Math.abs(p.z - HOLE.z) < HOLE.half + 0.05 && p.y < FLOOR_Y - 0.95) {
-      f.delivered = true; score += f.value; delivered++;
-      popScore(f.value); camShake = 0.12; if (audioReady) sfx.get();
-      collectIntoBin(f);                                    // drop it into the visible collection bin
+      f.delivered = true;
+      if (f.everHeld) {                                      // GRABBED prize -> scores
+        score += f.value; delivered++;
+        popScore(f.value); camShake = 0.12; if (audioReady) sfx.get();
+      }                                                       // a free faller is just collected (no score, no jarring reload)
+      collectIntoBin(f);                                    // either way it drops into the visible bin (chute stays clear)
     }
   }
 }
@@ -566,7 +584,7 @@ function frame(now) {
     handPos.y = approach(handPos.y, PLUNGE_Y, PLUNGE_SPEED, dt);
     if (handPos.y <= PLUNGE_Y + 0.01) { state = 'close'; stateT = 0; if (audioReady) sfx.place(); }
   } else if (state === 'close') {
-    gripT = Math.min(gripClose, gripT + dt * 1.5);            // ease the prongs onto the prize surface (gentler -> less shove)
+    gripT = Math.min(gripClose, gripT + dt * 1.3);            // ease the prongs onto the prize surface (gentler -> less shove)
     if (gripT >= gripClose - 0.01 && stateT > 0.45) {
       const got = tryGrab();
       state = 'lift'; stateT = 0;
@@ -600,6 +618,7 @@ function frame(now) {
   placeProngs(dt);
   applyGripForces(dt);
   clawLight.position.set(clawPos.x, clawPos.y - 0.7, clawPos.z); // travels with the claw so the prongs + held prize read
+  for (const f of fries) { if (f.gone || f.delivered) continue; const v = f.body.velocity, sp = v.length(); if (sp > 4) v.scale(4 / sp, v); } // pre-step cap so the integrator never flings a squeezed prize
   world.step(1 / 60, dt, 3);
 
   hubMesh.position.copy(handPos);
@@ -610,13 +629,19 @@ function frame(now) {
     if (f.gone) continue;
     if (!f.delivered) {
       const v = f.body.velocity, sp = v.length(), p = f.body.position;
-      if (sp > 9) v.scale(9 / sp, v);                       // anti-tunnel speed cap
+      if (sp > maxObsSpeed) { maxObsSpeed = sp; maxSpeedTag = state + (held.some((h) => h.fry === f) ? '/held' : '/free'); } // debug: peak speed + context
+      if (sp > 3.5) v.scale(3.5 / sp, v);                   // speed cap: a calm pile never needs more; also caps any arc toward the chute (< lip height)
       if (p.x > LIM) { p.x = LIM; if (v.x > 0) v.x *= -0.2; } else if (p.x < -LIM) { p.x = -LIM; if (v.x < 0) v.x *= -0.2; } // HARD containment: can never leave the glass
       if (p.z > LIM) { p.z = LIM; if (v.z > 0) v.z *= -0.2; } else if (p.z < -LIM) { p.z = -LIM; if (v.z < 0) v.z *= -0.2; }
-      if (p.y < -2 && !held.some((h) => h.fry === f)) {     // fell through the floor -> recycle into the pile
-        p.set(CAB.x + (Math.random() - 0.5) * 3, FLOOR_Y + 3, CAB.z + (Math.random() - 0.5) * 2);
-        v.set(0, 0, 0); f.body.angularVelocity.set(0, 0, 0);
-        f.body.collisionFilterGroup = G_FRY; f.body.collisionFilterMask = G_SOLID | G_FRY | G_CLAW | G_HELD;
+      // anti-jam: a free prize riding UP on the prongs (high + near the claw axis while it works) -> slide it off.
+      // SET a gentle outward+down velocity (never accumulate) so it slips off without being flung.
+      if (state !== 'aim' && p.y > FLOOR_Y + 1.4 && !held.some((h) => h.fry === f)) {
+        const dx = p.x - clawPos.x, dz = p.z - clawPos.z, dr = Math.hypot(dx, dz) || 1;
+        if (dr < 0.55) { v.x = (dx / dr) * 0.9; v.z = (dz / dr) * 0.9; v.y = Math.min(v.y, -0.7); }
+      }
+      if (p.y < -2 && !held.some((h) => h.fry === f)) {     // somehow escaped the play area -> COLLECT it (no score, no jarring reload)
+        f.delivered = true; collectIntoBin(f);
+        recycles++;                                          // debug: count escapes (should be ~0)
       }
     }
     f.sync();
@@ -782,4 +807,7 @@ window.__claw = {
   setCam(name) { setCamPreset(name); }, get camPitch() { return camState.pitch; },
   piles() { return fries.filter((f) => !f.delivered).map((f) => ({ x: f.body.position.x, y: f.body.position.y, z: f.body.position.z, value: f.value })); },
   get slipLog() { return slipLog; }, get maxStretch() { return maxStretch; },
+  get recycles() { return recycles; }, get maxSpeed() { return +maxObsSpeed.toFixed(1); }, get maxSpeedTag() { return maxSpeedTag; },
+  resetDbg() { recycles = 0; maxObsSpeed = 0; maxSpeedTag = ''; },
+  stuck() { return fries.filter((f) => !f.delivered && !f.gone && !held.some((h) => h.fry === f) && f.body.position.y > FLOOR_Y + 1.6 && Math.hypot(f.body.position.x - clawPos.x, f.body.position.z - clawPos.z) < 0.7).length; },
 };

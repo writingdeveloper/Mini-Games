@@ -49,5 +49,5 @@ function makeCandyMesh() {
 export const PRIZE_SETS = [
   { id: 'candy', name: 'JELLY CATCHER', sub: '젤리·캔디', emoji: '🍬',
     marqueeBg: '#10243a', marqueeFg: '#bff4ff', neon: 0x36e0ff, accent: 0x4ab8ff,
-    spawn: 26, makeMesh: makeCandyMesh, half: { x: 0.36, y: 0.31, z: 0.36 } },
+    spawn: 20, makeMesh: makeCandyMesh, half: { x: 0.36, y: 0.31, z: 0.36 } },
 ];
