@@ -760,6 +760,25 @@ function playReze() {
     .catch(() => { rezePlayed = false; });   // still blocked -> let the next gesture retry
 }
 for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, playReze);
+// Korean subtitle for the JAPANESE line (ja clip) — synced to playback by timed segments.
+const subEl = document.getElementById('subtitle');
+const REZE_SUB = [
+  { t: 0.0, ko: '있잖아, 저거 뽑아줘!' },
+  { t: 1.4, ko: '응, 그 반짝이는 거.' },
+  { t: 2.9, ko: '부탁이야, 딱 한 번만이면 돼.' },
+  { t: 4.7, ko: '분명 좋은 게 나올 거야, 응?' },
+];
+if (subEl) {
+  rezeVoice.addEventListener('timeupdate', () => {
+    if (rezeVoice.paused) return;
+    let cur = REZE_SUB[0].ko;
+    for (const s of REZE_SUB) if (rezeVoice.currentTime >= s.t) cur = s.ko;
+    subEl.textContent = cur; subEl.classList.add('on');
+  });
+  const hideSub = () => subEl.classList.remove('on');
+  rezeVoice.addEventListener('ended', hideSub);
+  rezeVoice.addEventListener('pause', hideSub);
+}
 function addCredit(kind) {
   ensureAudio();
   if (kind === 'coin') { coinEl.classList.remove('drop'); void coinEl.offsetWidth; coinEl.classList.add('drop'); payCoin.classList.add('done'); coinSfx(); }

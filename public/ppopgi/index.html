@@ -26,6 +26,14 @@
       18% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1.12); }
       100% { opacity: 0; transform: translateX(-50%) translateY(-54px) scale(1); } }
     #pop.show { animation: popUp .9s ease-out; }
+    /* Korean subtitle for the Japanese voice line */
+    #subtitle { position: fixed; left: 50%; bottom: 23%; transform: translateX(-50%); max-width: 84vw; text-align: center;
+      background: rgba(8,4,14,.82); color: #fff; padding: 9px 20px; border-radius: 12px; pointer-events: none; z-index: 60;
+      font-size: 21px; font-weight: 700; line-height: 1.45; letter-spacing: .2px; text-shadow: 0 2px 5px #000;
+      border: 1px solid rgba(255,255,255,.16); box-shadow: 0 6px 22px rgba(0,0,0,.55); opacity: 0; transition: opacity .18s; }
+    #subtitle::before { content: "🗨 레제"; display: block; font-size: 12px; font-weight: 800; color: #ff7ab8; letter-spacing: 1px; margin-bottom: 3px; }
+    #subtitle.on { opacity: 1; }
+    @media (max-width: 560px) { #subtitle { font-size: 16px; bottom: 27%; padding: 7px 14px; } }
 
     /* ---- On-screen joystick + drop button (touch + mouse) ---- */
     #pad { position: fixed; inset: 0; pointer-events: none; display: none; }
@@ -120,6 +128,7 @@
   </div>
   <div id="flash"></div>
   <div id="pop"></div>
+  <div id="subtitle"></div>
   <div id="readout">
     획득: <span id="r-got">0</span>개<br>
     담은 가치: <span id="r-score">0</span><br>
