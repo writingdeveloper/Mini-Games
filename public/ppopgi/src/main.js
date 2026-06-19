@@ -354,8 +354,8 @@ function makeClawArm() {
   return g;
 }
 const prongs = [];
-for (let i = 0; i < 2; i++) {
-  const ang = i * Math.PI;                            // 0 + 180 -> a 2-arm pincer
+for (let i = 0; i < 3; i++) {
+  const ang = i * (Math.PI * 2 / 3) + Math.PI / 6;    // 3 curved arms at 120° (one toward the player, two back)
   const c = Math.cos(ang), s = Math.sin(ang);
   const d = new THREE.Vector3(c, 0, s);              // the arm bows this way
   const ax = new THREE.Vector3(-s, 0, c);            // hinge axis (tangential)
@@ -828,20 +828,35 @@ if (joyEl) {
 }
 if (dropEl) dropEl.addEventListener('pointerdown', (e) => { e.preventDefault(); ensureAudio(); startPlunge(); });
 
-// Drag the scene to orbit the camera (judge depth like leaning around the machine).
+// Drag to orbit; wheel (desktop) / pinch (mobile) to ZOOM the current view (확대/축소).
 const gameCanvas = document.getElementById('game');
+const ZOOM_MIN = 5.5, ZOOM_MAX = 22;
+function setZoom(r) { camState.r = THREE.MathUtils.clamp(r, ZOOM_MIN, ZOOM_MAX); camGoal.r = camState.r; }
 let dragX = 0, dragY = 0, dragId = null;
+const touchPts = new Map();                          // active pointers on the canvas (for pinch)
+let pinchPrev = 0;
 if (gameCanvas) {
-  gameCanvas.addEventListener('pointerdown', (e) => { camDrag = true; dragId = e.pointerId; dragX = e.clientX; dragY = e.clientY; });
+  gameCanvas.addEventListener('pointerdown', (e) => {
+    touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touchPts.size >= 2) { camDrag = false; dragId = null; const [a, b] = [...touchPts.values()]; pinchPrev = Math.hypot(a.x - b.x, a.y - b.y); } // 2 fingers -> pinch
+    else { camDrag = true; dragId = e.pointerId; dragX = e.clientX; dragY = e.clientY; }                                                          // 1 finger -> orbit
+  });
   gameCanvas.addEventListener('pointermove', (e) => {
-    if (!camDrag || e.pointerId !== dragId) return;
+    if (touchPts.has(e.pointerId)) touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touchPts.size >= 2) {                        // pinch-to-zoom
+      const [a, b] = [...touchPts.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinchPrev > 0 && d > 0) setZoom(camState.r * (pinchPrev / d));
+      pinchPrev = d; return;
+    }
+    if (!camDrag || e.pointerId !== dragId) return;  // 1-finger orbit
     const dx = e.clientX - dragX, dy = e.clientY - dragY; dragX = e.clientX; dragY = e.clientY;
     camState.az -= dx * 0.006;
     camState.pitch = THREE.MathUtils.clamp(camState.pitch + dy * 0.005, 0.05, 1.45);
     camGoal.az = camState.az; camGoal.pitch = camState.pitch; camGoal.r = camState.r; camGoal.ty = camState.ty;
   });
-  const endDrag = (e) => { if (e.pointerId === dragId) { camDrag = false; dragId = null; } };
-  gameCanvas.addEventListener('pointerup', endDrag); gameCanvas.addEventListener('pointercancel', endDrag);
+  const endPt = (e) => { touchPts.delete(e.pointerId); pinchPrev = 0; if (e.pointerId === dragId) { camDrag = false; dragId = null; } };
+  gameCanvas.addEventListener('pointerup', endPt); gameCanvas.addEventListener('pointercancel', endPt);
+  gameCanvas.addEventListener('wheel', (e) => { e.preventDefault(); setZoom(camState.r + e.deltaY * 0.012); }, { passive: false }); // scroll = zoom
 }
 // Preset angle buttons (정면/측면/위/기본).
 document.querySelectorAll('#cambtns button').forEach((b) => b.addEventListener('click', () => setCamPreset(b.dataset.cam)));
@@ -855,6 +870,7 @@ window.__claw = {
   end() { if (started) endGame(); }, get started() { return started; },
   forceDeliver() { const f = fries.find((x) => !x.delivered && !x.gone && !held.some((h) => h.fry === x)); if (f) { f.delivered = true; score += f.value; delivered++; popScore(f.value); if (audioReady) sfx.get(); collectIntoBin(f); } return delivered; },
   setCam(name) { setCamPreset(name); }, get camPitch() { return camState.pitch; },
+  zoom(r) { setZoom(r); }, get camR() { return +camState.r.toFixed(2); },
   piles() { return fries.filter((f) => !f.delivered).map((f) => ({ x: f.body.position.x, y: f.body.position.y, z: f.body.position.z, value: f.value })); },
   get slipLog() { return slipLog; }, get maxStretch() { return maxStretch; },
   get recycles() { return recycles; }, get maxSpeed() { return +maxObsSpeed.toFixed(1); }, get maxSpeedTag() { return maxSpeedTag; },
