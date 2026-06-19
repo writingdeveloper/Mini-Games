@@ -489,7 +489,7 @@ function tryGrab() {
     f.body.wakeUp();
     f.body.velocity.set(0, 0, 0);                            // arrest the bat from the closing fingers
     f.body.angularVelocity.set(0, 0, 0);
-    f.body.angularDamping = 0.72;                            // smooth dangle (not a chaotic spin)
+    f.body.angularDamping = 0.96;                            // kill spin while held — hangs steady (no 빙글빙글)
     f.body.collisionFilterGroup = G_HELD;                    // ignore claw, pile, and each other
     f.body.collisionFilterMask = G_SOLID;                    // only bonks the cabinet (walls)
     held.push({ fry: f, anchor, homeX: offX * cf, homeZ: offZ * cf, k, breakDist });
@@ -518,7 +518,10 @@ function applyGripForces(dt) {
     }
     if (dist > maxStretch) maxStretch = dist;
     const b = h.fry.body, v = b.velocity, hv = hub.velocity;
-    _gripPt.set(b.position.x, b.position.y + 0.18, b.position.z);  // grip near the top -> the prize hangs + swings below (not dragged)
+    // cannon-es applyForce(force, relativePoint) — relativePoint is RELATIVE to the COM. _gripPt is a
+    // ZERO vector, so there's NO torque -> the prize hangs + swings (pendulum) but never SPINS ("빙글빙글").
+    // (The old code passed b.position+offset, a WORLD point ~5 units up -> enormous torque -> wild spin.)
+    // The dangle is preserved because the stretch is still measured at the grip point above the center.
     b.applyForce(new CANNON.Vec3(
       -h.k * _stretch.x - DAMP * (v.x - hv.x),
       -h.k * _stretch.y - DAMP * (v.y - hv.y),
@@ -575,7 +578,7 @@ function checkDeliveries() {
   for (const f of fries) {
     if (f.delivered) continue;
     const p = f.body.position;
-    if (Math.abs(p.x - HOLE.x) < HOLE.half + 0.05 && Math.abs(p.z - HOLE.z) < HOLE.half + 0.05 && p.y < FLOOR_Y - 0.95) {
+    if (Math.abs(p.x - HOLE.x) < HOLE.half + 0.05 && Math.abs(p.z - HOLE.z) < HOLE.half + 0.05 && p.y < FLOOR_Y - 0.5) { // below the floor + in the hole = fell into the chute -> score immediately (was 0.95: big prizes rested above it -> scored late)
       f.delivered = true;
       if (f.everHeld) {                                      // GRABBED prize -> scores
         score += f.value; delivered++;
@@ -865,6 +868,7 @@ document.querySelectorAll('#cambtns button').forEach((b) => b.addEventListener('
 window.__claw = {
   get score() { return score; }, get drops() { return drops; }, get delivered() { return delivered; },
   get slips() { return slips; }, get held() { return held.length; },
+  get heldAng() { return held.length ? +held[0].fry.body.angularVelocity.length().toFixed(2) : 0; }, // debug: held-prize spin rate
   get state() { return state; }, get handPos() { return handPos; },
   start() { startGame(); }, drop() { startPlunge(); }, setHand(x, z) { handPos.x = x; handPos.z = z; },
   end() { if (started) endGame(); }, get started() { return started; },
