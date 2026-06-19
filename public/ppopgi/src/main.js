@@ -749,6 +749,17 @@ const elMachineSelect = document.getElementById('machineselect'), elPayTitle = d
 let credited = false, firstGame = true;
 
 function ensureAudio() { if (!audioReady) { try { sfx.init(); sfx.resume(); } catch (e) { /* */ } audioReady = true; } }
+// 체인소맨 레제가 뽑기 기계에 접근 — 첫 상호작용(접근/조작)에 음성 1회 재생. 브라우저 자동재생 차단을 피하려 제스처에 묶음.
+const rezeVoice = new Audio('audio/reze.mp3');
+rezeVoice.volume = 0.85;
+let rezePlayed = false;
+function playReze() {
+  if (rezePlayed) return; rezePlayed = true;
+  rezeVoice.currentTime = 0;
+  rezeVoice.play().then(() => { for (const ev of ['pointerdown', 'keydown', 'touchstart']) removeEventListener(ev, playReze); })
+    .catch(() => { rezePlayed = false; });   // still blocked -> let the next gesture retry
+}
+for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, playReze);
 function addCredit(kind) {
   ensureAudio();
   if (kind === 'coin') { coinEl.classList.remove('drop'); void coinEl.offsetWidth; coinEl.classList.add('drop'); payCoin.classList.add('done'); coinSfx(); }
@@ -869,6 +880,7 @@ window.__claw = {
   get score() { return score; }, get drops() { return drops; }, get delivered() { return delivered; },
   get slips() { return slips; }, get held() { return held.length; },
   get heldAng() { return held.length ? +held[0].fry.body.angularVelocity.length().toFixed(2) : 0; }, // debug: held-prize spin rate
+  get reze() { return { played: rezePlayed, paused: rezeVoice.paused, dur: +(rezeVoice.duration || 0).toFixed(1), t: +rezeVoice.currentTime.toFixed(2) }; }, // debug: Reze voice state
   get state() { return state; }, get handPos() { return handPos; },
   start() { startGame(); }, drop() { startPlunge(); }, setHand(x, z) { handPos.x = x; handPos.z = z; },
   end() { if (started) endGame(); }, get started() { return started; },
