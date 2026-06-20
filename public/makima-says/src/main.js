@@ -141,6 +141,14 @@ function gameOver() {
   $("result").classList.remove("off");
 }
 
+// face portraits: if an image fails to load, fall back to the emoji so a panel is never blank
+document.querySelectorAll("img.face").forEach((im) =>
+  im.addEventListener("error", () => {
+    const d = document.createElement("div");
+    d.className = "face"; d.textContent = im.dataset.fallback || "❓";
+    im.replaceWith(d);
+  }));
+
 // ---- input bindings ----
 const KEYMAP = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
 window.addEventListener("keydown", (e) => {

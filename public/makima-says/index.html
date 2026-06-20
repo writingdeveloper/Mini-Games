@@ -14,6 +14,11 @@
       gap:10px;opacity:.35;transition:opacity .12s,filter .12s;filter:grayscale(.5);}
     .panel.active{opacity:1;filter:none;}
     .panel .face{font-size:84px;line-height:1;}
+    .panel img.face{width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.3);box-shadow:0 4px 14px rgba(0,0,0,.5);}
+    #m-panel img.face{border-color:var(--makima);}
+    #r-panel img.face{border-color:var(--reze);}
+    #m-panel.active img.face{box-shadow:0 0 26px rgba(217,180,74,.85);}
+    #r-panel.active img.face{box-shadow:0 0 26px rgba(255,95,174,.85);}
     .panel .who{font-weight:900;font-size:20px;letter-spacing:1px;}
     #m-panel{background:radial-gradient(circle at 50% 40%,rgba(217,180,74,.18),transparent 70%);}
     #m-panel .who{color:var(--makima);}
@@ -65,8 +70,8 @@
       <span>최고 <span id="best">0</span></span>
     </div>
     <div id="panels">
-      <div class="panel" id="m-panel"><div class="face">🔴</div><div class="who">마키마 · 복종</div></div>
-      <div class="panel" id="r-panel"><div class="face">💣</div><div class="who">레제 · 거부</div></div>
+      <div class="panel" id="m-panel"><img class="face" src="img/makima.jpg" alt="마키마" data-fallback="🔴"><div class="who">마키마 · 복종</div></div>
+      <div class="panel" id="r-panel"><img class="face" src="img/reze.jpg" alt="레제" data-fallback="💣"><div class="who">레제 · 거부</div></div>
     </div>
     <div id="center"><div id="glyph"></div><div id="ring"></div></div>
     <div id="caption" aria-live="polite"></div>
