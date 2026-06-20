@@ -22,6 +22,7 @@ const HOVER_Y = 6.8, PLUNGE_Y = FLOOR_Y + 2.0;    // hub heights — rest INSIDE
 const PLUNGE_SPEED = 2.8, LIFT_SPEED = 3.2, RETURN_SPEED = 2.2, AIM_SPEED = 3.6; // gentler plunge -> the prongs ease into the pile (no shove-pop)
 const GRIP_R = 0.72, CAGE_BAND = 1.1, MAX_GRAB = 1; // SINGLE grab (only the closest prize -> never a clump/neighbor); GRIP_R is just aim forgiveness now
 const K_BASE = 30, DAMP = 5.0;                    // grip spring stiffness / damping
+const SQUISH_X = 0.74, SQUISH_Y = 0.9;            // a held prize compresses (plush squeeze) + lets the hooks cup it without clipping
 // grip snap distance lives in logic.js (gripBreakDist) — pure + unit-tested
 const ROUND_SEC = 90;
 // Collision groups: held fries stop colliding with the claw (spring is the grip) but still hit walls/pile.
@@ -88,13 +89,13 @@ function updateCamera(dt) {
 const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
 world.broadphase = new CANNON.SAPBroadphase(world);
 world.allowSleep = true;
-world.solver.iterations = 24;            // big boxes stacked deep -> more iterations for a stable, non-jittery pile
+world.solver.iterations = 28;            // firmer prize↔prize contacts -> more iterations to converge a solid (non-merging) pile
 world.solver.tolerance = 0.002;
 const fryMat = new CANNON.Material('fry');
 const solidMat = new CANNON.Material('solid');
 const clawMat = new CANNON.Material('claw');
-// prize↔prize: no bounce + a soft, relaxed contact so a dense pile settles instead of exploding apart
-world.addContactMaterial(new CANNON.ContactMaterial(fryMat, fryMat, { friction: 0.5, restitution: 0.0, contactEquationStiffness: 5e6, contactEquationRelaxation: 4 }));
+// prize↔prize: no bounce + a FIRM contact so prizes rest ON each other (a real heap) instead of sinking/merging into a soft "tower"
+world.addContactMaterial(new CANNON.ContactMaterial(fryMat, fryMat, { friction: 0.38, restitution: 0.0, contactEquationStiffness: 4e7, contactEquationRelaxation: 3.2 }));
 world.addContactMaterial(new CANNON.ContactMaterial(fryMat, solidMat, { friction: 0.6, restitution: 0.02 }));
 world.addContactMaterial(new CANNON.ContactMaterial(fryMat, clawMat, { friction: 0.9, restitution: 0.0, contactEquationStiffness: 2.5e6, contactEquationRelaxation: 5 })); // soft claw contact -> prongs nudge, never squeeze-pop
 world.addContactMaterial(new CANNON.ContactMaterial(clawMat, solidMat, { friction: 0.3, restitution: 0.0 }));
@@ -442,18 +443,19 @@ function spawnFries(n) {
     const layer = Math.floor(i / perLayer), idx = i % perLayer;
     const cx = idx % cols, cz = Math.floor(idx / cols);
     body.position.set(
-      startX + cx * padX + (Math.random() - 0.5) * 0.06,
-      FLOOR_Y + h.y + 0.05 + layer * (h.y * 2 + 0.07),       // rest on the floor + stack layers (tiny gap, small settle)
-      startZ + cz * padZ + (Math.random() - 0.5) * 0.06
+      startX + cx * padX + (Math.random() - 0.5) * 0.1,
+      FLOOR_Y + h.y + 0.15 + layer * (h.y * 2 + 0.16),       // drop from a little higher so they tumble + settle into a HEAP (not a rigid grid)
+      startZ + cz * padZ + (Math.random() - 0.5) * 0.1
     );
-    body.quaternion.setFromEuler((Math.random() - 0.5) * 0.42, Math.random() * 3, (Math.random() - 0.5) * 0.42); // slight tilt + random yaw; settling adds the rest of the tumble
+    body.velocity.set((Math.random() - 0.5) * 0.7, 0, (Math.random() - 0.5) * 0.7); // gentle nudge -> they slide off each other into a natural pile
+    body.quaternion.setFromEuler((Math.random() - 0.5) * 0.8, Math.random() * 6.28, (Math.random() - 0.5) * 0.8); // more tumble
     world.addBody(body);
     const mesh = currentSet.makeMesh();
     mesh.scale.setScalar(s);
     mesh.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); // prizes cast/receive shadows
     scene.add(mesh);
     const fry = new Prize(body, mesh);
-    fry.value = value; fry.delivered = false; fry.everHeld = false; fry.r = h.x * s; // only a GRABBED prize scores; .r = horizontal radius (grip cup)
+    fry.value = value; fry.delivered = false; fry.everHeld = false; fry.r = h.x * s; fry.baseScale = s; fry.squishT = 0; // .r=grip radius; squishT=plush squeeze (0..1)
     if (value > 1) mesh.traverse((o) => {
       if (o.material && o.material.emissive) {
         o.material = o.material.clone();
@@ -530,7 +532,7 @@ function tryGrab() {
     f.body.collisionFilterMask = G_SOLID;                    // only bonks the cabinet (walls)
     held.push({ fry: f, anchor, homeX: offX * cf, homeZ: offZ * cf, k, breakDist, slipWarn: false });
   }
-  gripClose = n > 0 ? closeForRadius(take[0].f.r) : CLOSE_FULL;   // cup the caught prize so the hooks rest ON its surface (not inside)
+  gripClose = n > 0 ? closeForRadius(take[0].f.r * SQUISH_X) : CLOSE_FULL;   // cup the SQUISHED prize (hooks squeeze its compressed surface, no clip)
   return n;
 }
 const _fpos = new THREE.Vector3(), _target = new THREE.Vector3(), _stretch = new THREE.Vector3(), _gripPt = new CANNON.Vec3(), _force = new CANNON.Vec3();
@@ -762,6 +764,11 @@ function frame(now) {
         recycles++;                                          // debug: count escapes (should be ~0)
       }
     }
+    // plush squeeze: a held prize compresses (back-springs on release) + shrinks its footprint so the hooks cup it without clipping
+    const sq = held.some((h) => h.fry === f) ? 1 : 0;
+    f.squishT += (sq - f.squishT) * Math.min(1, dt * 12);
+    if (f.squishT > 0.002) { const sx = f.baseScale * (1 - (1 - SQUISH_X) * f.squishT), sy = f.baseScale * (1 - (1 - SQUISH_Y) * f.squishT); f.mesh.scale.set(sx, sy, sx); }
+    else if (f.mesh.scale.x !== f.baseScale) f.mesh.scale.setScalar(f.baseScale);
     f.sync();
   }
   checkDeliveries();
