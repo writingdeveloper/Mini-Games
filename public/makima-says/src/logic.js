@@ -13,9 +13,13 @@ export function mulberry32(seed) {
   };
 }
 
-// Reaction window (seconds): starts forgiving, tightens each round, never below 0.55.
+// Reaction window (seconds): starts forgiving, tightens each round, never below a
+// human-fair 0.9s floor. The window starts when the glyph appears, but the player
+// still has to register WHO is speaking (obey vs resist) and the spoken command runs
+// ~0.55–0.88s — so a sub-second floor marked correct presses as "wrong" (they landed
+// just after the window closed). 0.9s floor keeps the ramp challenging yet fair.
 export function reactionWindow(round) {
-  return Math.max(0.55, 1.4 - round * 0.06);
+  return Math.max(0.9, 1.7 - round * 0.05);
 }
 
 // Probability the temptress 레제 (not 마키마) gives this round's command.

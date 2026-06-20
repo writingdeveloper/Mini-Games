@@ -5,10 +5,13 @@ import {
 } from "../../../public/makima-says/src/logic.js";
 
 describe("makima-says logic", () => {
-  it("reactionWindow shrinks with round, floored at 0.55", () => {
-    expect(reactionWindow(0)).toBeCloseTo(1.4);
+  it("reactionWindow shrinks with round but never below a human-fair 0.9s floor", () => {
+    expect(reactionWindow(0)).toBeCloseTo(1.7);
     expect(reactionWindow(5)).toBeLessThan(reactionWindow(2));
-    expect(reactionWindow(100)).toBeCloseTo(0.55);
+    expect(reactionWindow(100)).toBeCloseTo(0.9);
+    // Fairness: a 2-stage decision (who's speaking → which direction) plus the
+    // spoken command (~0.55–0.88s) must always fit — every round gets >= 0.9s.
+    for (let r = 0; r < 200; r++) expect(reactionWindow(r)).toBeGreaterThanOrEqual(0.9);
   });
 
   it("rezeChance rises with round, capped at 0.45", () => {
