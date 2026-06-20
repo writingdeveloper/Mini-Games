@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>마키마 says</title>
+  <style>
+    :root { --makima:#d9b44a; --reze:#ff5fae; --bg:#0c0712; }
+    html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:#fff;
+      font-family:system-ui,sans-serif;-webkit-user-select:none;user-select:none;}
+    #stage{position:fixed;inset:0;display:flex;flex-direction:column;}
+    #panels{flex:1;display:flex;}
+    .panel{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:10px;opacity:.35;transition:opacity .12s,filter .12s;filter:grayscale(.5);}
+    .panel.active{opacity:1;filter:none;}
+    .panel .face{font-size:84px;line-height:1;}
+    .panel .who{font-weight:900;font-size:20px;letter-spacing:1px;}
+    #m-panel{background:radial-gradient(circle at 50% 40%,rgba(217,180,74,.18),transparent 70%);}
+    #m-panel .who{color:var(--makima);}
+    #r-panel{background:radial-gradient(circle at 50% 40%,rgba(255,95,174,.18),transparent 70%);}
+    #r-panel .who{color:var(--reze);}
+    #center{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;}
+    #glyph{font-size:120px;font-weight:900;line-height:1;text-shadow:0 0 24px rgba(255,255,255,.5);}
+    #ring{width:160px;height:160px;margin:8px auto 0;border-radius:50%;
+      border:8px solid rgba(255,255,255,.15);border-top-color:#fff;}
+    #caption{position:fixed;left:50%;bottom:170px;transform:translateX(-50%);
+      font-size:18px;font-weight:800;background:rgba(0,0,0,.55);padding:8px 16px;border-radius:12px;
+      text-align:center;max-width:90vw;}
+    #hud{position:fixed;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:14px;
+      background:rgba(0,0,0,.5);padding:8px 16px;border-radius:14px;font-weight:800;font-size:15px;z-index:5;}
+    #hud .lives{color:#ff6b6b;letter-spacing:2px;}
+    #hud #combo.hot{color:#ffb14d;text-shadow:0 0 10px rgba(255,160,60,.7);}
+    #mute{position:fixed;top:10px;right:12px;z-index:6;background:rgba(0,0,0,.5);border:0;color:#fff;
+      font-size:20px;width:42px;height:42px;border-radius:12px;cursor:pointer;}
+    #home{position:fixed;top:10px;left:12px;z-index:6;background:rgba(0,0,0,.5);color:#fff;
+      text-decoration:none;font-size:13px;font-weight:700;padding:10px 12px;border-radius:12px;}
+    #pad{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);display:grid;
+      grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,64px);gap:8px;z-index:5;}
+    #pad button{border:2px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;
+      font-size:26px;border-radius:14px;cursor:pointer;touch-action:manipulation;}
+    #pad button:active{background:rgba(255,255,255,.25);}
+    #pad .up{grid-area:1/2;} #pad .left{grid-area:2/1;} #pad .right{grid-area:2/3;} #pad .down{grid-area:3/2;}
+    .overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:18px;background:rgba(8,4,16,.92);z-index:10;text-align:center;padding:24px;}
+    .overlay.off{display:none;}
+    .overlay h1{font-size:40px;margin:0;}
+    .overlay p{margin:0;opacity:.85;max-width:520px;line-height:1.6;}
+    .overlay button{font-size:20px;font-weight:900;padding:14px 32px;border:0;border-radius:16px;cursor:pointer;
+      background:linear-gradient(135deg,var(--makima),var(--reze));color:#1a0f10;}
+    #flash{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .1s;
+      background:radial-gradient(circle,rgba(255,40,40,0) 40%,rgba(255,30,30,.55) 100%);}
+    .shake{animation:sh .3s;}
+    @keyframes sh{0%,100%{transform:translate(0,0)}25%{transform:translate(-8px,4px)}75%{transform:translate(8px,-4px)}}
+    @media (prefers-reduced-motion: reduce){.shake{animation:none}}
+  </style>
+</head>
+<body>
+  <a id="home" href="/">← 홈</a>
+  <button id="mute" aria-label="음소거 토글">🔊</button>
+  <div id="stage">
+    <div id="hud" role="status" aria-live="off">
+      <span>점수 <span id="score">0</span></span>
+      <span id="combo">콤보 <span id="combo-n">0</span></span>
+      <span class="lives" id="lives" aria-label="라이프">💣💣💣</span>
+      <span>최고 <span id="best">0</span></span>
+    </div>
+    <div id="panels">
+      <div class="panel" id="m-panel"><div class="face">🔴</div><div class="who">마키마 · 복종</div></div>
+      <div class="panel" id="r-panel"><div class="face">💣</div><div class="who">레제 · 거부</div></div>
+    </div>
+    <div id="center"><div id="glyph"></div><div id="ring"></div></div>
+    <div id="caption" aria-live="polite"></div>
+    <div id="pad" role="group" aria-label="방향 입력">
+      <button class="up" data-dir="up" aria-label="위">⬆️</button>
+      <button class="left" data-dir="left" aria-label="왼쪽">⬅️</button>
+      <button class="right" data-dir="right" aria-label="오른쪽">➡️</button>
+      <button class="down" data-dir="down" aria-label="아래">⬇️</button>
+    </div>
+  </div>
+  <div id="flash"></div>
+  <div class="overlay" id="start">
+    <h1>마키마 <span style="color:var(--reze)">says</span></h1>
+    <p><b style="color:var(--makima)">마키마</b>가 말하면 그 방향을 누르세요(복종).<br>
+       <b style="color:var(--reze)">레제</b>가 말하면 <b>아무것도 누르지 마세요</b>(유혹 거부).<br>
+       방향키 ← ↑ ↓ → 또는 화면 버튼. 라이프 3개.</p>
+    <button id="startbtn">시작</button>
+  </div>
+  <div class="overlay off" id="result">
+    <h1 id="result-title">게임 오버</h1>
+    <p id="result-sub"></p>
+    <button id="replaybtn">다시 하기</button>
+  </div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
