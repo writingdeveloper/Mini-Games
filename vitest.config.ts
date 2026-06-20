@@ -14,6 +14,7 @@ export default defineConfig({
         'public/survival-game/src/**',
         'public/desert-game/src/**',
         'public/ppopgi/src/**',
+        'public/makima-says/src/**',
         'server/src/**',
       ],
     },
