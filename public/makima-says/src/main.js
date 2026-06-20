@@ -64,7 +64,8 @@ function nextRound() {
   // RESIST(레제) is a brief "don't twitch" beat, NOT the long obey endurance: the depleting ring means
   // the OPPOSITE for resist (hold, don't press) vs obey (press fast). A short reze danger window removes
   // the "hurry!" pressure that was making players reflex-press and fail resist rounds.
-  const win = (command.speaker === "reze" ? Math.max(0.6, 0.95 - round * 0.02) : reactionWindow(round)) * 1000;
+  // floor 0.8s so the (now-shortened ~0.7-0.77s) 레제 voice always finishes inside the window — synced, not cut off
+  const win = (command.speaker === "reze" ? Math.max(0.8, 0.95 - round * 0.02) : reactionWindow(round)) * 1000;
   ringStart = performance.now();
   animateRing(win);
   timer = setTimeout(() => resolve(null), win);
