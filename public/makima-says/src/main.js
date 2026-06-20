@@ -1,7 +1,8 @@
 import { mulberry32, reactionWindow, scoreFor, nextCommand, judge } from "./logic.js";
 import { createAudio } from "./audio.js";
 
-const GLYPH = { up: "⬆️", down: "⬇️", left: "⬅️", right: "➡️" };
+// solid triangles (not emoji arrows) so the glyph takes the speaker COLOR — emoji ignore CSS color
+const GLYPH = { up: "▲", down: "▼", left: "◀", right: "▶" };
 const LABEL = { up: "위", down: "아래", left: "왼쪽", right: "오른쪽" };
 const $ = (id) => document.getElementById(id);
 const audio = createAudio();
@@ -50,7 +51,13 @@ function nextRound() {
   command = nextCommand(round, rng);
   accepting = true; inputLocked = false;
   setActivePanel(command.speaker);
-  $("glyph").textContent = GLYPH[command.dir];
+  // Put the obey/resist signal RIGHT on the glyph the player stares at — gold = 마키마(복종), pink = 레제(거부).
+  // Recognising the speaker no longer depends on the slower/longer voice or the peripheral side panels,
+  // which is what made the long 레제 clips feel unfair (players reflex-pressed before registering "resist").
+  const speakerCol = command.speaker === "makima" ? "#d9b44a" : "#ff5fae"; // matches --makima / --reze
+  const gEl = $("glyph"); gEl.style.color = speakerCol; gEl.style.textShadow = `0 0 32px ${speakerCol}`;
+  const rEl = $("ring"); rEl.style.borderRightColor = rEl.style.borderBottomColor = rEl.style.borderLeftColor = speakerCol;
+  gEl.textContent = GLYPH[command.dir];
   $("caption").textContent = `${command.speaker === "makima" ? "마키마" : "레제"}: ${LABEL[command.dir]}`;
   audio.playVoice(command.speaker, command.dir);
 
