@@ -70,11 +70,12 @@ const CAM_PRESETS = {
 const camState = { ...CAM_PRESETS.play };
 const camGoal = { ...CAM_PRESETS.play };
 let camShake = 0, camDrag = false;
+const REDUCE_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches; // a11y: suppress camera shake
 function setCamPreset(name) { if (CAM_PRESETS[name]) Object.assign(camGoal, CAM_PRESETS[name]); }
 function updateCamera(dt) {
   if (camShake > 0.001) camShake *= Math.pow(0.0015, dt);
   if (!camDrag) { const k = Math.min(1, dt * 6); for (const p of ['az', 'pitch', 'r', 'ty']) camState[p] += (camGoal[p] - camState[p]) * k; }
-  const sx = (Math.random() - 0.5) * camShake, sy = (Math.random() - 0.5) * camShake;
+  const sx = REDUCE_MOTION ? 0 : (Math.random() - 0.5) * camShake, sy = REDUCE_MOTION ? 0 : (Math.random() - 0.5) * camShake;
   const cp = Math.cos(camState.pitch), sp = Math.sin(camState.pitch);
   camera.position.set(Math.sin(camState.az) * cp * camState.r + sx, camState.ty + sp * camState.r + sy, Math.cos(camState.az) * cp * camState.r);
   camera.lookAt(0, camState.ty, 0);
@@ -444,11 +445,17 @@ function showCombo(c, mult) {                                  // floating "🔥
   elComboPop.textContent = `🔥 ${c}연속 ×${mult.toFixed(1)}`;
   elComboPop.classList.remove('show'); void elComboPop.offsetWidth; elComboPop.classList.add('show');
 }
-const MILESTONES = [15, 30, 50, 80];                          // score thresholds -> fanfare + marquee pulse
-function checkMilestone() {
+function popMiss() {                                           // a slip silently reset the combo -> name it so the player knows WHY
+  if (!elPop) return;
+  elPop.textContent = '놓침!'; elPop.style.color = '#ff9a4d';
+  elPop.classList.remove('show'); void elPop.offsetWidth; elPop.classList.add('show');
+}
+const MILESTONES = [20, 45, 75, 110];                         // score thresholds -> fanfare + marquee pulse (raised: a single gold×3 no longer trips the first one)
+function checkMilestone() {                                    // returns true if one fired (caller swaps the chime for the fanfare)
   if (milestoneIdx < MILESTONES.length && score >= MILESTONES[milestoneIdx]) {
-    milestoneIdx++; marqueePulse = 1; camShake = Math.max(camShake, 0.3); if (audioReady) sfx.milestone();
+    milestoneIdx++; marqueePulse = 1; camShake = Math.max(camShake, 0.3); return true;
   }
+  return false;
 }
 
 // ---- Grip springs (the heart): caught fries are held by a stretchy grip that can snap ----
@@ -468,7 +475,7 @@ function tryGrab() {
   cand.sort((a, b) => a.dr - b.dr);
   const take = cand.slice(0, MAX_GRAB);
   const n = take.length;
-  const gripPower = 0.95 + Math.random() * 0.4;             // 강약: firm grip — a caught prize mostly holds (difficulty is in the AIM, not random slips)
+  const gripPower = 0.95 + Math.random() * 0.2;             // firm grip, tight variance — a slip is decided by AIM + weight, not a luck roll
   for (const { f, dr } of take) {
     const center = 1 - (dr / GRIP_R) * 0.3;                  // centered grab firmer; edge catches still hold reasonably
     const k = K_BASE * center / n;                            // multi-grab splits grip budget
@@ -490,7 +497,7 @@ function tryGrab() {
   }
   return n;
 }
-const _fpos = new THREE.Vector3(), _target = new THREE.Vector3(), _stretch = new THREE.Vector3(), _gripPt = new CANNON.Vec3();
+const _fpos = new THREE.Vector3(), _target = new THREE.Vector3(), _stretch = new THREE.Vector3(), _gripPt = new CANNON.Vec3(), _force = new CANNON.Vec3();
 function applyGripForces(dt) {
   const ramp = Math.min(1, dt * 5);                          // ~0.3s pull-to-center as the claw grips + lifts
   gripStress = 0;                                            // peak grip strain this frame (drives the slip-warning juice)
@@ -508,7 +515,7 @@ function applyGripForces(dt) {
       h.fry.body.angularDamping = 0.01;
       slipLog.push({ state, dist: +dist.toFixed(2), v: h.fry.value }); if (slipLog.length > 40) slipLog.shift();
       held.splice(i, 1);
-      slips++; combo = 0; flash(); camShake = 0.2; if (audioReady) sfx.slip();   // a dropped prize breaks the combo streak
+      slips++; combo = 0; flash(); popMiss(); camShake = 0.2; if (audioReady) sfx.slip();   // a dropped prize breaks the combo streak (say "놓침!" so the reset is explained)
       continue;
     }
     const ratio = dist / h.breakDist;                        // how close to slipping (0..1)
@@ -521,10 +528,11 @@ function applyGripForces(dt) {
     // ZERO vector, so there's NO torque -> the prize hangs + swings (pendulum) but never SPINS ("빙글빙글").
     // (The old code passed b.position+offset, a WORLD point ~5 units up -> enormous torque -> wild spin.)
     // The dangle is preserved because the stretch is still measured at the grip point above the center.
-    b.applyForce(new CANNON.Vec3(
+    _force.set(
       -h.k * _stretch.x - DAMP * (v.x - hv.x),
       -h.k * _stretch.y - DAMP * (v.y - hv.y),
-      -h.k * _stretch.z - DAMP * (v.z - hv.z)), _gripPt);
+      -h.k * _stretch.z - DAMP * (v.z - hv.z));
+    b.applyForce(_force, _gripPt);                            // reuse a scratch vector (no per-frame alloc); zero relativePoint -> no spin
   }
 }
 
@@ -543,7 +551,7 @@ addEventListener('keyup', (e) => { keys[e.code] = false; });
 // ---- State machine ----
 let state = 'aim', stateT = 0;
 let score = 0, slips = 0, drops = 0, delivered = 0;
-let combo = 0, bestCombo = 0, milestoneIdx = 0, marqueePulse = 0;   // C: combo streak + score milestones (marquee pulse)
+let combo = 0, bestCombo = 0, milestoneIdx = 0, marqueePulse = 0, goldGot = 0;   // C: combo streak + milestones + golds caught this round
 let clawFlash = 0, clawShudder = 0, gripStress = 0, dropRequested = false; // juice: grab light flare / whiff prong shudder / slip strain / player-triggered release
 let recycles = 0, maxObsSpeed = 0, maxSpeedTag = ''; // debug: floor-tunnel recycles + peak prize speed (instability)
 let started = false;                     // gated behind the coin/card payment screen
@@ -552,7 +560,7 @@ const joyVis = { x: 0, z: 0 };           // smoothed visual tilt of the 3D cabin
 function startPlunge() {
   if (!started) return;
   if (state === 'aim') { state = 'plunge'; stateT = 0; drops++; }
-  else if (state === 'return') dropRequested = true;   // 잡기!/Space during the return = release now (no waiting for the sway to settle)
+  else if (state === 'return') { dropRequested = true; if (audioReady) sfx.place(); }   // 잡기!/Space during return = release as soon as it's over the chute ("received" click)
 }
 function approach(cur, target, speed, dt) { const d = target - cur, st = speed * dt; return Math.abs(d) <= st ? target : cur + Math.sign(d) * st; }
 
@@ -582,12 +590,15 @@ function scoreDelivery(f) {                                    // a grabbed priz
   combo++; if (combo > bestCombo) bestCombo = combo;
   const mult = comboMult(combo);
   const pts = Math.round(f.value * mult);
-  score += pts; delivered++;
-  popScore(pts, f.value);
+  score += pts; delivered++; if (f.value >= 5) goldGot++;
+  popScore(pts);                                              // color by the actual (combo-boosted) points, not the raw tier
   if (combo >= 2) showCombo(combo, mult);
   camShake = 0.12 + Math.min(0.14, combo * 0.025);
-  if (audioReady) { sfx.get(); if (combo >= 2) sfx.combo(combo); }
-  checkMilestone();
+  const hitMilestone = checkMilestone();
+  if (audioReady) {
+    if (hitMilestone) sfx.milestone();                        // fanfare REPLACES the get/combo chimes (no 3-sound stack on a milestone)
+    else { sfx.get(); if (combo >= 2) sfx.combo(combo); }
+  }
 }
 function checkDeliveries() {
   if (!started) return;                                       // no scoring before the game starts (pile still settling)
@@ -606,6 +617,7 @@ function checkDeliveries() {
 // ---- Loop ----
 const elScore = document.getElementById('r-score'), elTime = document.getElementById('r-time'), elGot = document.getElementById('r-got');
 const elCombo = document.getElementById('r-combo'), elComboN = document.getElementById('r-combo-n'), elComboM = document.getElementById('r-combo-m');
+const elGold = document.getElementById('r-gold');
 let timeLeft = ROUND_SEC, last = performance.now();
 const _handPrev = new THREE.Vector3().copy(handPos);
 function frame(now) {
@@ -631,7 +643,7 @@ function frame(now) {
       const got = tryGrab();
       state = 'lift'; stateT = 0;
       if (got > 0) { if (audioReady) sfx.grab(); clawFlash = 1; }   // caught -> firm clamp + the claw light flares (you SEE the catch land)
-      else { if (audioReady) sfx.whiff(); clawShudder = 0.6; }      // empty -> hollow miss + the prongs shudder (you feel the whiff)
+      else { combo = 0; if (audioReady) sfx.whiff(); clawShudder = 0.6; }   // empty grab breaks the streak too (rewards precision) + hollow miss + prong shudder
     }
   } else if (state === 'lift') {
     handPos.y = approach(handPos.y, HOVER_Y, LIFT_SPEED, dt);
@@ -718,9 +730,9 @@ function frame(now) {
   if (binFlash > 0) { binFlash = Math.max(0, binFlash - dt * 2); binGlowMat.emissiveIntensity = binFlash * 1.8; } // GET pulse
   if (marqueePulse > 0) { marqueePulse = Math.max(0, marqueePulse - dt * 1.1); heroMarquee.emissiveIntensity = 1.45 + marqueePulse * 1.7; } // milestone marquee flare
 
-  reticle.position.set(clawPos.x, FLOOR_Y + 0.04, clawPos.z);
-  reticle.material.color.setHex(state === 'aim' ? 0xffe14a : 0x888888);
-  reticle.visible = state === 'aim';
+  const dropReady = state === 'return' && Math.abs(handPos.x - returnX) < 0.05 && Math.abs(handPos.z - returnZ) < 0.05;
+  if (dropReady) { reticle.position.set(HOLE.x, FLOOR_Y + 0.04, HOLE.z); reticle.material.color.setHex(0x36e0ff); reticle.visible = true; } // cyan "drop now" ring over the chute (the 잡기! window)
+  else { reticle.position.set(clawPos.x, FLOOR_Y + 0.04, clawPos.z); reticle.material.color.setHex(state === 'aim' ? 0xffe14a : 0x888888); reticle.visible = state === 'aim'; }
   // Cabinet joystick leans with the COMBINED input (analog joystick + arrow keys), smoothed.
   const jvx = (state === 'aim' && started) ? THREE.MathUtils.clamp(aimVec.x + (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0), -1, 1) : 0;
   const jvz = (state === 'aim' && started) ? THREE.MathUtils.clamp(aimVec.z + (keys.ArrowDown ? 1 : 0) - (keys.ArrowUp ? 1 : 0), -1, 1) : 0;
@@ -737,6 +749,7 @@ function frame(now) {
   elTime.textContent = Math.ceil(timeLeft);
   elTime.style.color = timeLeft <= 10 ? '#ff5a4a' : '#ffd479';
   if (elCombo) { elComboN.textContent = combo; elComboM.textContent = comboMult(combo).toFixed(1); elCombo.classList.toggle('hot', combo >= 2); }
+  if (elGold) elGold.textContent = fries.filter((f) => f.value === 5 && !f.delivered && !f.gone).length; // ✨ golds left in the machine (live near-miss pressure)
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -761,8 +774,14 @@ function playReze() {
 }
 // Mute toggle (🔊/🔇): gates every SFX + the voice. Deaf-friendly — the subtitle still shows.
 const muteBtn = document.getElementById('mute');
-function applyMute() { sfx.setMuted(muted); rezeVoice.muted = muted; if (muteBtn) muteBtn.textContent = muted ? '🔇' : '🔊'; }
+try { muted = localStorage.getItem('ppopgi_muted') === '1'; } catch (e) { /* */ }   // remember the player's choice
+function applyMute() {
+  sfx.setMuted(muted); rezeVoice.muted = muted;
+  if (muteBtn) { muteBtn.textContent = muted ? '🔇' : '🔊'; muteBtn.setAttribute('aria-pressed', muted ? 'true' : 'false'); }
+  try { localStorage.setItem('ppopgi_muted', muted ? '1' : '0'); } catch (e) { /* */ }
+}
 if (muteBtn) muteBtn.addEventListener('click', () => { muted = !muted; applyMute(); ensureAudio(); });
+applyMute();   // reflect the persisted mute state on load
 // Korean subtitle for the JAPANESE line (ja clip) — synced to playback by timed segments.
 const subEl = document.getElementById('subtitle');
 const REZE_SUB = [
@@ -788,8 +807,10 @@ function addCredit(kind) {
   else { payCard.classList.add('done'); sfx.card(); }
   if (!credited) { credited = true; elCredit.textContent = 'CREDIT  1'; elStartBtn.classList.add('on'); }
 }
-if (payCoin) payCoin.addEventListener('click', () => addCredit('coin'));
-if (payCard) payCard.addEventListener('click', () => addCredit('card'));
+// keyboard/AT: the payment tiles are the ENTRY gate — they must be operable without a mouse
+function payKey(e, kind) { if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); addCredit(kind); } }
+if (payCoin) { payCoin.addEventListener('click', () => addCredit('coin')); payCoin.addEventListener('keydown', (e) => payKey(e, 'coin')); }
+if (payCard) { payCard.addEventListener('click', () => addCredit('card')); payCard.addEventListener('keydown', (e) => payKey(e, 'card')); }
 if (elStartBtn) elStartBtn.addEventListener('click', () => { if (credited) startGame(); });
 const replayBtn = document.getElementById('replay');
 if (replayBtn) replayBtn.addEventListener('click', () => {
@@ -805,14 +826,24 @@ function resetFries() {
   fries.length = 0; collectedList.length = 0; binFlash = 0; binGlowMat.emissiveIntensity = 0;
   spawnFries(currentSet.spawn);
 }
+const toastEl = document.getElementById('toast');
+let toastTimer = 0;
+function showToast() {   // one-time control reminder on the first round (covers mobile, where #hint is hidden)
+  if (!toastEl) return;
+  toastEl.classList.add('on');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('on'), 4200);
+}
+if (toastEl) toastEl.addEventListener('pointerdown', () => toastEl.classList.remove('on'));
 function startGame() {
-  if (!firstGame) { resetFries(); score = 0; slips = 0; delivered = 0; drops = 0; combo = 0; bestCombo = 0; milestoneIdx = 0; marqueePulse = 0; }
-  firstGame = false; credited = false; held.length = 0; gripT = 0;
+  const firstRun = firstGame;
+  if (!firstGame) { resetFries(); score = 0; slips = 0; delivered = 0; drops = 0; combo = 0; bestCombo = 0; milestoneIdx = 0; marqueePulse = 0; goldGot = 0; }
+  firstGame = false; credited = false; held.length = 0; gripT = 0; dropRequested = false;
   timeLeft = ROUND_SEC; started = true; state = 'aim'; stateT = 0;
   handPos.set(CAB.x, HOVER_Y, CAB.z); bob.x = CAB.x; bob.z = CAB.z; bob.vx = 0; bob.vz = 0; clawPos.copy(handPos); _handPrev.copy(handPos);
   elStart.classList.add('off'); elGameover.classList.add('off'); elPad.classList.add('on');
   sfx.start();
   playReze();   // 레제 등장 응원 — 첫 라운드 시작에 1회
+  if (firstRun) showToast();   // controls reminder, once
 }
 function endGame() {
   started = false; elPad.classList.remove('on');
@@ -822,6 +853,7 @@ function endGame() {
   if (isRecord) { best = score; try { localStorage.setItem('ppopgi_best', String(best)); } catch (e) { /* */ } }
   elFinal.textContent = score;
   document.getElementById('final-got').textContent = delivered;
+  const elGG = document.getElementById('final-goldgot'); if (elGG) elGG.textContent = goldGot > 0 ? `✨골드 ${goldGot}` : '';
   document.getElementById('final-best').textContent = best;
   document.getElementById('final-record').textContent = isRecord ? '🎉 신기록!' : '시간 종료';
   // best combo + golds left behind ("한 판 더" 유인) — show the rows only when they have something to say
@@ -887,6 +919,9 @@ if (gameCanvas) {
 }
 // Preset angle buttons (정면/측면/기본). #mute is in the same bar but has no data-cam.
 document.querySelectorAll('#cambtns button[data-cam]').forEach((b) => b.addEventListener('click', () => setCamPreset(b.dataset.cam)));
+const zin = document.getElementById('zoomin'), zout = document.getElementById('zoomout'); // on-screen zoom (discoverable; mirrors +/- keys + pinch)
+if (zin) zin.addEventListener('click', () => setZoom(camState.r - 1.6));
+if (zout) zout.addEventListener('click', () => setZoom(camState.r + 1.6));
 
 // Verify / debug API.
 window.__claw = {
