@@ -138,6 +138,29 @@ export default function Home() {
               </div>
             </div>
           </Link>
+
+          {/* 마키마 says 카드 */}
+          <Link href="/makima-says" aria-label="마키마 says 복종 게임 플레이하기">
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-600 to-amber-500 p-8 shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-rose-500/50 cursor-pointer">
+              <div aria-hidden="true" className="absolute -right-8 -top-8 text-9xl opacity-20">
+                💣
+              </div>
+              <div className="relative z-10">
+                <h2 className="mb-3 text-3xl font-bold text-white">마키마 says</h2>
+                <p className="mb-4 text-white/90">
+                  마키마에겐 복종, 레제의 유혹은 거부하세요!
+                </p>
+                <ul className="mb-6 space-y-2 text-sm text-white/80">
+                  <li>✓ 두 악마의 음성 명령</li>
+                  <li>✓ 사이먼 says 반응 게임</li>
+                  <li>✓ 방향키 · 터치 조작</li>
+                </ul>
+                <div className="inline-block rounded-full bg-white/20 px-6 py-2 font-semibold text-white backdrop-blur-sm transition-colors group-hover:bg-white/30">
+                  플레이하기 →
+                </div>
+              </div>
+            </div>
+          </Link>
         </div>
 
         <div className="mt-8 text-center">
