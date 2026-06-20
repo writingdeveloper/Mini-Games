@@ -37,12 +37,27 @@ test.describe("뽑기 (ppopgi) claw machine", () => {
     expect(await page.evaluate(() => (window as unknown as { __claw: Claw }).__claw.started)).toBe(true);
   });
 
-  test("single machine: payment is the entry, no machine-select screen", async ({ page }) => {
+  test("payment is the entry; the old 2D machine-select screen is gone", async ({ page }) => {
     await page.goto("/ppopgi/index.html");
     await page.waitForFunction(() => !!(window as unknown as { __claw?: Claw }).__claw);
-    await expect(page.locator("#machineselect")).toHaveCount(0);  // multi-machine select UI removed (single machine)
+    await expect(page.locator("#machineselect")).toHaveCount(0);  // selection is in-world (tap a side cabinet) now, not a 2D card screen
     await expect(page.locator("#start")).not.toHaveClass(/off/);
-    await expect(page.locator("#pay-title")).toContainText("JELLY CATCHER");
+    await expect(page.locator("#pay-title")).toContainText("JELLY CATCHER"); // candy is the default active machine
+  });
+
+  test("machine catalog: can switch the active machine between rounds", async ({ page }) => {
+    await page.goto("/ppopgi/index.html");
+    await page.waitForFunction(() => !!(window as unknown as { __claw?: Claw }).__claw);
+    const r = await page.evaluate(() => {
+      const c = (window as unknown as { __claw: Claw }).__claw;
+      const list = c.machines();
+      const before = c.activeMachine;
+      c.selectMachine(1); // switch to the second machine
+      return { count: list.length, before, after: c.activeMachine };
+    });
+    expect(r.count).toBeGreaterThanOrEqual(2);
+    expect(r.before).toBe("candy");
+    expect(r.after).not.toBe("candy"); // active machine changed
   });
 
   test("a delivered prize is collected (count + bin)", async ({ page }) => {

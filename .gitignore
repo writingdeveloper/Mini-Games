@@ -156,3 +156,4 @@ vite.config.ts.timestamp-*
 # Claw proto local QA scratch (verify/screenshot scripts + captures)
 /_claw-*.mjs
 /claw-*.png
+.mcp.json

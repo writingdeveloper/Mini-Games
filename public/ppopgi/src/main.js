@@ -9,7 +9,8 @@ import { Prize, PRIZE_SETS } from './prizes.js';
 import { sfx } from './sfx.js';
 import { rollValue, prizeMass, gripBreakDist, tickTime, comboMult } from './logic.js';
 
-const currentSet = PRIZE_SETS[0]; // the single machine (JELLY CATCHER)
+let currentSet = PRIZE_SETS[0];   // the ACTIVE machine (switchable by clicking a flanking cabinet)
+let activeIdx = 0;
 
 // ---- Tunables ----
 const FLOOR_Y = 3.0;
@@ -29,7 +30,8 @@ const G_SOLID = 1, G_FRY = 2, G_CLAW = 4, G_HELD = 8;
 // ---- Scene ----
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const LOW_PERF = typeof matchMedia === 'function' && (matchMedia('(max-width: 560px)').matches || matchMedia('(pointer: coarse)').matches);
+renderer.setPixelRatio(Math.min(devicePixelRatio, LOW_PERF ? 1.5 : 2)); // cap DPR — retina mobile (DPR 2-3) is the #1 perf cost
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;                     // prizes/claw cast shadows -> depth + realism (the flat look)
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -41,7 +43,7 @@ scene.add(new THREE.HemisphereLight(0x7a5aa6, 0x241038, 0.5)); // dim purple amb
 const sun = new THREE.DirectionalLight(0xfff0e0, 1.0);  // dominant enough that its cast shadows read on the floor
 sun.position.set(6, 16, 7);
 sun.castShadow = true;                                 // the shadow caster (directional -> one cheap shadow map)
-sun.shadow.mapSize.set(1024, 1024);     // 1024 is plenty for the tight cabinet shadow camera — cheaper (mobile + render cost)
+sun.shadow.mapSize.set(LOW_PERF ? 512 : 1024, LOW_PERF ? 512 : 1024); // smaller shadow map on mobile (perf)
 sun.shadow.camera.left = -7; sun.shadow.camera.right = 7;
 sun.shadow.camera.top = 9; sun.shadow.camera.bottom = -3;
 sun.shadow.camera.near = 2; sun.shadow.camera.far = 50;
@@ -272,29 +274,50 @@ const aisle = new THREE.Mesh(new THREE.PlaneGeometry(140, 140),
   new THREE.MeshStandardMaterial({ color: 0x0d0717, roughness: 0.35, metalness: 0.45 }));
 aisle.rotation.x = -Math.PI / 2; scene.add(aisle);
 
-// --- A receding row of glowing neighbor machines ---
-function makeNeighbor(x, z, neon, name, bg, fg) {
+// --- A few DIM background machines (ambiance/depth only — reduced from 7 to 3 for less clutter + perf) ---
+const glassNeighborMat = new THREE.MeshStandardMaterial({ color: 0xbfe9f5, transparent: true, opacity: 0.13, roughness: 0.1, depthWrite: false });
+function makeAmbiance(x, z, neon) {
   const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
   visBox(0, FLOOR_Y / 2, 0, 1.7, FLOOR_Y / 2, 1.7, bodyMat, g);
-  visBox(0, FLOOR_Y + 1.4, 0, 1.55, 1.4, 1.55,
-    new THREE.MeshStandardMaterial({ color: 0xbfe9f5, transparent: true, opacity: 0.18, roughness: 0.1, depthWrite: false }), g);
-  const blobC = [0xff7ab8, 0xffd34d, 0x8fd3ff, 0xb98cff, 0xff9d5c];
-  for (let i = 0; i < 5; i++) {
-    const b = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 10), emis(blobC[i % 5], 0.55));
-    b.position.set((i - 2) * 0.55, FLOOR_Y + 0.4 + (i % 2) * 0.5, ((i % 3) - 1) * 0.6); g.add(b);
-  }
+  visBox(0, FLOOR_Y + 1.4, 0, 1.55, 1.4, 1.55, glassNeighborMat, g);
   for (const px of [-1, 1]) for (const pz of [-1, 1])
-    visBox(px * 1.55, FLOOR_Y + 1.4, pz * 1.55, 0.07, 1.4, 0.07, emis(neon, 1.4), g);
+    visBox(px * 1.55, FLOOR_Y + 1.4, pz * 1.55, 0.07, 1.4, 0.07, emis(neon, 0.6), g); // dimmed so they recede, not compete
   visBox(0, FLOOR_Y + 3.1, 0, 1.6, 0.5, 1.6, bodyMat, g);
-  visBox(0, FLOOR_Y + 3.1, 0, 1.62, 0.4, 0.03, marqueeMat(name, bg, fg), g);
 }
-makeNeighbor(-7, -1.0, 0x36e0ff, 'UFO', '#10243a', '#7fe3ff');
-makeNeighbor(7, -1.0, 0xffd34d, 'KUMA', '#3a2a08', '#ffe9a8');
-makeNeighbor(-10.5, -6, 0xff2d8f, 'PUNI', '#3a0a22', '#ff9ecb');
-makeNeighbor(10.5, -6, 0xb98cff, 'STAR', '#1f0a3a', '#d7c2ff');
-makeNeighbor(0, -10, 0x8fff9d, 'GET', '#0a3a18', '#bfffc9');
-makeNeighbor(-5.5, -13.5, 0xff7a3d, 'TOY', '#3a1a08', '#ffc9a0');
-makeNeighbor(5.5, -13.5, 0x6cf0ff, 'POP', '#0a323a', '#bff4ff');
+makeAmbiance(-10.5, -7, 0xff2d8f);
+makeAmbiance(10.5, -7, 0xb98cff);
+makeAmbiance(0, -12, 0x8fff9d);
+
+// --- 2 SELECTABLE machine cabinets flanking the hero: tap one to switch the active machine ---
+function makeSelectable(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+  visBox(0, FLOOR_Y / 2, 0, 1.7, FLOOR_Y / 2, 1.7, bodyMat, g);
+  visBox(0, FLOOR_Y + 1.4, 0, 1.55, 1.4, 1.55, glassNeighborMat.clone(), g);
+  const blobs = [];
+  for (let i = 0; i < 5; i++) {
+    const blob = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 10), emis(0xffffff, 0.6));
+    blob.position.set((i - 2) * 0.55, FLOOR_Y + 0.4 + (i % 2) * 0.5, ((i % 3) - 1) * 0.6); g.add(blob); blobs.push(blob);
+  }
+  const posts = [];
+  for (const px of [-1, 1]) for (const pz of [-1, 1]) posts.push(visBox(px * 1.55, FLOOR_Y + 1.4, pz * 1.55, 0.07, 1.4, 0.07, emis(0xffffff, 1.5), g));
+  visBox(0, FLOOR_Y + 3.1, 0, 1.6, 0.5, 1.6, bodyMat, g);
+  const mq = marqueeMat('', '#101010', '#ffffff');
+  visBox(0, FLOOR_Y + 3.1, 0, 1.62, 0.4, 0.03, mq, g);
+  const sel = { group: g, idx: -1 };
+  sel.setMachine = (set, i) => {                              // re-theme this preview to show machine `set`
+    sel.idx = i;
+    drawMarquee(mq.userData.cv, set.name, set.marqueeBg, set.marqueeFg); mq.userData.tex.needsUpdate = true;
+    for (const blob of blobs) { blob.material.color.setHex(set.blob); blob.material.emissive.setHex(set.blob); }
+    for (const p of posts) { p.material.color.setHex(set.blob); p.material.emissive.setHex(set.blob); }
+  };
+  return sel;
+}
+const selectables = [makeSelectable(-7, -0.8), makeSelectable(7, -0.8)];
+function setSelectables() {                                   // assign the inactive machines to the 2 flanking previews
+  const others = PRIZE_SETS.map((s, i) => i).filter((i) => i !== activeIdx);
+  selectables.forEach((sel, k) => { const idx = others[k % others.length]; sel.setMachine(PRIZE_SETS[idx], idx); });
+}
+setSelectables();
 
 // --- Overhead neon bars ---
 for (let i = 0; i < 5; i++) {
@@ -354,9 +377,21 @@ for (let i = 0; i < 3; i++) {
 }
 const clawTiltQ = new THREE.Quaternion();                   // pendulum dangle tilt (흔들흔들) — set in the loop
 let gripT = 0; // 0 open -> 1 closed
-// Prongs close ~90% (the curved hooks come together around the prize); the grab itself is the
-// proximity cage. Constant now (was a per-machine fn back when prize sizes differed).
-const GRIP_CLOSE = 0.9;
+const CLOSE_FULL = 0.72;    // how far the prongs CLOSE during a grab attempt (snappy clamp)
+let gripClose = CLOSE_FULL; // the HOLD target: set to CUP the caught prize so the hooks rest ON its surface, not inside it
+// Map a held-prize radius -> the gripT where the curved hook tips rest on its surface (cradle, not penetrate).
+// tip-radius(θ) ≈ ARM_PIVOT_R + tipX·cosθ + (−tipY)·sinθ, from the arm tip local coords (0.25, −1.72); θ = OPEN_ANG + (CLOSE_ANG−OPEN_ANG)·gripT.
+function closeForRadius(r) {
+  const target = Math.max(0.14, r - 0.015);   // tips just on the surface (a hair of overlap reads as a grip)
+  let best = 0.5, bestErr = Infinity;
+  for (let g = 0.42; g <= 0.62; g += 0.01) {
+    const th = OPEN_ANG + (CLOSE_ANG - OPEN_ANG) * g;
+    const R = ARM_PIVOT_R + 0.25 * Math.cos(th) + 1.72 * Math.sin(th);
+    const e = Math.abs(R - target);
+    if (e < bestErr) { bestErr = e; best = g; }
+  }
+  return best;
+}
 
 // Place every prong from handPos + current gripT; set kinematic velocity for pile contact.
 const _tmpV = new THREE.Vector3(), _tmpC = new THREE.Vector3(), _qZ = new THREE.Quaternion();
@@ -418,7 +453,7 @@ function spawnFries(n) {
     mesh.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); // prizes cast/receive shadows
     scene.add(mesh);
     const fry = new Prize(body, mesh);
-    fry.value = value; fry.delivered = false; fry.everHeld = false; // only a GRABBED prize can score (no free start-of-game drop-ins)
+    fry.value = value; fry.delivered = false; fry.everHeld = false; fry.r = h.x * s; // only a GRABBED prize scores; .r = horizontal radius (grip cup)
     if (value > 1) mesh.traverse((o) => {
       if (o.material && o.material.emissive) {
         o.material = o.material.clone();
@@ -495,6 +530,7 @@ function tryGrab() {
     f.body.collisionFilterMask = G_SOLID;                    // only bonks the cabinet (walls)
     held.push({ fry: f, anchor, homeX: offX * cf, homeZ: offZ * cf, k, breakDist, slipWarn: false });
   }
+  gripClose = n > 0 ? closeForRadius(take[0].f.r) : CLOSE_FULL;   // cup the caught prize so the hooks rest ON its surface (not inside)
   return n;
 }
 const _fpos = new THREE.Vector3(), _target = new THREE.Vector3(), _stretch = new THREE.Vector3(), _gripPt = new CANNON.Vec3(), _force = new CANNON.Vec3();
@@ -638,26 +674,28 @@ function frame(now) {
     handPos.y = approach(handPos.y, PLUNGE_Y, PLUNGE_SPEED, dt);
     if (handPos.y <= PLUNGE_Y + 0.01) { state = 'close'; stateT = 0; if (audioReady) sfx.place(); }
   } else if (state === 'close') {
-    gripT = Math.min(GRIP_CLOSE, gripT + dt * 1.3);          // ease the prongs onto the prize surface (gentler -> less shove)
-    if (gripT >= GRIP_CLOSE - 0.01 && stateT > 0.45) {
+    gripT = Math.min(CLOSE_FULL, gripT + dt * 1.3);          // close the prongs (snappy clamp toward the prize)
+    if (gripT >= CLOSE_FULL - 0.01 && stateT > 0.45) {
       const got = tryGrab();
       state = 'lift'; stateT = 0;
       if (got > 0) { if (audioReady) sfx.grab(); clawFlash = 1; }   // caught -> firm clamp + the claw light flares (you SEE the catch land)
       else { combo = 0; if (audioReady) sfx.whiff(); clawShudder = 0.6; }   // empty grab breaks the streak too (rewards precision) + hollow miss + prong shudder
     }
   } else if (state === 'lift') {
+    gripT += (gripClose - gripT) * Math.min(1, dt * 3);      // ease the hooks out to CUP the held prize (no longer buried inside it)
     handPos.y = approach(handPos.y, HOVER_Y, LIFT_SPEED, dt);
     if (handPos.y >= HOVER_Y - 0.01) {
       for (const h of held) h.fry.body.velocity.set((Math.random() - 0.5) * 1.0, 0.15, (Math.random() - 0.5) * 1.0); // 천장 충격 — the claw clunks at the top, can knock the prize loose
       camShake = 0.18; computeReturnTarget(); state = 'return'; stateT = 0;
     }
   } else if (state === 'return') {
+    gripT += (gripClose - gripT) * Math.min(1, dt * 3);      // keep cupping the prize on the way to the chute (cradle look)
     handPos.x = approach(handPos.x, returnX, RETURN_SPEED, dt);
     handPos.z = approach(handPos.z, returnZ, RETURN_SPEED, dt);
     const overChute = Math.abs(handPos.x - returnX) < 0.02 && Math.abs(handPos.z - returnZ) < 0.02;
     if (overChute && (dropRequested || swayed() || stateT > 1.2)) { dropRequested = false; state = 'open'; stateT = 0; } // player can drop NOW (잡기!/Space); else a short settle then auto-drop (was a 3.5s forced wait)
   } else if (state === 'open') {
-    gripT = Math.max(0, gripT - dt * 3);
+    gripT = Math.max(0, gripT - dt * 3); gripClose = CLOSE_FULL;  // reset the cup for the next grab
     if (stateT > 0.15 && held.length) releaseAll();
     if (stateT > 0.9) { state = 'aim'; stateT = 0; }
   }
@@ -759,6 +797,7 @@ requestAnimationFrame(frame);
 const elStart = document.getElementById('start'), elGameover = document.getElementById('gameover');
 const elPad = document.getElementById('pad'), elCredit = document.getElementById('credit'), elStartBtn = document.getElementById('startbtn');
 const elFinal = document.getElementById('final-score'), payCoin = document.getElementById('pay-coin'), payCard = document.getElementById('pay-card'), coinEl = document.getElementById('coin');
+const elPayTitle = document.getElementById('pay-title'), elPaySub = document.getElementById('pay-sub');
 let credited = false, firstGame = true;
 
 function ensureAudio() { if (!audioReady) { try { sfx.init(); sfx.resume(); } catch (e) { /* */ } audioReady = true; } }
@@ -887,18 +926,37 @@ if (dropEl) {
   dropEl.addEventListener('keydown', (e) => { if (e.code === 'Enter') { e.preventDefault(); ensureAudio(); startPlunge(); } }); // keyboard/AT: Enter on the focused 잡기! button
 }
 
+// --- Machine selection: tap a flanking cabinet (between rounds) to switch the active machine ---
+function loadMachine(i) {
+  if (i < 0 || i >= PRIZE_SETS.length || i === activeIdx || started) return;
+  activeIdx = i; currentSet = PRIZE_SETS[i];
+  resetFries();                                              // respawn with this machine's prizes
+  drawMarquee(heroMarquee.userData.cv, currentSet.name, currentSet.marqueeBg, currentSet.marqueeFg); heroMarquee.userData.tex.needsUpdate = true;
+  if (elPayTitle) elPayTitle.textContent = currentSet.emoji + ' ' + currentSet.name;
+  if (elPaySub) elPaySub.textContent = currentSet.sub + ' · CRANE GAME';
+  setSelectables();                                          // the now-inactive machines fill the side previews
+  marqueePulse = 1; ensureAudio(); sfx.start();
+}
+const raycaster = new THREE.Raycaster(), _ndc = new THREE.Vector2();
+function trySelectMachine(cx, cy) {
+  if (started) return;                                       // only switch while not playing
+  _ndc.x = (cx / innerWidth) * 2 - 1; _ndc.y = -(cy / innerHeight) * 2 + 1;
+  raycaster.setFromCamera(_ndc, camera);
+  for (const sel of selectables) if (raycaster.intersectObject(sel.group, true).length) { loadMachine(sel.idx); return; }
+}
+
 // Drag to orbit; wheel (desktop) / pinch (mobile) to ZOOM the current view (확대/축소).
 const gameCanvas = document.getElementById('game');
 const ZOOM_MIN = 5.5, ZOOM_MAX = 22;
 function setZoom(r) { camState.r = THREE.MathUtils.clamp(r, ZOOM_MIN, ZOOM_MAX); camGoal.r = camState.r; }
-let dragX = 0, dragY = 0, dragId = null;
+let dragX = 0, dragY = 0, dragId = null, tapX = 0, tapY = 0, tapMoved = false;
 const touchPts = new Map();                          // active pointers on the canvas (for pinch)
 let pinchPrev = 0;
 if (gameCanvas) {
   gameCanvas.addEventListener('pointerdown', (e) => {
     touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (touchPts.size >= 2) { camDrag = false; dragId = null; const [a, b] = [...touchPts.values()]; pinchPrev = Math.hypot(a.x - b.x, a.y - b.y); } // 2 fingers -> pinch
-    else { camDrag = true; dragId = e.pointerId; dragX = e.clientX; dragY = e.clientY; }                                                          // 1 finger -> orbit
+    else { camDrag = true; dragId = e.pointerId; dragX = e.clientX; dragY = e.clientY; tapX = e.clientX; tapY = e.clientY; tapMoved = false; } // 1 finger -> orbit (or a tap to pick a machine)
   });
   gameCanvas.addEventListener('pointermove', (e) => {
     if (touchPts.has(e.pointerId)) touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -909,12 +967,18 @@ if (gameCanvas) {
     }
     if (!camDrag || e.pointerId !== dragId) return;  // 1-finger orbit
     const dx = e.clientX - dragX, dy = e.clientY - dragY; dragX = e.clientX; dragY = e.clientY;
+    if (Math.hypot(e.clientX - tapX, e.clientY - tapY) > 8) tapMoved = true;   // moved enough -> an orbit, not a tap
     camState.az -= dx * 0.006;
     camState.pitch = THREE.MathUtils.clamp(camState.pitch + dy * 0.005, 0.05, 1.45);
     camGoal.az = camState.az; camGoal.pitch = camState.pitch; camGoal.r = camState.r; camGoal.ty = camState.ty;
   });
   const endPt = (e) => { touchPts.delete(e.pointerId); pinchPrev = 0; if (e.pointerId === dragId) { camDrag = false; dragId = null; } };
-  gameCanvas.addEventListener('pointerup', endPt); gameCanvas.addEventListener('pointercancel', endPt);
+  gameCanvas.addEventListener('pointerup', (e) => {
+    const wasTap = e.pointerId === dragId && !tapMoved && touchPts.size === 1; // a click with no orbit drag -> maybe a machine pick
+    endPt(e);
+    if (wasTap) trySelectMachine(e.clientX, e.clientY);
+  });
+  gameCanvas.addEventListener('pointercancel', endPt);
   gameCanvas.addEventListener('wheel', (e) => { e.preventDefault(); setZoom(camState.r + e.deltaY * 0.012); }, { passive: false }); // scroll = zoom
 }
 // Preset angle buttons (정면/측면/기본). #mute is in the same bar but has no data-cam.
@@ -929,6 +993,8 @@ window.__claw = {
   get slips() { return slips; }, get held() { return held.length; },
   get combo() { return combo; }, get bestCombo() { return bestCombo; }, get gripStress() { return +gripStress.toFixed(2); }, // C/B debug
   get muted() { return muted; },
+  machines() { return PRIZE_SETS.map((s) => s.id); }, get activeMachine() { return currentSet.id; }, // machine catalog
+  selectMachine(i) { loadMachine(i); return currentSet.id; }, get gripClose() { return +gripClose.toFixed(2); },
   get heldAng() { return held.length ? +held[0].fry.body.angularVelocity.length().toFixed(2) : 0; }, // debug: held-prize spin rate
   get reze() { return { played: rezePlayed, paused: rezeVoice.paused, dur: +(rezeVoice.duration || 0).toFixed(1), t: +rezeVoice.currentTime.toFixed(2) }; }, // debug: Reze voice state
   get state() { return state; }, get handPos() { return handPos; },

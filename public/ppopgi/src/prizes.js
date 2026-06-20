@@ -43,12 +43,61 @@ function makeCandyMesh() {
   return g;
 }
 
+// ===================== plush bear (procedural) — a cute doll silhouette =====================
+const PLUSH_COLORS = [0xffb3c7, 0xc3a3ff, 0x9fd8ff, 0xffd98a, 0xa6ecc4, 0xff9ec9];
+let _plushBody = null, _plushEar = null, _plushSnout = null, _softOutline = null;
+function plushAssets() {
+  if (_plushBody) return;
+  _plushBody = new THREE.SphereGeometry(0.34, 16, 14);
+  _plushEar = new THREE.SphereGeometry(0.13, 10, 9);
+  _plushSnout = new THREE.SphereGeometry(0.12, 10, 9);
+  _softOutline = new THREE.MeshBasicMaterial({ color: OUTLINE, side: THREE.BackSide });
+}
+function makePlushMesh() {
+  plushAssets();
+  const col = PLUSH_COLORS[(Math.random() * PLUSH_COLORS.length) | 0];
+  const g = new THREE.Group();
+  const fill = new THREE.MeshToonMaterial({ color: col, gradientMap: stepGrad() });
+  fill.emissive = new THREE.Color(col); fill.emissiveIntensity = 0.13;
+  const o = new THREE.Mesh(_plushBody, _softOutline); o.scale.multiplyScalar(1.1); g.add(o); // outline shell
+  g.add(new THREE.Mesh(_plushBody, fill));
+  for (const sx of [-1, 1]) { const ear = new THREE.Mesh(_plushEar, fill); ear.position.set(sx * 0.22, 0.27, 0.02); g.add(ear); }
+  const snout = new THREE.Mesh(_plushSnout, new THREE.MeshToonMaterial({ color: 0xfff2e4, gradientMap: stepGrad() }));
+  snout.position.set(0, -0.05, 0.29); g.add(snout);
+  return g;
+}
+
+// ===================== gumball / ball (procedural) — a glossy sphere =====================
+const BALL_COLORS = [0xff5a5a, 0x4db0ff, 0x5fe07a, 0xffd23d, 0xff8ad0, 0xb98cff, 0x4de0d0, 0xff9a4d];
+let _ballGeo = null;
+function ballAssets() {
+  if (_ballGeo) return;
+  _ballGeo = new THREE.SphereGeometry(0.34, 18, 16);
+  if (!_softOutline) _softOutline = new THREE.MeshBasicMaterial({ color: OUTLINE, side: THREE.BackSide });
+}
+function makeBallMesh() {
+  ballAssets();
+  const col = BALL_COLORS[(Math.random() * BALL_COLORS.length) | 0];
+  const g = new THREE.Group();
+  const o = new THREE.Mesh(_ballGeo, _softOutline); o.scale.multiplyScalar(1.08); g.add(o);
+  const fill = new THREE.MeshToonMaterial({ color: col, gradientMap: stepGrad() });
+  fill.emissive = new THREE.Color(col); fill.emissiveIntensity = 0.16;
+  g.add(new THREE.Mesh(_ballGeo, fill));
+  return g;
+}
+
 // ===================== PrizeSets (machines) =====================
 // half = cannon box half-extents (visual/physics split). spawn = pile count.
-// One machine (JELLY CATCHER). PRIZE_SETS stays an array so a machine can be added later;
-// only main.js's currentSet = PRIZE_SETS[0] is wired (the multi-machine picker was removed).
+// blob/emoji/sub power the selectable side-machine previews + the payment title.
+// Pick a machine in-world by clicking a side cabinet (main.js raycast → loadMachine).
 export const PRIZE_SETS = [
-  { name: 'JELLY CATCHER',
-    marqueeBg: '#10243a', marqueeFg: '#bff4ff',
+  { id: 'candy', name: 'JELLY CATCHER', sub: '젤리·캔디', emoji: '🍬',
+    marqueeBg: '#10243a', marqueeFg: '#bff4ff', blob: 0x5ab0ff,
     spawn: 20, makeMesh: makeCandyMesh, half: { x: 0.36, y: 0.31, z: 0.36 } },
+  { id: 'plush', name: 'PLUSH PARADISE', sub: '인형·곰돌이', emoji: '🧸',
+    marqueeBg: '#3a1a08', marqueeFg: '#ffd9a8', blob: 0xffb3c7,
+    spawn: 16, makeMesh: makePlushMesh, half: { x: 0.34, y: 0.4, z: 0.34 } },
+  { id: 'ball', name: 'BALL POOL', sub: '볼·공', emoji: '⚽',
+    marqueeBg: '#0a323a', marqueeFg: '#bff4ff', blob: 0x5fe07a,
+    spawn: 22, makeMesh: makeBallMesh, half: { x: 0.34, y: 0.34, z: 0.34 } },
 ];

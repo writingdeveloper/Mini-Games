@@ -68,8 +68,10 @@
     #drop:active { transform: translateY(4px); box-shadow: 0 0 20px rgba(255,210,60,.6), 0 2px 0 #b67c00; }
 
     /* ---- Arcade payment / start overlay ---- */
+    /* lighter + click-through so taps reach the 3D side machines; the panel re-enables pointer-events */
     .veil { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
-      background: rgba(10,4,18,.82); backdrop-filter: blur(3px); }
+      background: rgba(10,4,18,.5); pointer-events: none; }
+    .panel { pointer-events: auto; }
     .veil.off { display: none; }
     .panel { width: min(92vw, 440px); border-radius: 20px; padding: 22px 22px 26px; text-align: center;
       background: linear-gradient(160deg, #2a1042, #16071f); border: 3px solid #ff5fae;
@@ -186,7 +188,8 @@
       </div>
       <div id="credit" class="credit"></div>
       <button id="startbtn" class="startbtn">▶ START</button>
-      <div class="small">동전을 넣거나 카드를 터치해 <b>크레딧</b>을 충전하세요.<br>
+      <div class="small"><b style="color:#36e0ff">💡 양옆 기계를 눌러 다른 뽑기를 고를 수 있어요</b><br>
+        동전을 넣거나 카드를 터치해 <b>크레딧</b>을 충전하세요.<br>
         <b>조이스틱·방향키</b>로 조준 → <b>잡기!</b>로 집기 · <b>드래그</b> 회전 · <b>핀치/휠</b> 확대<br>
         <span style="color:#ffd34d">✨ 반짝이는 젤리일수록 고득점!</span></div>
     </div>
