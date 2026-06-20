@@ -945,8 +945,14 @@ function loadMachine(i) {
   if (elPayTitle) elPayTitle.textContent = currentSet.emoji + ' ' + currentSet.name;
   if (elPaySub) elPaySub.textContent = currentSet.sub + ' · CRANE GAME';
   setSelectables();                                          // the now-inactive machines fill the side previews
+  updateMachineUI();                                         // sync the payment-panel chips
   marqueePulse = 1; ensureAudio(); sfx.start();
 }
+// machine chips in the payment panel — the reliable cross-platform picker (on mobile the 3D side machines are off-screen)
+const mchips = Array.from(document.querySelectorAll('.mchip'));
+function updateMachineUI() { mchips.forEach((c) => c.classList.toggle('active', +c.dataset.m === activeIdx)); }
+mchips.forEach((c) => c.addEventListener('click', () => loadMachine(+c.dataset.m)));
+updateMachineUI();
 const raycaster = new THREE.Raycaster(), _ndc = new THREE.Vector2();
 function trySelectMachine(cx, cy) {
   if (started) return;                                       // only switch while not playing

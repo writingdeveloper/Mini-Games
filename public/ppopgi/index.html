@@ -87,6 +87,13 @@
     .pay .ico { font-size: 40px; line-height: 1; }
     .pay .t { font-weight: 800; margin-top: 8px; font-size: 15px; }
     .pay .s { color: #c7b3e0; font-size: 12px; margin-top: 2px; }
+    /* machine picker chips — works on mobile, where the 3D side machines are off-screen behind the panel */
+    #mchips { display: flex; gap: 8px; justify-content: center; margin: -2px 0 14px; }
+    .mchip { font-size: 22px; width: 46px; height: 46px; line-height: 1; border-radius: 12px; cursor: pointer; pointer-events: auto;
+      background: rgba(255,255,255,.05); border: 2px solid #6a4a8a; transition: transform .1s, border-color .15s, box-shadow .15s; }
+    .mchip:hover { border-color: #36e0ff; }
+    .mchip.active { border-color: #ffe14a; background: rgba(255,210,60,.14); box-shadow: 0 0 14px rgba(255,210,60,.5); }
+    .mchip:active { transform: scale(.93); }
     /* coin slot */
     .slot { width: 64px; height: 10px; border-radius: 6px; background: #0a0414; margin: 10px auto 0; border: 2px solid #7a5aa6; position: relative; overflow: visible; }
     .coin { position: absolute; left: 50%; top: -54px; width: 30px; height: 30px; border-radius: 50%; transform: translateX(-50%);
@@ -109,6 +116,7 @@
       /* #hint is hidden -> move the camera buttons into the free top-left so they don't overlap the stats */
       #cambtns { left: 8px; transform: none; gap: 4px; }
       #cambtns button { padding: 5px 8px; font-size: 11px; }
+      #cambtns button[data-cam="front"], #cambtns button[data-cam="side"] { display: none; } /* keep 기본/＋/－/🔊 only -> no overlap with the score HUD */
       #readout { right: 8px; top: 8px; min-width: 0; padding: 6px 9px; font-size: 12px; line-height: 1.5; }
       #readout .rbig { font-size: 16px; } #combo { font-size: 20px; top: 26%; }
     }
@@ -172,6 +180,11 @@
     <div class="panel">
       <h1 id="pay-title">🍬 JELLY CATCHER</h1>
       <div class="sub" id="pay-sub">젤리·캔디 · CRANE GAME</div>
+      <div id="mchips">
+        <button class="mchip" data-m="0" aria-label="JELLY CATCHER 머신">🍬</button>
+        <button class="mchip" data-m="1" aria-label="PLUSH PARADISE 머신">🧸</button>
+        <button class="mchip" data-m="2" aria-label="BALL POOL 머신">⚽</button>
+      </div>
       <div class="pays">
         <div id="pay-coin" class="pay" role="button" tabindex="0" aria-label="동전 투입 (크레딧 충전)">
           <div class="ico">🪙</div>
