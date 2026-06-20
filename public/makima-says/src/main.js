@@ -1,4 +1,4 @@
-import { mulberry32, reactionWindow, comboMult, scoreFor, nextCommand, judge } from "./logic.js";
+import { mulberry32, reactionWindow, scoreFor, nextCommand, judge } from "./logic.js";
 import { createAudio } from "./audio.js";
 
 const GLYPH = { up: "⬆️", down: "⬇️", left: "⬅️", right: "➡️" };
