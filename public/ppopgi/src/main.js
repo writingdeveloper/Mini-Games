@@ -292,6 +292,9 @@ makeAmbiance(0, -12, 0x8fff9d);
 // --- 2 SELECTABLE machine cabinets flanking the hero: tap one to switch the active machine ---
 function makeSelectable(x, z) {
   const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+  // invisible hit box covering the whole cabinet -> the ENTIRE machine is tappable (QA: only the lower body registered before)
+  const hit = new THREE.Mesh(new THREE.BoxGeometry(3.6, 6.8, 3.6), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+  hit.position.y = FLOOR_Y + 1.0; g.add(hit);
   visBox(0, FLOOR_Y / 2, 0, 1.7, FLOOR_Y / 2, 1.7, bodyMat, g);
   visBox(0, FLOOR_Y + 1.4, 0, 1.55, 1.4, 1.55, glassNeighborMat.clone(), g);
   const blobs = [];
