@@ -45,9 +45,10 @@ function makeCandyMesh() {
 
 // ===================== PrizeSets (machines) =====================
 // half = cannon box half-extents (visual/physics split). spawn = pile count.
-// Single machine for now; PRIZE_SETS stays an array so more machines can be added later.
+// One machine (JELLY CATCHER). PRIZE_SETS stays an array so a machine can be added later;
+// only main.js's currentSet = PRIZE_SETS[0] is wired (the multi-machine picker was removed).
 export const PRIZE_SETS = [
-  { id: 'candy', name: 'JELLY CATCHER', sub: '젤리·캔디', emoji: '🍬',
-    marqueeBg: '#10243a', marqueeFg: '#bff4ff', neon: 0x36e0ff, accent: 0x4ab8ff,
+  { name: 'JELLY CATCHER',
+    marqueeBg: '#10243a', marqueeFg: '#bff4ff',
     spawn: 20, makeMesh: makeCandyMesh, half: { x: 0.36, y: 0.31, z: 0.36 } },
 ];

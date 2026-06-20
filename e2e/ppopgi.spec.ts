@@ -37,10 +37,10 @@ test.describe("뽑기 (ppopgi) claw machine", () => {
     expect(await page.evaluate(() => (window as unknown as { __claw: Claw }).__claw.started)).toBe(true);
   });
 
-  test("single machine: payment is the entry, select screen hidden", async ({ page }) => {
+  test("single machine: payment is the entry, no machine-select screen", async ({ page }) => {
     await page.goto("/ppopgi/index.html");
     await page.waitForFunction(() => !!(window as unknown as { __claw?: Claw }).__claw);
-    await expect(page.locator("#machineselect")).toHaveClass(/off/);  // no pointless 1-card select
+    await expect(page.locator("#machineselect")).toHaveCount(0);  // multi-machine select UI removed (single machine)
     await expect(page.locator("#start")).not.toHaveClass(/off/);
     await expect(page.locator("#pay-title")).toContainText("JELLY CATCHER");
   });
@@ -61,11 +61,26 @@ test.describe("뽑기 (ppopgi) claw machine", () => {
     await page.goto("/ppopgi/index.html");
     await page.waitForFunction(() => !!(window as unknown as { __claw?: Claw }).__claw);
     const before = await page.evaluate(() => (window as unknown as { __claw: Claw }).__claw.camPitch);
-    await page.evaluate(() => (window as unknown as { __claw: Claw }).__claw.setCam("top"));
+    await page.evaluate(() => (window as unknown as { __claw: Claw }).__claw.setCam("front")); // front = lower pitch than the default 기본 view
     // camera eases over time (frame-rate dependent) — poll until it reaches the new angle, robust to slow headless renders
-    await page.waitForFunction((b) => (window as unknown as { __claw: Claw }).__claw.camPitch > b + 0.2, before, { timeout: 8000 });
+    await page.waitForFunction((b) => (window as unknown as { __claw: Claw }).__claw.camPitch < b - 0.12, before, { timeout: 8000 });
     const after = await page.evaluate(() => (window as unknown as { __claw: Claw }).__claw.camPitch);
-    expect(after).toBeGreaterThan(before + 0.2);
+    expect(after).toBeLessThan(before - 0.12);
+  });
+
+  test("combo builds on consecutive deliveries", async ({ page }) => {
+    await page.goto("/ppopgi/index.html");
+    await page.waitForFunction(() => !!(window as unknown as { __claw?: Claw }).__claw);
+    await page.waitForTimeout(1200);
+    await page.evaluate(() => (window as unknown as { __claw: Claw }).__claw.start());
+    const r = await page.evaluate(() => {
+      const c = (window as unknown as { __claw: Claw }).__claw;
+      for (let i = 0; i < 3; i++) c.forceDeliver(); // three in a row -> streak 3
+      return { combo: c.combo, best: c.bestCombo, score: c.score };
+    });
+    expect(r.combo).toBe(3);
+    expect(r.best).toBeGreaterThanOrEqual(3);
+    expect(r.score).toBeGreaterThan(0); // multiplier applied (≥ base values)
   });
 
   test("time-up shows the result overlay", async ({ page }) => {

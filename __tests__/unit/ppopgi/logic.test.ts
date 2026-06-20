@@ -5,6 +5,7 @@ import {
   weightPenalty,
   gripBreakDist,
   tickTime,
+  comboMult,
 } from "../../../public/ppopgi/src/logic.js";
 
 describe("rollValue", () => {
@@ -56,5 +57,16 @@ describe("tickTime", () => {
   it("counts down and never goes below zero", () => {
     expect(tickTime(2, 0.5)).toBeCloseTo(1.5);
     expect(tickTime(0.2, 0.5)).toBe(0);
+  });
+});
+
+describe("comboMult", () => {
+  it("ramps with the streak and caps at ×3", () => {
+    expect(comboMult(0)).toBe(1); // no streak
+    expect(comboMult(1)).toBe(1); // first catch
+    expect(comboMult(2)).toBe(1.5);
+    expect(comboMult(3)).toBe(2);
+    expect(comboMult(5)).toBe(3);
+    expect(comboMult(20)).toBe(3); // capped
   });
 });

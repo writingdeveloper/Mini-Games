@@ -13,19 +13,31 @@
     #readout { position: fixed; right: 12px; top: 12px; background: rgba(18,10,28,.93); color: #ffeccb;
       padding: 8px 12px; border-radius: 10px; font-size: 14px; line-height: 1.6; border: 2px solid #36e0ff; min-width: 140px; text-shadow: 0 1px 3px #000; box-shadow: 0 4px 16px rgba(0,0,0,.5); }
     #readout span { color: #ffe06a; font-weight: 800; }
+    #readout .rbig { font-size: 19px; font-weight: 900; color: #fff; margin-bottom: 1px; }
+    #readout #r-combo { font-size: 13px; color: #ff9a4d; font-weight: 800; min-height: 16px; opacity: .35; transition: opacity .15s; }
+    #readout #r-combo.hot { opacity: 1; text-shadow: 0 0 9px rgba(255,140,60,.7); }
+    #readout #r-combo span { color: #ffcaa0; }
+    #readout .rsub { font-size: 13px; color: #ffeccb; margin-top: 2px; }
     #cambtns { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 5; }
     #cambtns button { pointer-events: auto; touch-action: manipulation; cursor: pointer; border: 2px solid #36e0ff;
       background: rgba(18,10,28,.93); color: #d7f2ff; font-size: 13px; font-weight: 700;
       padding: 7px 11px; border-radius: 9px; box-shadow: 0 4px 16px rgba(0,0,0,.5); }
     #cambtns button:active { background: rgba(54,224,255,.3); }
+    /* slip vignette — amber "aw, slipped" (not an error red) */
     #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .12s ease-out;
-      background: radial-gradient(circle, rgba(220,40,40,0) 38%, rgba(220,40,40,.5) 100%); }
+      background: radial-gradient(circle, rgba(255,170,60,0) 42%, rgba(255,150,40,.42) 100%); }
     #pop { position: fixed; left: 50%; top: 38%; transform: translateX(-50%); pointer-events: none; opacity: 0;
       font-size: 42px; font-weight: 900; color: #ffd34d; text-shadow: 0 2px 0 #7a3a00, 0 0 14px rgba(255,200,60,.7); }
     @keyframes popUp { 0% { opacity: 0; transform: translateX(-50%) translateY(12px) scale(.6); }
       18% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1.12); }
       100% { opacity: 0; transform: translateX(-50%) translateY(-54px) scale(1); } }
     #pop.show { animation: popUp .9s ease-out; }
+    #combo { position: fixed; left: 50%; top: 29%; transform: translateX(-50%); pointer-events: none; opacity: 0;
+      font-size: 25px; font-weight: 900; color: #ff7a3d; text-shadow: 0 2px 0 #5a1a00, 0 0 16px rgba(255,120,40,.85); white-space: nowrap; }
+    @keyframes comboPop { 0% { opacity: 0; transform: translateX(-50%) scale(.6) rotate(-7deg); }
+      22% { opacity: 1; transform: translateX(-50%) scale(1.16) rotate(3deg); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-30px) scale(1) rotate(0); } }
+    #combo.show { animation: comboPop .85s ease-out; }
     /* Korean subtitle for the Japanese voice line */
     #subtitle { position: fixed; left: 50%; bottom: 23%; transform: translateX(-50%); max-width: 84vw; text-align: center;
       background: rgba(8,4,14,.82); color: #fff; padding: 9px 20px; border-radius: 12px; pointer-events: none; z-index: 60;
@@ -73,16 +85,6 @@
     .pay .ico { font-size: 40px; line-height: 1; }
     .pay .t { font-weight: 800; margin-top: 8px; font-size: 15px; }
     .pay .s { color: #c7b3e0; font-size: 12px; margin-top: 2px; }
-    /* machine select */
-    .machines { display: flex; gap: 14px; justify-content: center; margin: 14px 0 14px; flex-wrap: wrap; }
-    .mcard { flex: 1; min-width: 130px; border-radius: 16px; padding: 18px 10px 14px; cursor: pointer; pointer-events: auto;
-      background: rgba(255,255,255,.05); border: 2px solid #6a4a8a; transition: transform .1s, border-color .15s, box-shadow .15s; }
-    .mcard:hover { transform: translateY(-3px); }
-    .mcard:active { transform: scale(.97); }
-    .mcard .ico { font-size: 48px; line-height: 1; }
-    .mcard .t { font-weight: 900; margin-top: 8px; font-size: 17px; letter-spacing: .5px; }
-    .mcard .s { color: #c7b3e0; font-size: 12px; margin-top: 3px; }
-    .mcard .go { margin-top: 10px; font-size: 12px; font-weight: 800; color: #14210a; border-radius: 999px; padding: 5px 0; }
     /* coin slot */
     .slot { width: 64px; height: 10px; border-radius: 6px; background: #0a0414; margin: 10px auto 0; border: 2px solid #7a5aa6; position: relative; overflow: visible; }
     .coin { position: absolute; left: 50%; top: -54px; width: 30px; height: 30px; border-radius: 50%; transform: translateX(-50%);
@@ -106,6 +108,7 @@
       #cambtns { left: 8px; transform: none; gap: 4px; }
       #cambtns button { padding: 5px 8px; font-size: 11px; }
       #readout { right: 8px; top: 8px; min-width: 0; padding: 6px 9px; font-size: 12px; line-height: 1.5; }
+      #readout .rbig { font-size: 16px; } #combo { font-size: 20px; top: 26%; }
     }
   </style>
   <script type="importmap">
@@ -123,41 +126,30 @@
 
   <div id="hint">
     <b>조이스틱</b>(또는 <b>← → ↑ ↓</b>)으로 조준 → <b>잡기!</b>(또는 <b>Space</b>)<br>
-    화면 <b>드래그</b> 회전 · <b>휠/핀치</b> 확대 · <b>[ ]</b> 카메라<br>
-    힘이 약해 <b>빗맞히거나 무거우면 미끄러집니다</b>!
+    화면 <b>드래그</b> 회전 · <b>휠/핀치</b> 또는 <b>+ −</b> 확대<br>
+    <span style="color:#ffd34d">✨ 반짝이는 젤리 = 고득점</span> · 무거우면 <b>미끄러집니다</b>
   </div>
   <div id="flash"></div>
-  <div id="pop"></div>
-  <div id="subtitle"></div>
+  <div id="pop" role="status" aria-live="polite"></div>
+  <div id="combo" aria-hidden="true"></div>
+  <div id="subtitle" aria-live="polite"></div>
   <div id="readout">
-    획득: <span id="r-got">0</span>개<br>
-    담은 가치: <span id="r-score">0</span><br>
-    들고 있음: <span id="r-held">-</span><br>
-    미끄러짐: <span id="r-slip">0</span><br>
-    남은 시간: <span id="r-time">--</span>
+    <div class="rbig">점수 <span id="r-score">0</span></div>
+    <div id="r-combo">연속 <span id="r-combo-n">0</span> ×<span id="r-combo-m">1.0</span></div>
+    <div class="rsub">뽑음 <span id="r-got">0</span>개 · ⏱ <span id="r-time">--</span></div>
   </div>
 
   <div id="cambtns">
-    <button data-cam="front">정면</button>
-    <button data-cam="side">측면</button>
-    <button data-cam="top">위</button>
-    <button data-cam="play">기본</button>
+    <button data-cam="front" aria-label="카메라 정면">정면</button>
+    <button data-cam="side" aria-label="카메라 측면">측면</button>
+    <button data-cam="play" aria-label="카메라 기본">기본</button>
+    <button id="mute" aria-label="소리 켜기/끄기" title="소리">🔊</button>
   </div>
 
   <!-- Touch controls -->
   <div id="pad">
-    <div id="joy"><div id="knob"></div></div>
-    <div id="drop">잡기!</div>
-  </div>
-
-  <!-- Machine select (hidden for a single machine; shown by JS when more machines exist) -->
-  <div id="machineselect" class="veil off">
-    <div class="panel">
-      <h1>🕹️ 뽑기</h1>
-      <div class="sub">머신 선택 · PICK A MACHINE</div>
-      <div id="machinecards" class="machines"></div>
-      <div class="small">플레이할 머신을 고르세요.</div>
-    </div>
+    <div id="joy" role="application" aria-label="조준 조이스틱 (방향키로도 조준 가능)"><div id="knob"></div></div>
+    <div id="drop" role="button" tabindex="0" aria-label="잡기 (Space 키)">잡기!</div>
   </div>
 
   <!-- Arcade payment / start (entry screen) -->
@@ -181,7 +173,9 @@
       </div>
       <div id="credit" class="credit"></div>
       <button id="startbtn" class="startbtn">▶ START</button>
-      <div class="small">동전을 넣거나 카드를 터치해 <b>크레딧</b>을 충전하세요.<br>폰에서는 화면의 <b>조이스틱</b>으로 조준합니다.</div>
+      <div class="small">동전을 넣거나 카드를 터치해 <b>크레딧</b>을 충전하세요.<br>
+        <b>조이스틱·방향키</b>로 조준 → <b>잡기!</b>로 집기 · <b>드래그</b> 회전 · <b>핀치/휠</b> 확대<br>
+        <span style="color:#ffd34d">✨ 반짝이는 젤리일수록 고득점!</span></div>
     </div>
   </div>
 
@@ -189,11 +183,13 @@
   <div id="gameover" class="veil off">
     <div class="panel">
       <h1>GAME OVER</h1>
-      <div id="final-record" class="sub" style="color:#8fff9d;min-height:18px"></div>
+      <div id="final-record" class="sub" style="color:#8fff9d;min-height:18px" aria-live="polite"></div>
       <div class="credit" style="line-height:1.7">
-        🧸 획득 <span id="final-got" style="color:#ffe14a">0</span>개<br>
-        💎 담은 가치 <span id="final-score" style="color:#ffe14a">0</span><br>
-        <span style="color:#36e0ff;font-size:14px">🏆 최고기록 <span id="final-best">0</span></span>
+        <div>🧸 뽑은 개수 <span id="final-got" style="color:#ffe14a">0</span>개</div>
+        <div>💯 점수 <span id="final-score" style="color:#ffe14a">0</span></div>
+        <div id="final-combo-row" style="font-size:14px;color:#ff9a4d">🔥 최고 콤보 <span id="final-combo">0</span>연속</div>
+        <div id="final-missed-row" style="font-size:14px;color:#ffd34d">💎 놓친 골드 <span id="final-missed">0</span>개 — 한 판 더!</div>
+        <div style="color:#36e0ff;font-size:14px">🏆 최고기록 <span id="final-best">0</span></div>
       </div>
       <button id="replay" class="startbtn on">🪙 다시 하기</button>
       <div class="small">다시 동전을 넣고 한 판 더!</div>
