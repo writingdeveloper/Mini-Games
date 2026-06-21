@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createGame, KITCHEN, movePlayer, clamp, COOK_STATION, interact, CUSTOMER_SLOT, serve, SERVE_POINTS, near, REACH } from '../../../public/garak-guksu/src/logic.js';
+import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOT, serve, SERVE_POINTS, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, blancherProgress, liftFromBlancher, donenessScore, BLANCH_TIME } from '../../../public/garak-guksu/src/logic.js';
 
 describe('createGame', () => {
   it('starts with an empty-handed chef at origin, a waiting customer, zero score', () => {
@@ -87,5 +87,62 @@ describe('serve (customer)', () => {
     const g = createGame();
     g.player.holding = 'bowl'; // at origin, customer at (0,3.2)
     expect(serve(g)).toBe(false);
+  });
+});
+
+describe('setNoodle (사리세팅대)', () => {
+  it('puts a noodle bowl in empty hands at the setting station', () => {
+    const g = createGame(1);
+    g.player.x = STATIONS.setting.x; g.player.z = STATIONS.setting.z;
+    expect(setNoodle(g)).toBe(true);
+    expect(g.player.holding).toEqual({ stage: 'noodle' });
+  });
+  it('does nothing away from the station or with full hands', () => {
+    const g = createGame(1);
+    expect(setNoodle(g)).toBe(false);
+  });
+});
+
+describe('donenessScore', () => {
+  it('perfect in [0.75,0.85], good in [0.7,0.9], else 0', () => {
+    expect(donenessScore(0.80)).toBe(50);
+    expect(donenessScore(0.72)).toBe(20);
+    expect(donenessScore(0.88)).toBe(20);
+    expect(donenessScore(0.5)).toBe(0);
+    expect(donenessScore(1.0)).toBe(0);
+  });
+});
+
+describe('데치기 채반 (putIn / tick / lift)', () => {
+  function atBlancherWithNoodle() {
+    const g = createGame(1);
+    g.player.x = STATIONS.blancher.x; g.player.z = STATIONS.blancher.z;
+    g.player.holding = { stage: 'noodle' };
+    return g;
+  }
+  it('putInBlancher moves the noodle bowl into the basket, freeing hands', () => {
+    const g = atBlancherWithNoodle();
+    expect(putInBlancher(g)).toBe(true);
+    expect(g.player.holding).toBe(null);
+    expect(g.blancher.bowl).toEqual({ t: 0 });
+  });
+  it('tickBlancher advances time and progress = t / BLANCH_TIME', () => {
+    const g = atBlancherWithNoodle();
+    putInBlancher(g);
+    tickBlancher(g, BLANCH_TIME * 0.8);
+    expect(blancherProgress(g)).toBeCloseTo(0.8, 5);
+  });
+  it('liftFromBlancher gives a blanched bowl scored by doneness', () => {
+    const g = atBlancherWithNoodle();
+    putInBlancher(g);
+    tickBlancher(g, BLANCH_TIME * 0.8);
+    expect(liftFromBlancher(g)).toBe(true);
+    expect(g.player.holding).toEqual({ stage: 'blanched', doneness: 50 });
+    expect(g.blancher.bowl).toBe(null);
+  });
+  it('liftFromBlancher does nothing with an empty basket', () => {
+    const g = createGame(1);
+    g.player.x = STATIONS.blancher.x; g.player.z = STATIONS.blancher.z;
+    expect(liftFromBlancher(g)).toBe(false);
   });
 });

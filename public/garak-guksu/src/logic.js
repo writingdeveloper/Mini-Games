@@ -4,16 +4,39 @@
 // The chef walks this floor plane (x = left/right, z = depth toward counter).
 export const KITCHEN = { minX: -4, maxX: 4, minZ: -2.5, maxZ: 2.5 };
 
-// Fixed Plan-1 positions.
-export const COOK_STATION = { x: 2, z: -1.5 };       // back-right of the kitchen
+// Fixed positions.
 export const CUSTOMER_SLOT = { x: 0, z: 3.2 };       // across the counter (beyond the kitchen)
 export const REACH = 1.2;                            // how close counts as "at" a thing
 
-export function createGame() {
+// The four cook stations, left→right across the back of the kitchen.
+export const STATIONS = {
+  setting:  { x: -3, z: -1.5 },
+  blancher: { x: -1, z: -1.5 },
+  broth:    { x:  1, z: -1.5 },
+  garnish:  { x:  3, z: -1.5 },
+};
+
+// Deterministic RNG (mulberry32) so orders are reproducible in tests/QA.
+export function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export const SPICES = ['none', 'normal', 'extra']; // 안맵게 / 기본 / 많이
+
+export function createGame(seed = 1) {
+  const rng = mulberry32(seed);
   return {
-    player: { x: 0, z: 0, holding: null }, // holding: null | 'bowl'
-    customer: { present: true, served: false },
+    player: { x: 0, z: 0, holding: null },
+    blancher: { bowl: null }, // bowl: null | { t }
+    customer: { present: true, served: false, order: { spice: SPICES[Math.floor(rng() * 3)] } },
     score: 0,
+    _rng: rng,
   };
 }
 
@@ -32,17 +55,6 @@ export function movePlayer(state, dir, dt) {
 export function dist2(ax, az, bx, bz) { const dx = ax - bx, dz = az - bz; return dx * dx + dz * dz; }
 export function near(ax, az, bx, bz, r = REACH) { return dist2(ax, az, bx, bz) <= r * r; }
 
-// At the cook station with empty hands -> a finished bowl appears in hand.
-// (Plan 2 replaces this single step with the 4-stage pipeline.)
-export function interact(state) {
-  const p = state.player;
-  if (p.holding === null && near(p.x, p.z, COOK_STATION.x, COOK_STATION.z)) {
-    p.holding = 'bowl';
-    return true;
-  }
-  return false;
-}
-
 export const SERVE_POINTS = 100;
 
 // At the customer, holding a bowl -> serve: clear hands, score, customer leaves.
@@ -54,6 +66,53 @@ export function serve(state) {
     c.served = true;
     c.present = false;
     state.score += SERVE_POINTS;
+    return true;
+  }
+  return false;
+}
+
+export const BLANCH_TIME = 2.5;
+
+export function donenessScore(progress) {
+  if (progress >= 0.75 && progress <= 0.85) return 50;
+  if (progress >= 0.7 && progress <= 0.9) return 20;
+  return 0;
+}
+
+export function setNoodle(state) {
+  const p = state.player;
+  if (p.holding === null && near(p.x, p.z, STATIONS.setting.x, STATIONS.setting.z)) {
+    p.holding = { stage: 'noodle' };
+    return true;
+  }
+  return false;
+}
+
+export function putInBlancher(state) {
+  const p = state.player;
+  if (p.holding && p.holding.stage === 'noodle' && state.blancher.bowl === null &&
+      near(p.x, p.z, STATIONS.blancher.x, STATIONS.blancher.z)) {
+    state.blancher.bowl = { t: 0 };
+    p.holding = null;
+    return true;
+  }
+  return false;
+}
+
+export function tickBlancher(state, dt) {
+  if (state.blancher.bowl) state.blancher.bowl.t += dt;
+}
+
+export function blancherProgress(state) {
+  return state.blancher.bowl ? state.blancher.bowl.t / BLANCH_TIME : 0;
+}
+
+export function liftFromBlancher(state) {
+  const p = state.player;
+  if (p.holding === null && state.blancher.bowl &&
+      near(p.x, p.z, STATIONS.blancher.x, STATIONS.blancher.z)) {
+    p.holding = { stage: 'blanched', doneness: donenessScore(blancherProgress(state)) };
+    state.blancher.bowl = null;
     return true;
   }
   return false;
