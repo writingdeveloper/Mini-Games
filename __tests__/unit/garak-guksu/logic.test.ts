@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createGame, KITCHEN, movePlayer, clamp, COOK_STATION, interact, CUSTOMER_SLOT, serve, SERVE_POINTS } from '../../../public/garak-guksu/src/logic.js';
+import { createGame, KITCHEN, movePlayer, clamp, COOK_STATION, interact, CUSTOMER_SLOT, serve, SERVE_POINTS, near, REACH } from '../../../public/garak-guksu/src/logic.js';
 
 describe('createGame', () => {
   it('starts with an empty-handed chef at origin, a waiting customer, zero score', () => {
@@ -53,6 +53,13 @@ describe('interact (cook station)', () => {
     g.player.x = COOK_STATION.x; g.player.z = COOK_STATION.z;
     g.player.holding = 'bowl';
     expect(interact(g)).toBe(false);
+  });
+});
+
+describe('near (proximity boundary)', () => {
+  it('is true just inside REACH and false just outside', () => {
+    expect(near(0, 0, 0, REACH - 0.01)).toBe(true);
+    expect(near(0, 0, 0, REACH + 0.01)).toBe(false);
   });
 });
 
