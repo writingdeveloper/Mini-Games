@@ -13,6 +13,7 @@ export function createScene(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   const LOW = typeof matchMedia === 'function' &&
     (matchMedia('(max-width: 560px)').matches || matchMedia('(pointer: coarse)').matches);
+  const RM = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   renderer.setPixelRatio(Math.min(devicePixelRatio, LOW ? 1.5 : 2));
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.enabled = true;
@@ -105,7 +106,11 @@ export function createScene(canvas) {
       hemi.intensity = m.amb;
       lamp.intensity = m.lamp;
     }
-    chef.position.set(state.player.x, 0, state.player.z);
+    // chef: gentle idle bob, stronger when moving
+    const moving = Math.hypot(state.player.x - chef.position.x, state.player.z - chef.position.z) > 0.001;
+    const bobY = RM ? 0 : moving ? Math.abs(Math.sin((t || 0) * 10)) * 0.08 : Math.sin((t || 0) * 2) * 0.03;
+    chef.position.set(state.player.x, bobY, state.player.z);
+    chef.rotation.z = RM ? 0 : moving ? Math.sin((t || 0) * 10) * 0.06 : 0;
     heldBowl.visible = state.player.holding !== null;
 
     // customers by slot
@@ -119,6 +124,10 @@ export function createScene(canvas) {
         const pp = patienceProgress(c);
         // patience: green when calm → red when about to leave
         setGaugeFill(sc.fill, pp, pp > 0.75 ? 0xff5a5a : pp > 0.5 ? 0xffcf6a : 0x6dff8f);
+        // idle bob + anxious shake when patience high
+        sc.mesh.position.y = RM ? 0 : Math.sin((t || 0) * 2.5 + i) * 0.04;
+        const pp2 = patienceProgress(c);
+        sc.mesh.rotation.z = RM ? 0 : pp2 > 0.7 ? Math.sin((t || 0) * 14) * 0.12 : 0;
       }
     });
 

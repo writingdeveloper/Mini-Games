@@ -79,7 +79,7 @@ function loop(now) {
   tickWave(state, dt);
   tickSpawns(state, dt);
   tickCustomers(state, dt);
-  scene.sync(state);
+  scene.sync(state, now / 1000);
   scene.render();
   renderHud();
   if (state.phase === 'won' || state.phase === 'over') { running = false; endGame(); return; }
