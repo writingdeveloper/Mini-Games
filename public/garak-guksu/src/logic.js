@@ -31,3 +31,14 @@ export function movePlayer(state, dir, dt) {
 
 export function dist2(ax, az, bx, bz) { const dx = ax - bx, dz = az - bz; return dx * dx + dz * dz; }
 export function near(ax, az, bx, bz, r = REACH) { return dist2(ax, az, bx, bz) <= r * r; }
+
+// At the cook station with empty hands -> a finished bowl appears in hand.
+// (Plan 2 replaces this single step with the 4-stage pipeline.)
+export function interact(state) {
+  const p = state.player;
+  if (p.holding === null && near(p.x, p.z, COOK_STATION.x, COOK_STATION.z)) {
+    p.holding = 'bowl';
+    return true;
+  }
+  return false;
+}

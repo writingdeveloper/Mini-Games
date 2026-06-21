@@ -35,3 +35,23 @@ describe('clamp', () => {
     expect(clamp(2, 0, 3)).toBe(2);
   });
 });
+
+describe('interact (cook station)', () => {
+  it('picks up a bowl when empty-handed AND at the station', () => {
+    const g = createGame();
+    g.player.x = COOK_STATION.x; g.player.z = COOK_STATION.z;
+    expect(interact(g)).toBe(true);
+    expect(g.player.holding).toBe('bowl');
+  });
+  it('does nothing when far from the station', () => {
+    const g = createGame(); // chef at origin, station at (2,-1.5)
+    expect(interact(g)).toBe(false);
+    expect(g.player.holding).toBe(null);
+  });
+  it('does nothing when already holding', () => {
+    const g = createGame();
+    g.player.x = COOK_STATION.x; g.player.z = COOK_STATION.z;
+    g.player.holding = 'bowl';
+    expect(interact(g)).toBe(false);
+  });
+});
