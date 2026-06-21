@@ -55,17 +55,18 @@ export function movePlayer(state, dir, dt) {
 export function dist2(ax, az, bx, bz) { const dx = ax - bx, dz = az - bz; return dx * dx + dz * dz; }
 export function near(ax, az, bx, bz, r = REACH) { return dist2(ax, az, bx, bz) <= r * r; }
 
-export const SERVE_POINTS = 100;
+export const SERVE_BASE = 100;
+export const ACCURACY_BONUS = 30;
 
-// At the customer, holding a bowl -> serve: clear hands, score, customer leaves.
 export function serve(state) {
   const p = state.player, c = state.customer;
-  if (p.holding === 'bowl' && c.present && !c.served &&
+  if (p.holding && p.holding.stage === 'done' && c.present && !c.served &&
       near(p.x, p.z, CUSTOMER_SLOT.x, CUSTOMER_SLOT.z)) {
+    const accuracy = p.holding.spice === c.order.spice ? ACCURACY_BONUS : 0;
+    state.score += SERVE_BASE + p.holding.doneness + accuracy;
     p.holding = null;
     c.served = true;
     c.present = false;
-    state.score += SERVE_POINTS;
     return true;
   }
   return false;

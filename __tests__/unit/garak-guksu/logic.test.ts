@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOT, serve, SERVE_POINTS, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, blancherProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish } from '../../../public/garak-guksu/src/logic.js';
+import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOT, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, blancherProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish } from '../../../public/garak-guksu/src/logic.js';
 
 describe('createGame', () => {
   it('starts with an empty-handed chef at origin, a waiting customer, zero score', () => {
     const g = createGame();
     expect(g.player).toEqual({ x: 0, z: 0, holding: null });
-    expect(g.customer).toEqual({ present: true, served: false });
+    expect(g.customer).toMatchObject({ present: true, served: false });
     expect(g.score).toBe(0);
   });
   it('exposes kitchen bounds', () => {
@@ -36,26 +36,6 @@ describe('clamp', () => {
   });
 });
 
-describe('interact (cook station)', () => {
-  it('picks up a bowl when empty-handed AND at the station', () => {
-    const g = createGame();
-    g.player.x = COOK_STATION.x; g.player.z = COOK_STATION.z;
-    expect(interact(g)).toBe(true);
-    expect(g.player.holding).toBe('bowl');
-  });
-  it('does nothing when far from the station', () => {
-    const g = createGame(); // chef at origin, station at (2,-1.5)
-    expect(interact(g)).toBe(false);
-    expect(g.player.holding).toBe(null);
-  });
-  it('does nothing when already holding', () => {
-    const g = createGame();
-    g.player.x = COOK_STATION.x; g.player.z = COOK_STATION.z;
-    g.player.holding = 'bowl';
-    expect(interact(g)).toBe(false);
-  });
-});
-
 describe('near (proximity boundary)', () => {
   it('is true just inside REACH and false just outside', () => {
     expect(near(0, 0, 0, REACH - 0.01)).toBe(true);
@@ -63,29 +43,38 @@ describe('near (proximity boundary)', () => {
   });
 });
 
-describe('serve (customer)', () => {
-  function chefAtCustomerWithBowl() {
-    const g = createGame();
-    g.player.x = CUSTOMER_SLOT.x; g.player.z = CUSTOMER_SLOT.z;
-    g.player.holding = 'bowl';
-    return g;
+describe('serve (완성도 + 정확)', () => {
+  function doneBowl(spice, doneness = 50) {
+    return { stage: 'done', doneness, spice };
   }
-  it('serves: clears hands, scores, customer leaves satisfied', () => {
-    const g = chefAtCustomerWithBowl();
+  it('scores base + doneness + accuracy when the spice matches the order', () => {
+    const g = createGame(1);
+    g.customer.order.spice = 'extra';
+    g.player.x = CUSTOMER_SLOT.x; g.player.z = CUSTOMER_SLOT.z;
+    g.player.holding = doneBowl('extra', 50);
     expect(serve(g)).toBe(true);
+    expect(g.score).toBe(SERVE_BASE + 50 + 30);
     expect(g.player.holding).toBe(null);
-    expect(g.customer).toEqual({ present: false, served: true });
-    expect(g.score).toBe(SERVE_POINTS);
+    expect(g.customer).toMatchObject({ present: false, served: true });
   });
-  it('does nothing without a bowl', () => {
-    const g = chefAtCustomerWithBowl();
-    g.player.holding = null;
+  it('omits the accuracy bonus when the spice is wrong', () => {
+    const g = createGame(1);
+    g.customer.order.spice = 'none';
+    g.player.x = CUSTOMER_SLOT.x; g.player.z = CUSTOMER_SLOT.z;
+    g.player.holding = doneBowl('extra', 20);
+    expect(serve(g)).toBe(true);
+    expect(g.score).toBe(SERVE_BASE + 20);
+  });
+  it('refuses a bowl that is not done', () => {
+    const g = createGame(1);
+    g.player.x = CUSTOMER_SLOT.x; g.player.z = CUSTOMER_SLOT.z;
+    g.player.holding = { stage: 'brothed', doneness: 50 };
     expect(serve(g)).toBe(false);
     expect(g.score).toBe(0);
   });
-  it('does nothing when far from the customer', () => {
-    const g = createGame();
-    g.player.holding = 'bowl'; // at origin, customer at (0,3.2)
+  it('refuses when far from the customer', () => {
+    const g = createGame(1);
+    g.player.holding = doneBowl('normal', 50);
     expect(serve(g)).toBe(false);
   });
 });
