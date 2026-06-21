@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { createFloor, createChef, createStation, createCustomer, createGauge } from './models.js';
 import { STATIONS, CUSTOMER_SLOTS, slotProgress, patienceProgress, BLANCH_SLOTS, WAVES } from './logic.js';
-import { buildStation, tickStation } from './station.js';
+import { buildStation, tickStation, makeStationLabel } from './station.js';
 
 // 가독성 상향(현 어두움 지적): hemi/lamp/fill 를 소폭 올려 막차에서도 조리대~카운터가 읽히게.
 // 과노출 금지 — 무드는 유지하되 플레이영역만 들어올린다.
@@ -12,6 +12,30 @@ const ERA_MOOD = {
 };
 let curEra = null;
 let lastDwellSec = -1;
+
+// 손님 머리 위 주문 말풍선(양념). 가까운 손님 1명만 보이던 HUD 한계를 공간적으로 해소.
+const SPICE_BUBBLE = { none: { t: '순하게', c: '#2e7d32' }, normal: { t: '기본', c: '#7a5a22' }, extra: { t: '맵게!', c: '#d23b2a' } };
+function makeOrderBoard() {
+  const canvas = document.createElement('canvas'); canvas.width = 160; canvas.height = 76;
+  const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 0.55),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, fog: true, toneMapped: false, depthWrite: false }));
+  mesh.rotation.y = Math.PI; mesh.renderOrder = 2;
+  let last = null;
+  mesh.userData.setSpice = (spice) => {
+    if (spice === last) return; last = spice;
+    const x = canvas.getContext('2d'); x.clearRect(0, 0, 160, 76);
+    const o = SPICE_BUBBLE[spice] || SPICE_BUBBLE.normal;
+    x.fillStyle = '#fdfaf2'; x.fillRect(8, 6, 144, 50);
+    x.fillStyle = o.c; x.fillRect(8, 50, 144, 6);
+    x.fillStyle = '#fdfaf2'; x.beginPath(); x.moveTo(70, 56); x.lineTo(90, 56); x.lineTo(80, 70); x.closePath(); x.fill();
+    x.fillStyle = o.c; x.font = '800 30px "Malgun Gothic", system-ui, sans-serif';
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText('🌶 ' + o.t, 80, 30);
+    tex.needsUpdate = true;
+  };
+  return mesh;
+}
 
 export function createScene(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -57,10 +81,14 @@ export function createScene(canvas) {
   scene.add(fillLight); scene.add(fillLight.target);
 
   scene.add(createFloor());
+  const STATION_LABEL = { setting: '① 면', blancher: '② 데치기', broth: '③ 멸치육수', garnish: '④ 고명 1·2·3' };
   for (const [kind, pos] of Object.entries(STATIONS)) {
     const s = createStation(kind);
     s.position.set(pos.x, 0, pos.z);
     scene.add(s);
+    const label = makeStationLabel(STATION_LABEL[kind]);
+    label.position.set(pos.x, 1.72, pos.z);
+    scene.add(label);
   }
 
   // 플랫폼 무대 장식(배경판/기둥/등/역사인/증기). scene/logic 불변, 별도 모듈.
@@ -69,6 +97,9 @@ export function createScene(canvas) {
   const chef = createChef();
   scene.add(chef);
   const heldBowl = chef.getObjectByName('heldBowl');
+  const foodNoodle = heldBowl.getObjectByName('food_noodle');
+  const foodBroth = heldBowl.getObjectByName('food_broth');
+  const foodGarnish = heldBowl.getObjectByName('food_garnish');
 
   // archetype display colors (Plan 6 polish refines these)
   const ARCH_COLOR = { soldier: 0x4a6a4a, worker: 0x4a5a8a, student: 0x8a7a4a, couple: 0xaa5a7a, granny: 0x8a8a8a };
@@ -83,7 +114,14 @@ export function createScene(canvas) {
     pg.position.set(pos.x, 2.0, pos.z);
     pg.rotation.x = -0.2;
     scene.add(pg);
-    return { mesh: c, body: c.children[0], gauge: pg, fill: pg.getObjectByName('fill') };
+    const props = {
+      soldier: c.getObjectByName('prop_soldier'), worker: c.getObjectByName('prop_worker'),
+      student: c.getObjectByName('prop_student'), couple: c.getObjectByName('prop_couple'),
+      granny: c.getObjectByName('prop_granny'),
+    };
+    const order = makeOrderBoard();
+    order.position.set(pos.x, 2.55, pos.z); order.visible = false; scene.add(order);
+    return { mesh: c, body: c.children[0], gauge: pg, fill: pg.getObjectByName('fill'), props, order };
   });
 
   // one gauge per blancher slot, fanned out over the blancher
@@ -127,7 +165,7 @@ export function createScene(canvas) {
     const sec = Math.max(0, Math.ceil(state.dwellLeft));
     if (sec !== lastDwellSec) {
       lastDwellSec = sec;
-      station.setDwell(`발차 ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`);
+      station.setDwell(`발차 ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`, state.phase === 'serving' && sec <= 10);
     }
     tickStation(t);
     // chef: gentle idle bob, stronger when moving
@@ -135,7 +173,13 @@ export function createScene(canvas) {
     const bobY = RM ? 0 : moving ? Math.abs(Math.sin((t || 0) * 10)) * 0.08 : Math.sin((t || 0) * 2) * 0.03;
     chef.position.set(state.player.x, bobY, state.player.z);
     chef.rotation.z = RM ? 0 : moving ? Math.sin((t || 0) * 10) * 0.06 : 0;
-    heldBowl.visible = state.player.holding !== null;
+    const holding = state.player.holding;
+    heldBowl.visible = holding !== null;
+    if (holding) {
+      if (foodNoodle) foodNoodle.visible = true;
+      if (foodBroth) foodBroth.visible = holding.stage === 'brothed' || holding.stage === 'done';
+      if (foodGarnish) foodGarnish.visible = holding.stage === 'done';
+    }
 
     // customers by slot
     const bySlot = new Map(state.customers.map((c) => [c.slot, c]));
@@ -143,8 +187,11 @@ export function createScene(canvas) {
       const c = bySlot.get(i);
       sc.mesh.visible = !!c;
       sc.gauge.visible = !!c;
+      sc.order.visible = !!c;
       if (c) {
         sc.body.material.color.setHex(ARCH_COLOR[c.archetype] ?? 0x4a6a8a);
+        sc.order.userData.setSpice(c.order.spice);
+        for (const k in sc.props) { const pr = sc.props[k]; if (pr) pr.visible = (c.archetype === k); }
         const pp = patienceProgress(c);
         // patience: green when calm → red when about to leave
         setGaugeFill(sc.fill, pp, pp > 0.75 ? 0xff5a5a : pp > 0.5 ? 0xffcf6a : 0x6dff8f);

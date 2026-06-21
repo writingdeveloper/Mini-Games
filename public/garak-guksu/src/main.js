@@ -22,6 +22,14 @@ function flash() {
   setTimeout(() => (f.style.opacity = '0'), 130);
 }
 
+// 첫 영업 1회 코치 토스트(진행 순서 재확인).
+let coached = false;
+function coach(text, ms = 5200) {
+  const el = $('coach'); if (!el) return;
+  el.textContent = text; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), ms);
+}
+
 const BEST_KEY = 'garak-guksu-best';
 const loadBest = () => { try { return Number(localStorage.getItem(BEST_KEY)) || 0; } catch { return 0; } };
 function saveBest(s) { try { if (s > loadBest()) localStorage.setItem(BEST_KEY, String(s)); } catch { /* localStorage unavailable */ } }
@@ -30,7 +38,7 @@ const canvas = $('game');
 const scene = createScene(canvas);
 
 const SPICE_KO = { none: '안 맵게', normal: '기본', extra: '고춧가루 많이' };
-const STAGE_KO = { noodle: '면사리', blanched: '데친 면', brothed: '육수', done: '완성' };
+const STAGE_KO = { noodle: '면사리', blanched: '데친 면', brothed: '멸치육수', done: '완성' };
 
 let state = createGame(seedNow());
 let running = false;
@@ -39,6 +47,9 @@ let rafId = 0;
 let prevMissed = 0;
 let seenIds = new Set();
 let prevPhase = 'serving';
+let prevWave = 0;
+let prevDwellSec = 999;
+let departWarned = false;
 
 function seedNow() { return ((performance.now() | 0) ^ 0x9e3779b9) >>> 0; }
 
@@ -53,6 +64,7 @@ function action() {
   } else if (near(p.x, p.z, STATIONS.broth.x, STATIONS.broth.z)) { pourBroth(state); audio.cue('cook'); }
   else {
     const before = state.combo;
+    const scoreBefore = state.score;
     serve(state); // serve picks the nearest in-range customer (no-op if none)
     if (state.combo > before) {
       const cheers = ['좋았어!', '척척!', '신들렸다!', '오늘 장사 대박!'];
@@ -60,6 +72,7 @@ function action() {
         popup(cheers[Math.min(state.combo - 3, cheers.length - 1)]); flash();
         audio.cue('combo');
       } else {
+        popup('😋 +' + (state.score - scoreBefore));
         audio.cue('serve');
       }
     }
@@ -144,10 +157,29 @@ function loop(now) {
     }
   }
 
-  // intermission 진입(발차 안내) → PA 차임 + 화면 안내.
-  if (state.phase === 'intermission' && prevPhase !== 'intermission') {
-    audio.cue('pa');
-    popup('📢 곧 발차 — 다음 손님!');
+  // 발차 긴박 연출: 카운트다운 + HUD 빨강 깜빡 + 비네트 + 카운트다운 비프.
+  const dwellSec = Math.max(0, Math.ceil(state.dwellLeft));
+  if (state.phase === 'serving') {
+    $('dwellcell')?.classList.toggle('urgent', dwellSec <= 10);
+    $('vignette')?.classList.toggle('show', dwellSec <= 5);
+    if (dwellSec <= 8 && !departWarned) { departWarned = true; popup('📢 곧 발차 — 서둘러요!'); audio.cue('pa'); }
+    if (dwellSec !== prevDwellSec && dwellSec <= 10 && dwellSec > 0) audio.cue(dwellSec <= 5 ? 'tickHard' : 'tick');
+  } else {
+    $('dwellcell')?.classList.remove('urgent');
+    $('vignette')?.classList.remove('show');
+  }
+  prevDwellSec = dwellSec;
+
+  // 발차(웨이브 종료) = 사건: 우렁찬 기적 + 플래시 + '발차!' (+ 막차 진입 고조).
+  if (state.wave > prevWave) {
+    prevWave = state.wave;
+    departWarned = false;
+    audio.cue('depart'); flash(); popup('🚂 발차!');
+    $('dwellcell')?.classList.remove('urgent');
+    $('vignette')?.classList.remove('show');
+    if (WAVES[Math.min(state.wave, WAVES.length - 1)].era === '막차') {
+      setTimeout(() => popup('📢 대전발 0시 50분 목포행 — 막차!'), 750);
+    }
   }
   prevPhase = state.phase;
   scene.sync(state, now / 1000);
@@ -176,9 +208,13 @@ function start() {
   prevMissed = 0;
   seenIds = new Set();
   prevPhase = 'serving';
+  prevWave = 0;
+  prevDwellSec = 999;
+  departWarned = false;
   running = true;
   $('start').classList.add('off');
   $('result').classList.add('off');
+  if (!coached) { coached = true; coach('① 왼쪽부터 순서대로 — 면 → 데치기(게이지!) → 멸치육수 → 고춧가루 → 🚂 손님께! · E로 조리·서빙'); }
   renderHud();
   // 첫 사용자 제스처 → AudioContext 재개 + 시작 큐 + 현재 에라 분위기 베드.
   audio.resume();
@@ -231,6 +267,9 @@ window.__garak = {
   tickCustomers(dt) { tickCustomers(state, dt); },
   tickWave(dt) { tickWave(state, dt); },
 };
+
+// 시작화면 최고기록 표기.
+{ const b = loadBest(); const el = $('start-best'); if (el) el.textContent = b ? `🏆 최고기록 ${b}` : ''; }
 
 scene.sync(state);
 scene.render();

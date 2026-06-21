@@ -3,7 +3,7 @@
 // cue(name)으로 짧은 효과음, ambience(era)로 깔리는 베드(스팀 히스 + 먼 기적).
 // 합성만: OscillatorNode / AudioBufferSourceNode(노이즈) / BiquadFilter / GainNode 엔벨로프.
 //
-// 구현 큐: order · serve · combo · leave · pa · start · cook (알 수 없는 이름은 무시).
+// 구현 큐: order · serve · combo · leave · pa · start · cook · tick · tickHard · depart (알 수 없는 이름 무시).
 // main.js 가 createSfx() 를 직접 사용(구 audio.js/playVoice 는 제거됨).
 
 const MUTE_KEY = 'garak-guksu-muted';
@@ -161,6 +161,22 @@ export function createSfx() {
     cook(c, t) {
       noiseBurst(t, 0.12, { type: 'bandpass', freq: 2600, Q: 0.6, gain: 0.07, attack: 0.004 }); // 지글
       tone(2300, t + 0.01, 0.05, { type: 'square', gain: 0.04, attack: 0.001 });                // 국자 틱
+    },
+
+    // tick / tickHard: 정차 임박 카운트다운 비프(≤10s / ≤5s 더 급하게).
+    tick(c, t) {
+      tone(1320, t, 0.09, { type: 'square', gain: 0.09, attack: 0.002 });
+    },
+    tickHard(c, t) {
+      tone(1760, t, 0.11, { type: 'square', gain: 0.13, attack: 0.002 });
+      tone(2640, t, 0.06, { type: 'sine', gain: 0.05, attack: 0.001 });
+    },
+
+    // depart: 발차! 길고 우렁찬 증기 기적 + 스팀 분출.
+    depart(c, t) {
+      whistle(t, 1.3, 392, 523, 0.18);
+      noiseBurst(t + 0.05, 0.8, { type: 'highpass', freq: 1200, Q: 0.5, gain: 0.12, attack: 0.03 });
+      tone(174.6, t, 1.0, { type: 'sine', gain: 0.08 });
     },
   };
 

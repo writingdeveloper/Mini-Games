@@ -26,11 +26,27 @@
       #hud{font-size:11px;gap:6px 8px;}
     }
     .overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
-      gap:18px;background:rgba(8,10,20,.92);z-index:10;text-align:center;padding:24px;}
+      gap:13px;background:linear-gradient(180deg,rgba(8,10,20,.5) 0%,rgba(8,10,20,.8) 42%,rgba(8,10,20,.92) 100%);
+      z-index:10;text-align:center;padding:22px;}
     .overlay.off{display:none;}
-    .overlay h1{font-size:40px;margin:0;}
+    .overlay h1{font-size:38px;margin:0;}
     .overlay button{font-size:20px;font-weight:900;padding:14px 32px;border:0;border-radius:16px;cursor:pointer;
       background:linear-gradient(135deg,var(--amber),#ff8a5c);color:#1a0f10;}
+    .overlay .story{font-size:15px;line-height:1.6;max-width:680px;opacity:.95;margin:0;}
+    .steps{display:flex;flex-wrap:wrap;gap:6px 8px;justify-content:center;align-items:center;
+      font-size:14px;font-weight:700;max-width:740px;}
+    .steps span{background:rgba(0,0,0,.45);padding:6px 10px;border-radius:10px;white-space:nowrap;}
+    .steps .arr{background:none;padding:0 2px;opacity:.7;}
+    .steps i{font-style:normal;font-weight:600;opacity:.85;font-size:12px;}
+    .legend{font-size:13px;opacity:.92;line-height:1.6;margin:0;}
+    .legend b{color:var(--amber);}
+    .rules{font-size:12.5px;opacity:.82;line-height:1.5;max-width:680px;margin:0;}
+    .best{font-size:14px;font-weight:800;color:var(--amber);margin:0;min-height:18px;}
+    @media (max-width:560px){.overlay h1{font-size:28px;}.overlay .story,.steps,.legend{font-size:12px;}.rules{font-size:11px;}}
+    #coach{position:fixed;left:50%;top:62px;transform:translateX(-50%);z-index:8;background:rgba(20,16,10,.88);
+      border:2px solid var(--amber);color:#ffe9c0;font-weight:700;font-size:14px;padding:10px 16px;border-radius:12px;
+      max-width:92vw;text-align:center;opacity:0;transition:opacity .4s;pointer-events:none;}
+    #coach.show{opacity:1;}
     #pop{position:fixed;left:50%;top:34%;transform:translateX(-50%);pointer-events:none;opacity:0;
       font-size:34px;font-weight:900;color:#ffd34d;text-shadow:0 2px 0 #7a3a00,0 0 14px rgba(255,200,60,.7);white-space:nowrap;z-index:8;}
     #pop.show{animation:popUp .9s ease-out;}
@@ -39,7 +55,14 @@
       100%{opacity:0;transform:translateX(-50%) translateY(-40px) scale(1);}}
     #flash{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .12s;z-index:7;
       background:radial-gradient(circle,rgba(255,200,60,0) 45%,rgba(255,170,40,.4) 100%);}
-    @media (prefers-reduced-motion: reduce){#pop.show{animation-duration:.3s;}}
+    #vignette{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .2s;z-index:7;
+      background:radial-gradient(ellipse at center,rgba(255,40,30,0) 52%,rgba(220,30,20,.5) 100%);}
+    #vignette.show{opacity:1;animation:vigPulse .7s ease-in-out infinite;}
+    @keyframes vigPulse{50%{opacity:.45;}}
+    #dwellcell.urgent{color:#ff5a4a;animation:dwellBlink .58s steps(2,start) infinite;}
+    @keyframes dwellBlink{50%{opacity:.32;}}
+    @media (prefers-reduced-motion: reduce){#pop.show{animation-duration:.3s;}
+      #vignette.show,#dwellcell.urgent{animation:none;}}
     #touch{display:none;}
     @media (pointer:coarse){#touch{display:block;}}
     #joy{position:fixed;left:calc(18px + env(safe-area-inset-left));bottom:calc(20px + env(safe-area-inset-bottom));
@@ -66,6 +89,8 @@
   <canvas id="game"></canvas>
   <div id="pop" aria-live="polite"></div>
   <div id="flash"></div>
+  <div id="vignette"></div>
+  <div id="coach" role="status" aria-live="polite"></div>
   <a id="home" href="/">← 홈</a>
   <button id="mute" aria-label="음소거" aria-pressed="false">🔊</button>
   <div id="hud" role="status" aria-live="off">
@@ -73,14 +98,24 @@
     <span>점수 <span id="score">0</span></span>
     <span id="combo">콤보 0</span>
     <span id="wave">증기 · 1/5</span>
-    <span>🚂 <span id="dwell">1:15</span></span>
-    <span>주문 <span id="order">-</span></span>
-    <span>들고 <span id="held">빈손</span></span>
+    <span id="dwellcell">🚂 <span id="dwell">1:15</span></span>
+    <span>🌶 <span id="order">-</span></span>
+    <span>🍜 <span id="held">빈손</span></span>
   </div>
   <div class="overlay" id="start">
     <h1>🏮 역전국수</h1>
-    <p>WASD로 주방을 움직이고 <b>E</b>로 조리대·손님과 상호작용.<br>국수를 집어 손님에게 가져다주세요.</p>
+    <p class="story">1980년대 <b>대전역</b> 심야 플랫폼. 호남선 기관차를 되돌리는 동안 잠깐 정차한 그 틈에,<br><b>「기차 놓칠라!」</b> 서서 후루룩 마시던 <b>가락국수</b>를 말아 손님에게.</p>
+    <div class="steps" aria-label="조리 순서">
+      <span><b style="color:#d2a85a">①</b> 면 집기</span><span class="arr">→</span>
+      <span><b style="color:#b9c2cc">②</b> 데치기 <i>(게이지 적정에 E!)</i></span><span class="arr">→</span>
+      <span><b style="color:#b07a45">③</b> 멸치육수</span><span class="arr">→</span>
+      <span><b style="color:#e05a48">④</b> 고춧가루</span><span class="arr">→</span>
+      <span>🚂 손님께</span>
+    </div>
+    <p class="legend">⌨ <b>WASD</b> 이동 · <b>E</b> 줍기·조리·서빙 · <b>1·2·3</b> 양념(안맵게·기본·많이)<br>📱 조이스틱 + 담기 + 양념 버튼</p>
+    <p class="rules">🚂 정차시간이 <b>0:00</b>이면 손님이 떠나요 · 손님 머리 위 게이지가 빨개지면 화내고 떠나며 <b>❤−1</b> · 주문 매운맛을 맞추면 <b>콤보</b> 점수 ↑</p>
     <button id="startbtn">▶ 영업 시작</button>
+    <p class="best" id="start-best"></p>
   </div>
   <div class="overlay off" id="result">
     <h1 id="result-title">오늘의 장사 마감</h1>
