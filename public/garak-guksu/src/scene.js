@@ -95,7 +95,7 @@ export function createScene(canvas) {
     fill.material.color.setHex(color);
   }
 
-  function sync(state, t) {
+  function sync(state, t = 0) {
     const era = WAVES[Math.min(state.wave, WAVES.length - 1)].era;
     if (era !== curEra) {
       curEra = era;
