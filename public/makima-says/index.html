@@ -31,13 +31,13 @@
     #caption{position:fixed;left:50%;top:62px;transform:translateX(-50%);
       font-size:18px;font-weight:800;background:rgba(0,0,0,.55);padding:8px 16px;border-radius:12px;
       text-align:center;max-width:90vw;min-height:20px;}
-    #hud{position:fixed;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:14px;
+    #hud{position:fixed;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:14px;white-space:nowrap;
       background:rgba(0,0,0,.5);padding:8px 16px;border-radius:14px;font-weight:800;font-size:15px;z-index:5;}
     #hud .lives{color:#ff6b6b;letter-spacing:2px;}
     #hud #combo.hot{color:#ffb14d;text-shadow:0 0 10px rgba(255,160,60,.7);}
-    #mute{position:fixed;top:10px;right:12px;z-index:6;background:rgba(0,0,0,.5);border:0;color:#fff;
+    #mute{position:fixed;top:10px;right:12px;z-index:11;background:rgba(0,0,0,.5);border:0;color:#fff;
       font-size:20px;width:42px;height:42px;border-radius:12px;cursor:pointer;}
-    #home{position:fixed;top:10px;left:12px;z-index:6;background:rgba(0,0,0,.5);color:#fff;
+    #home{position:fixed;top:10px;left:12px;z-index:11;background:rgba(0,0,0,.5);color:#fff;
       text-decoration:none;font-size:13px;font-weight:700;padding:10px 12px;border-radius:12px;}
     #pad{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);display:grid;
       grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,64px);gap:8px;z-index:5;}
@@ -57,6 +57,14 @@
     .shake{animation:sh .3s;}
     @keyframes sh{0%,100%{transform:translate(0,0)}25%{transform:translate(-8px,4px)}75%{transform:translate(8px,-4px)}}
     @media (prefers-reduced-motion: reduce){.shake{animation:none}}
+    /* narrow screens: shrink the top bar so the HUD fits between 홈/🔊 without wrapping */
+    @media (max-width:560px){
+      #hud{font-size:11px;gap:7px;padding:6px 9px;}
+      #home{font-size:11px;padding:8px 10px;}
+      #mute{width:36px;height:36px;font-size:17px;}
+      #caption{font-size:15px;}
+      .panel img.face{width:78px;height:78px;}
+    }
   </style>
 </head>
 <body>
