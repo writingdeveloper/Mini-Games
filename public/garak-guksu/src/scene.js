@@ -1,6 +1,13 @@
 import * as THREE from 'three';
 import { createFloor, createChef, createStation, createCustomer, createGauge } from './models.js';
-import { STATIONS, CUSTOMER_SLOTS, ARCHETYPES, slotProgress, patienceProgress, BLANCH_SLOTS } from './logic.js';
+import { STATIONS, CUSTOMER_SLOTS, ARCHETYPES, slotProgress, patienceProgress, BLANCH_SLOTS, WAVES } from './logic.js';
+
+const ERA_MOOD = {
+  '증기': { bg: 0x161b2a, amb: 0.95, lamp: 2.6, fogN: 16, fogF: 34 },
+  '디젤': { bg: 0x1a1f2c, amb: 1.05, lamp: 2.9, fogN: 18, fogF: 38 },
+  '막차': { bg: 0x0a0c14, amb: 0.75, lamp: 2.3, fogN: 11, fogF: 25 },
+};
+let curEra = null;
 
 export function createScene(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -19,12 +26,23 @@ export function createScene(canvas) {
   camera.position.set(0, 7.5, -7);
   camera.lookAt(0, 0.5, 1.5);
 
-  scene.add(new THREE.HemisphereLight(0x404a6a, 0x101018, 0.5));
-  const lamp = new THREE.PointLight(0xffcf6a, 1.4, 24, 1.5);
-  lamp.position.set(0, 6, 0);
-  lamp.castShadow = true;
-  lamp.shadow.mapSize.set(LOW ? 512 : 1024, LOW ? 512 : 1024);
+  const hemi = new THREE.HemisphereLight(0x7889b0, 0x241e2c, 0.95); // brighter ambient
+  scene.add(hemi);
+  // warm incandescent lamp over the counter (fill, no shadow)
+  const lamp = new THREE.PointLight(0xffcf6a, 2.6, 30, 1.3);
+  lamp.position.set(0, 6, 0.5);
   scene.add(lamp);
+  // a single directional sun as the cheap shadow caster (ppopgi pattern — 1 pass vs point light's 6)
+  const sun = new THREE.DirectionalLight(0xfff0e0, 0.85);
+  sun.position.set(5, 13, -3);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(LOW ? 512 : 1024, LOW ? 512 : 1024);
+  sun.shadow.camera.left = -7; sun.shadow.camera.right = 7;
+  sun.shadow.camera.top = 8; sun.shadow.camera.bottom = -5;
+  sun.shadow.camera.near = 2; sun.shadow.camera.far = 40;
+  sun.shadow.bias = -0.0006;
+  sun.target.position.set(0, 0, 0.5);
+  scene.add(sun); scene.add(sun.target);
 
   scene.add(createFloor());
   for (const [kind, pos] of Object.entries(STATIONS)) {
@@ -76,7 +94,17 @@ export function createScene(canvas) {
     fill.material.color.setHex(color);
   }
 
-  function sync(state) {
+  function sync(state, t) {
+    const era = WAVES[Math.min(state.wave, WAVES.length - 1)].era;
+    if (era !== curEra) {
+      curEra = era;
+      const m = ERA_MOOD[era];
+      scene.background.setHex(m.bg);
+      scene.fog.color.setHex(m.bg);
+      scene.fog.near = m.fogN; scene.fog.far = m.fogF;
+      hemi.intensity = m.amb;
+      lamp.intensity = m.lamp;
+    }
     chef.position.set(state.player.x, 0, state.player.z);
     heldBowl.visible = state.player.holding !== null;
 
