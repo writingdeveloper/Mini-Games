@@ -9,8 +9,8 @@ import { createInput } from './input.js';
 const $ = (id) => document.getElementById(id);
 
 const BEST_KEY = 'garak-guksu-best';
-const loadBest = () => Number(localStorage.getItem(BEST_KEY) || 0);
-function saveBest(s) { if (s > loadBest()) localStorage.setItem(BEST_KEY, String(s)); }
+const loadBest = () => { try { return Number(localStorage.getItem(BEST_KEY)) || 0; } catch { return 0; } };
+function saveBest(s) { try { if (s > loadBest()) localStorage.setItem(BEST_KEY, String(s)); } catch { /* localStorage unavailable */ } }
 
 const canvas = $('game');
 const scene = createScene(canvas);
