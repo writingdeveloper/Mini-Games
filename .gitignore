@@ -157,3 +157,9 @@ vite.config.ts.timestamp-*
 /_claw-*.mjs
 /claw-*.png
 .mcp.json
+
+# Local QA scratch (smoke scripts + captures)
+/_surv-*.mjs
+/_surv-*.png
+/_*.mjs
+/*-smoke.png

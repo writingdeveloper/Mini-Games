@@ -2,6 +2,9 @@
   "name": "mini-games",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "predev": "node scripts/inject-env.js",
     "dev": "next dev",

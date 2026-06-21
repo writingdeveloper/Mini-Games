@@ -7,7 +7,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Local default of `undefined` = ~CPU-count workers (8 here), which contends on the single
+  // shared dev server and flakes. Pin to 2 (the workaround the team already passes via --workers=2).
+  workers: process.env.CI ? 1 : 2,
   reporter: 'html',
   use: {
     baseURL: `http://localhost:${E2E_PORT}`,
