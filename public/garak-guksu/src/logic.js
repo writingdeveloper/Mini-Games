@@ -42,3 +42,19 @@ export function interact(state) {
   }
   return false;
 }
+
+export const SERVE_POINTS = 100;
+
+// At the customer, holding a bowl -> serve: clear hands, score, customer leaves.
+export function serve(state) {
+  const p = state.player, c = state.customer;
+  if (p.holding === 'bowl' && c.present && !c.served &&
+      near(p.x, p.z, CUSTOMER_SLOT.x, CUSTOMER_SLOT.z)) {
+    p.holding = null;
+    c.served = true;
+    c.present = false;
+    state.score += SERVE_POINTS;
+    return true;
+  }
+  return false;
+}

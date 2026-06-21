@@ -55,3 +55,30 @@ describe('interact (cook station)', () => {
     expect(interact(g)).toBe(false);
   });
 });
+
+describe('serve (customer)', () => {
+  function chefAtCustomerWithBowl() {
+    const g = createGame();
+    g.player.x = CUSTOMER_SLOT.x; g.player.z = CUSTOMER_SLOT.z;
+    g.player.holding = 'bowl';
+    return g;
+  }
+  it('serves: clears hands, scores, customer leaves satisfied', () => {
+    const g = chefAtCustomerWithBowl();
+    expect(serve(g)).toBe(true);
+    expect(g.player.holding).toBe(null);
+    expect(g.customer).toEqual({ present: false, served: true });
+    expect(g.score).toBe(SERVE_POINTS);
+  });
+  it('does nothing without a bowl', () => {
+    const g = chefAtCustomerWithBowl();
+    g.player.holding = null;
+    expect(serve(g)).toBe(false);
+    expect(g.score).toBe(0);
+  });
+  it('does nothing when far from the customer', () => {
+    const g = createGame();
+    g.player.holding = 'bowl'; // at origin, customer at (0,3.2)
+    expect(serve(g)).toBe(false);
+  });
+});
