@@ -12,6 +12,35 @@ export class EnemySystem {
     return this.game.scene;
   }
 
+  // 모든 적이 공유하는 단일 재질 세트(몸/머리/총)와 head.png 텍스처를 지연 생성한다.
+  // 예전엔 적마다 2MB head.png를 다시 업로드하고 'mat'+Math.random() 이름으로 재질을 만들어
+  // Babylon의 재질 캐시가 무력화됐다(적 N명 = 텍스처 N회 업로드 + 재질 N개). 외형이 동일하므로 1세트 공유.
+  _getMaterials() {
+    if (this._mats) return this._mats;
+
+    const bodyMat = new BABYLON.PBRMaterial('enemyBodyMat', this.scene);
+    bodyMat.albedoColor = new BABYLON.Color3(0.4, 0.2, 0.2);
+    bodyMat.roughness = 0.8;
+
+    const headTexture = new BABYLON.Texture('/survival-game/head.png', this.scene);
+    headTexture.hasAlpha = true;
+    const headMat = new BABYLON.StandardMaterial('enemyHeadMat', this.scene);
+    headMat.diffuseTexture = headTexture;
+    headMat.specularColor = new BABYLON.Color3(0, 0, 0);
+    headMat.emissiveTexture = headTexture;
+    headMat.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+    headMat.useAlphaFromDiffuseTexture = true;
+    headMat.backFaceCulling = false;
+
+    const gunMat = new BABYLON.PBRMaterial('enemyGunMat', this.scene);
+    gunMat.albedoColor = new BABYLON.Color3(0.15, 0.15, 0.15);
+    gunMat.metallic = 0.9;
+    gunMat.roughness = 0.3;
+
+    this._mats = { body: bodyMat, head: headMat, gun: gunMat };
+    return this._mats;
+  }
+
   spawnInitialEnemies() {
     for (let i = 0; i < 8; i++) {
       const angle = (i / 8) * Math.PI * 2;
@@ -61,9 +90,8 @@ export class EnemySystem {
     const parent = BABYLON.MeshBuilder.CreateBox('enemy', { size: 0.01 }, this.scene);
     parent.position = position;
 
-    const bodyMat = new BABYLON.PBRMaterial('enemyBodyMat' + Math.random(), this.scene);
-    bodyMat.albedoColor = new BABYLON.Color3(0.4, 0.2, 0.2);
-    bodyMat.roughness = 0.8;
+    // 모든 적이 공유하는 재질 세트(몸/머리/총) — 적마다 새로 만들지 않는다(head.png 반복 업로드/캐시 무력화 제거)
+    const { body: bodyMat, head: headMat, gun: gunMat } = this._getMaterials();
 
     // 목
     const neck = BABYLON.MeshBuilder.CreateCylinder('neck', { height: 0.3, diameter: 0.2 }, this.scene);
@@ -110,24 +138,9 @@ export class EnemySystem {
     headFront.position.y = 1.8;
     headFront.parent = parent;
     headFront.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
-
-    const headMat = new BABYLON.StandardMaterial('enemyHeadMat' + Math.random(), this.scene);
-    const headTexture = new BABYLON.Texture('/survival-game/head.png', this.scene);
-    headTexture.hasAlpha = true;
-    headMat.diffuseTexture = headTexture;
-    headMat.specularColor = new BABYLON.Color3(0, 0, 0);
-    headMat.emissiveTexture = headTexture;
-    headMat.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3);
-    headMat.useAlphaFromDiffuseTexture = true;
-    headMat.backFaceCulling = false;
     headFront.material = headMat;
 
-    // 적 총
-    const gunMat = new BABYLON.PBRMaterial('enemyGunMat' + Math.random(), this.scene);
-    gunMat.albedoColor = new BABYLON.Color3(0.15, 0.15, 0.15);
-    gunMat.metallic = 0.9;
-    gunMat.roughness = 0.3;
-
+    // 적 총 (재질은 위의 공유 gunMat)
     const enemyGun = BABYLON.MeshBuilder.CreateBox('enemyGun', {
       width: 0.08,
       height: 0.12,

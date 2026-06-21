@@ -31,6 +31,32 @@ export class TerrainSystem {
     return (sin1 * 0.5 + sin2 * 0.3 + sin3 * 0.2) * 3;
   }
 
+  // 모든 지면 청크가 공유하는 단일 잔디 재질(텍스처 2장 포함)을 지연 생성한다.
+  // 예전엔 createTerrainChunk가 청크마다 4K 텍스처 2장(~15MB)과 PBRMaterial을 새로 만들어,
+  // 플레이어가 로밍할수록 동일 텍스처를 반복 디코드/업로드하며 GPU 메모리·재질 수가 무한 증가했다.
+  // 청크 UV가 월드 좌표 타일링을 인코딩하므로 재질 하나로 모든 청크를 덮을 수 있다.
+  _getGroundMaterial() {
+    if (this._groundMat) return this._groundMat;
+
+    const grassTexture = new BABYLON.Texture("/survival-game/textures/grass_path_2_diff_4k.jpg", this.scene);
+    grassTexture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+    grassTexture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+
+    const roughnessTexture = new BABYLON.Texture("/survival-game/textures/grass_path_2_rough_4k.jpg", this.scene);
+    roughnessTexture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+    roughnessTexture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+
+    const groundMat = new BABYLON.PBRMaterial("groundMat_shared", this.scene);
+    groundMat.albedoTexture = grassTexture;
+    groundMat.metallicTexture = roughnessTexture;
+    groundMat.useRoughnessFromMetallicTextureGreen = true;
+    groundMat.roughness = 1;
+    groundMat.metallic = 0;
+
+    this._groundMat = groundMat;
+    return groundMat;
+  }
+
   createProceduralTerrain() {
     this.updateTerrainChunks(new BABYLON.Vector3(0, 0, 0));
   }
@@ -92,22 +118,8 @@ export class TerrainSystem {
     }
     ground.updateVerticesData(BABYLON.VertexBuffer.UVKind, uvs);
 
-    // 잔디 텍스처 로드
-    const grassTexture = new BABYLON.Texture("/survival-game/textures/grass_path_2_diff_4k.jpg", this.scene);
-    grassTexture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
-    grassTexture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
-
-    const roughnessTexture = new BABYLON.Texture("/survival-game/textures/grass_path_2_rough_4k.jpg", this.scene);
-    roughnessTexture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
-    roughnessTexture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
-
-    const groundMat = new BABYLON.PBRMaterial(`groundMat_${chunkX}_${chunkZ}`, this.scene);
-    groundMat.albedoTexture = grassTexture;
-    groundMat.metallicTexture = roughnessTexture;
-    groundMat.useRoughnessFromMetallicTextureGreen = true;
-    groundMat.roughness = 1;
-    groundMat.metallic = 0;
-    ground.material = groundMat;
+    // 모든 청크가 단 하나의 공유 잔디 재질을 쓴다(텍스처 반복 업로드/재질 폭증 제거).
+    ground.material = this._getGroundMaterial();
     ground.receiveShadows = true;
 
     this.groundMeshes.push(ground);

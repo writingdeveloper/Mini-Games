@@ -19,6 +19,9 @@ export class Game {
       preserveDrawingBuffer: true,
       stencil: true,
     });
+    // 고DPR(레티나/모바일) 기기에서 렌더 해상도가 화면의 1.5배를 넘지 않도록 캡한다.
+    // 스케일 레벨을 '낮추지'는 않으므로(=해상도를 올리지 않음) 화질 저하 없이 과도한 픽셀 채움만 막는다.
+    this.engine.setHardwareScalingLevel(Math.max(this.engine.getHardwareScalingLevel(), 1 / 1.5));
 
     this.playerStats = {
       health: 100,
@@ -165,9 +168,11 @@ export class Game {
     sunLight.position = new BABYLON.Vector3(50, 100, 50);
     sunLight.intensity = 1.2;
 
-    this.shadowGenerator = new BABYLON.ShadowGenerator(2048, sunLight);
+    // 모바일/coarse-pointer 기기는 섀도우맵을 1024+커널16으로 낮춰 GPU 부담을 줄인다(데스크톱은 2048/32 유지).
+    const lowPerf = window.matchMedia('(max-width: 560px), (pointer: coarse)').matches;
+    this.shadowGenerator = new BABYLON.ShadowGenerator(lowPerf ? 1024 : 2048, sunLight);
     this.shadowGenerator.useBlurExponentialShadowMap = true;
-    this.shadowGenerator.blurKernel = 32;
+    this.shadowGenerator.blurKernel = lowPerf ? 16 : 32;
 
     this.scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
     this.scene.fogDensity = 0.003;
