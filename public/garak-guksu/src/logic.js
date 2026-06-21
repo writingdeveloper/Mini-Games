@@ -48,7 +48,7 @@ export function createGame(seed = 1) {
   const rng = mulberry32(seed);
   return {
     player: { x: 0, z: 0, holding: null },
-    blancher: { bowl: null }, // bowl: null | { t }
+    blancher: { slots: new Array(BLANCH_SLOTS).fill(null) }, // each: null | { t }
     customers: [],         // active: { id, slot, archetype, order:{spice}, t }
     spawnTimer: 0,
     lives: 5,
@@ -152,32 +152,31 @@ export function setNoodle(state) {
 
 export function putInBlancher(state) {
   const p = state.player;
-  if (p.holding && p.holding.stage === 'noodle' && state.blancher.bowl === null &&
-      near(p.x, p.z, STATIONS.blancher.x, STATIONS.blancher.z)) {
-    state.blancher.bowl = { t: 0 };
-    p.holding = null;
-    return true;
-  }
-  return false;
+  if (!(p.holding && p.holding.stage === 'noodle')) return false;
+  if (!near(p.x, p.z, STATIONS.blancher.x, STATIONS.blancher.z)) return false;
+  const free = state.blancher.slots.findIndex((s) => s === null);
+  if (free === -1) return false;
+  state.blancher.slots[free] = { t: 0 };
+  p.holding = null;
+  return true;
 }
 
 export function tickBlancher(state, dt) {
-  if (state.blancher.bowl) state.blancher.bowl.t += dt;
+  for (const s of state.blancher.slots) if (s) s.t += dt;
 }
 
-export function blancherProgress(state) {
-  return state.blancher.bowl ? state.blancher.bowl.t / BLANCH_TIME : 0;
-}
+export function slotProgress(slot) { return slot ? slot.t / BLANCH_TIME : 0; }
 
+// Lift the most-cooked slot (auto-pick — first basket ready leaves first).
 export function liftFromBlancher(state) {
   const p = state.player;
-  if (p.holding === null && state.blancher.bowl &&
-      near(p.x, p.z, STATIONS.blancher.x, STATIONS.blancher.z)) {
-    p.holding = { stage: 'blanched', doneness: donenessScore(blancherProgress(state)) };
-    state.blancher.bowl = null;
-    return true;
-  }
-  return false;
+  if (p.holding !== null || !near(p.x, p.z, STATIONS.blancher.x, STATIONS.blancher.z)) return false;
+  let idx = -1, best = -1;
+  state.blancher.slots.forEach((s, i) => { if (s && s.t > best) { best = s.t; idx = i; } });
+  if (idx === -1) return false;
+  p.holding = { stage: 'blanched', doneness: donenessScore(slotProgress(state.blancher.slots[idx])) };
+  state.blancher.slots[idx] = null;
+  return true;
 }
 
 export function pourBroth(state) {

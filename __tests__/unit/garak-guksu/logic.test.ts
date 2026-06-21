@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, blancherProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress } from '../../../public/garak-guksu/src/logic.js';
+import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, slotProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress } from '../../../public/garak-guksu/src/logic.js';
 
 describe('createGame', () => {
-  it('starts with an empty-handed chef at origin, a waiting customer, zero score', () => {
-    const g = createGame();
+  it('starts with empty hands, no customers, two empty baskets, 5 lives', () => {
+    const g = createGame(1);
     expect(g.player).toEqual({ x: 0, z: 0, holding: null });
-    expect(g.customer).toMatchObject({ present: true, served: false });
+    expect(g.customers).toEqual([]);
+    expect(g.blancher.slots).toEqual([null, null]);
+    expect(g.lives).toBe(5);
+    expect(g.over).toBe(false);
     expect(g.score).toBe(0);
   });
   it('exposes kitchen bounds', () => {
@@ -111,36 +114,45 @@ describe('donenessScore', () => {
   });
 });
 
-describe('데치기 채반 (putIn / tick / lift)', () => {
-  function atBlancherWithNoodle() {
-    const g = createGame(1);
+describe('멀티 채반 (slots)', () => {
+  function atBlancher(g) {
     g.player.x = STATIONS.blancher.x; g.player.z = STATIONS.blancher.z;
-    g.player.holding = { stage: 'noodle' };
     return g;
   }
-  it('putInBlancher moves the noodle bowl into the basket, freeing hands', () => {
-    const g = atBlancherWithNoodle();
+  it('putInBlancher fills the first free slot, freeing hands', () => {
+    const g = atBlancher(createGame(1));
+    g.player.holding = { stage: 'noodle' };
     expect(putInBlancher(g)).toBe(true);
     expect(g.player.holding).toBe(null);
-    expect(g.blancher.bowl).toEqual({ t: 0 });
+    expect(g.blancher.slots[0]).toEqual({ t: 0 });
+    expect(g.blancher.slots[1]).toBe(null);
   });
-  it('tickBlancher advances time and progress = t / BLANCH_TIME', () => {
-    const g = atBlancherWithNoodle();
-    putInBlancher(g);
-    tickBlancher(g, BLANCH_TIME * 0.8);
-    expect(blancherProgress(g)).toBeCloseTo(0.8, 5);
+  it('two noodles fill both slots; a third is refused', () => {
+    const g = atBlancher(createGame(1));
+    g.player.holding = { stage: 'noodle' }; putInBlancher(g);
+    g.player.holding = { stage: 'noodle' }; putInBlancher(g);
+    expect(g.blancher.slots.every((s) => s !== null)).toBe(true);
+    g.player.holding = { stage: 'noodle' };
+    expect(putInBlancher(g)).toBe(false); // no free slot
   });
-  it('liftFromBlancher gives a blanched bowl scored by doneness', () => {
-    const g = atBlancherWithNoodle();
-    putInBlancher(g);
+  it('tickBlancher advances all slots; slotProgress = t / BLANCH_TIME', () => {
+    const g = atBlancher(createGame(1));
+    g.player.holding = { stage: 'noodle' }; putInBlancher(g);
     tickBlancher(g, BLANCH_TIME * 0.8);
+    expect(slotProgress(g.blancher.slots[0])).toBeCloseTo(0.8, 5);
+  });
+  it('liftFromBlancher takes the MOST-cooked slot, scored by doneness', () => {
+    const g = atBlancher(createGame(1));
+    g.player.holding = { stage: 'noodle' }; putInBlancher(g); // slot 0
+    tickBlancher(g, BLANCH_TIME * 0.8);                        // slot 0 at 0.8
+    g.player.holding = { stage: 'noodle' }; putInBlancher(g); // slot 1 (t=0)
     expect(liftFromBlancher(g)).toBe(true);
-    expect(g.player.holding).toEqual({ stage: 'blanched', doneness: 50 });
-    expect(g.blancher.bowl).toBe(null);
+    expect(g.player.holding).toEqual({ stage: 'blanched', doneness: 50 }); // slot 0 (more cooked)
+    expect(g.blancher.slots[0]).toBe(null);
+    expect(g.blancher.slots[1]).not.toBe(null);
   });
-  it('liftFromBlancher does nothing with an empty basket', () => {
-    const g = createGame(1);
-    g.player.x = STATIONS.blancher.x; g.player.z = STATIONS.blancher.z;
+  it('liftFromBlancher does nothing with all slots empty', () => {
+    const g = atBlancher(createGame(1));
     expect(liftFromBlancher(g)).toBe(false);
   });
 });
