@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOT, serve, SERVE_POINTS, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, blancherProgress, liftFromBlancher, donenessScore, BLANCH_TIME } from '../../../public/garak-guksu/src/logic.js';
+import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOT, serve, SERVE_POINTS, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, blancherProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish } from '../../../public/garak-guksu/src/logic.js';
 
 describe('createGame', () => {
   it('starts with an empty-handed chef at origin, a waiting customer, zero score', () => {
@@ -144,5 +144,36 @@ describe('데치기 채반 (putIn / tick / lift)', () => {
     const g = createGame(1);
     g.player.x = STATIONS.blancher.x; g.player.z = STATIONS.blancher.z;
     expect(liftFromBlancher(g)).toBe(false);
+  });
+});
+
+describe('육수 + 마감 (pourBroth / garnish)', () => {
+  it('pourBroth turns a blanched bowl into a brothed one, keeping doneness', () => {
+    const g = createGame(1);
+    g.player.x = STATIONS.broth.x; g.player.z = STATIONS.broth.z;
+    g.player.holding = { stage: 'blanched', doneness: 50 };
+    expect(pourBroth(g)).toBe(true);
+    expect(g.player.holding).toEqual({ stage: 'brothed', doneness: 50 });
+  });
+  it('pourBroth does nothing on a non-blanched bowl', () => {
+    const g = createGame(1);
+    g.player.x = STATIONS.broth.x; g.player.z = STATIONS.broth.z;
+    g.player.holding = { stage: 'noodle' };
+    expect(pourBroth(g)).toBe(false);
+  });
+  it('garnish finishes a brothed bowl with the chosen spice', () => {
+    const g = createGame(1);
+    g.player.x = STATIONS.garnish.x; g.player.z = STATIONS.garnish.z;
+    g.player.holding = { stage: 'brothed', doneness: 20 };
+    expect(garnish(g, 'extra')).toBe(true);
+    expect(g.player.holding).toEqual({ stage: 'done', doneness: 20, spice: 'extra' });
+  });
+  it('garnish rejects an invalid spice or non-brothed bowl', () => {
+    const g = createGame(1);
+    g.player.x = STATIONS.garnish.x; g.player.z = STATIONS.garnish.z;
+    g.player.holding = { stage: 'brothed', doneness: 20 };
+    expect(garnish(g, 'ketchup')).toBe(false);
+    g.player.holding = { stage: 'noodle' };
+    expect(garnish(g, 'normal')).toBe(false);
   });
 });

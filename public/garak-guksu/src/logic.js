@@ -117,3 +117,23 @@ export function liftFromBlancher(state) {
   }
   return false;
 }
+
+export function pourBroth(state) {
+  const p = state.player;
+  if (p.holding && p.holding.stage === 'blanched' &&
+      near(p.x, p.z, STATIONS.broth.x, STATIONS.broth.z)) {
+    p.holding = { stage: 'brothed', doneness: p.holding.doneness };
+    return true;
+  }
+  return false;
+}
+
+export function garnish(state, spice) {
+  const p = state.player;
+  if (p.holding && p.holding.stage === 'brothed' && SPICES.includes(spice) &&
+      near(p.x, p.z, STATIONS.garnish.x, STATIONS.garnish.z)) {
+    p.holding = { stage: 'done', doneness: p.holding.doneness, spice };
+    return true;
+  }
+  return false;
+}
