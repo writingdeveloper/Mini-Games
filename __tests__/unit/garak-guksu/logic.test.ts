@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOT, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, blancherProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress } from '../../../public/garak-guksu/src/logic.js';
+import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, blancherProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress } from '../../../public/garak-guksu/src/logic.js';
 
 describe('createGame', () => {
   it('starts with an empty-handed chef at origin, a waiting customer, zero score', () => {
@@ -43,38 +43,47 @@ describe('near (proximity boundary)', () => {
   });
 });
 
-describe('serve (완성도 + 정확)', () => {
-  function doneBowl(spice, doneness = 50) {
-    return { stage: 'done', doneness, spice };
+describe('serve (가장 가까운 손님)', () => {
+  function customerAt(g, slot, spice, arche = 'student') {
+    const c = { id: g._nextId++, slot, archetype: arche, order: { spice }, t: 0 };
+    g.customers.push(c);
+    return c;
   }
-  it('scores base + doneness + accuracy when the spice matches the order', () => {
+  function doneBowl(spice, doneness = 50) { return { stage: 'done', doneness, spice }; }
+
+  it('serves the nearest in-range customer, scoring completeness + accuracy', () => {
     const g = createGame(1);
-    g.customer.order.spice = 'extra';
-    g.player.x = CUSTOMER_SLOT.x; g.player.z = CUSTOMER_SLOT.z;
+    const c = customerAt(g, 1, 'extra'); // slot 1 = x:-1
+    const slot = CUSTOMER_SLOTS[1];
+    g.player.x = slot.x; g.player.z = slot.z;
     g.player.holding = doneBowl('extra', 50);
     expect(serve(g)).toBe(true);
     expect(g.score).toBe(SERVE_BASE + 50 + 30);
     expect(g.player.holding).toBe(null);
-    expect(g.customer).toMatchObject({ present: false, served: true });
+    expect(g.customers.find((x) => x.id === c.id)).toBeUndefined(); // left satisfied
   });
-  it('omits the accuracy bonus when the spice is wrong', () => {
+  it('omits accuracy when spice is wrong', () => {
     const g = createGame(1);
-    g.customer.order.spice = 'none';
-    g.player.x = CUSTOMER_SLOT.x; g.player.z = CUSTOMER_SLOT.z;
+    customerAt(g, 0, 'none');
+    const slot = CUSTOMER_SLOTS[0];
+    g.player.x = slot.x; g.player.z = slot.z;
     g.player.holding = doneBowl('extra', 20);
     expect(serve(g)).toBe(true);
     expect(g.score).toBe(SERVE_BASE + 20);
   });
-  it('refuses a bowl that is not done', () => {
+  it('refuses when no customer is in range', () => {
     const g = createGame(1);
-    g.player.x = CUSTOMER_SLOT.x; g.player.z = CUSTOMER_SLOT.z;
-    g.player.holding = { stage: 'brothed', doneness: 50 };
+    customerAt(g, 3, 'normal'); // far slot
+    g.player.holding = doneBowl('normal', 50); // chef at origin
     expect(serve(g)).toBe(false);
     expect(g.score).toBe(0);
   });
-  it('refuses when far from the customer', () => {
+  it('refuses a non-done bowl', () => {
     const g = createGame(1);
-    g.player.holding = doneBowl('normal', 50);
+    customerAt(g, 0, 'normal');
+    const slot = CUSTOMER_SLOTS[0];
+    g.player.x = slot.x; g.player.z = slot.z;
+    g.player.holding = { stage: 'brothed', doneness: 50 };
     expect(serve(g)).toBe(false);
   });
 });

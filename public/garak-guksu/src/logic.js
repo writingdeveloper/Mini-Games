@@ -115,18 +115,22 @@ export function near(ax, az, bx, bz, r = REACH) { return dist2(ax, az, bx, bz) <
 export const SERVE_BASE = 100;
 export const ACCURACY_BONUS = 30;
 
+// Serve the nearest in-range customer holding a DONE bowl. Score = base + doneness + accuracy.
 export function serve(state) {
-  const p = state.player, c = state.customer;
-  if (p.holding && p.holding.stage === 'done' && c.present && !c.served &&
-      near(p.x, p.z, CUSTOMER_SLOTS[0].x, CUSTOMER_SLOTS[0].z)) {
-    const accuracy = p.holding.spice === c.order.spice ? ACCURACY_BONUS : 0;
-    state.score += SERVE_BASE + p.holding.doneness + accuracy;
-    p.holding = null;
-    c.served = true;
-    c.present = false;
-    return true;
+  const p = state.player;
+  if (!p.holding || p.holding.stage !== 'done') return false;
+  let best = null, bestD = REACH * REACH;
+  for (const c of state.customers) {
+    const slot = CUSTOMER_SLOTS[c.slot];
+    const d = dist2(p.x, p.z, slot.x, slot.z);
+    if (d <= bestD) { best = c; bestD = d; }
   }
-  return false;
+  if (!best) return false;
+  const accuracy = p.holding.spice === best.order.spice ? ACCURACY_BONUS : 0;
+  state.score += SERVE_BASE + p.holding.doneness + accuracy;
+  p.holding = null;
+  state.customers = state.customers.filter((c) => c.id !== best.id);
+  return true;
 }
 
 export const BLANCH_TIME = 2.5;
