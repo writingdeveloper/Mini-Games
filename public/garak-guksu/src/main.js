@@ -58,6 +58,29 @@ function action() {
 const input = createInput(action);
 canvas.addEventListener('pointerdown', action);
 
+// Mobile joystick → movement direction via input.setTouchDir
+// Screen-up (dy<0) maps to world -z (away from camera, which sits at z=-7 looking +z). No inversion needed.
+const joy = $('joy'), knob = $('knob');
+if (joy) {
+  let jid = null, cx = 0, cy = 0;
+  const jstart = (e) => { jid = e.pointerId; const r = joy.getBoundingClientRect(); cx = r.left + r.width / 2; cy = r.top + r.height / 2; joy.setPointerCapture(jid); };
+  const jmove = (e) => {
+    if (e.pointerId !== jid) return;
+    let dx = e.clientX - cx, dy = e.clientY - cy; const len = Math.hypot(dx, dy) || 1; const cl = Math.min(1, len / 48);
+    knob.style.transform = `translate(calc(-50% + ${dx / len * cl * 36}px), calc(-50% + ${dy / len * cl * 36}px))`;
+    // dx/len → world x; dy/len → world z (screen-down = +z toward camera, screen-up = -z away from camera)
+    input.setTouchDir(dx / len * cl, dy / len * cl);
+  };
+  const jend = (e) => { if (e.pointerId !== jid) return; jid = null; knob.style.transform = 'translate(-50%,-50%)'; input.setTouchDir(0, 0); };
+  joy.addEventListener('pointerdown', jstart); joy.addEventListener('pointermove', jmove);
+  joy.addEventListener('pointerup', jend); joy.addEventListener('pointercancel', jend);
+}
+$('act')?.addEventListener('click', action);
+document.querySelectorAll('#spicebtns button').forEach((b) => b.addEventListener('click', () => {
+  const p = state.player;
+  if (near(p.x, p.z, STATIONS.garnish.x, STATIONS.garnish.z)) { garnish(state, b.dataset.s); renderHud(); }
+}));
+
 const SPICE_KEYS = { Digit1: 'none', Digit2: 'normal', Digit3: 'extra' };
 addEventListener('keydown', (e) => {
   const spice = SPICE_KEYS[e.code];

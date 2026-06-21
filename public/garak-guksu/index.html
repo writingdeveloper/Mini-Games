@@ -12,7 +12,8 @@
     #home{position:fixed;top:10px;left:12px;z-index:6;background:rgba(0,0,0,.5);color:#fff;
       text-decoration:none;font-size:13px;font-weight:700;padding:10px 12px;border-radius:12px;}
     #hud{position:fixed;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:14px;
-      background:rgba(0,0,0,.5);padding:8px 16px;border-radius:14px;font-weight:800;font-size:15px;z-index:5;}
+      background:rgba(0,0,0,.5);padding:8px 16px;border-radius:14px;font-weight:800;font-size:15px;z-index:5;
+      flex-wrap:wrap;justify-content:center;max-width:96vw;}
     .overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
       gap:18px;background:rgba(8,10,20,.92);z-index:10;text-align:center;padding:24px;}
     .overlay.off{display:none;}
@@ -28,6 +29,18 @@
     #flash{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .12s;z-index:7;
       background:radial-gradient(circle,rgba(255,200,60,0) 45%,rgba(255,170,40,.4) 100%);}
     @media (prefers-reduced-motion: reduce){#pop.show{animation-duration:.3s;}}
+    #touch{display:none;}
+    @media (pointer:coarse){#touch{display:block;}}
+    #joy{position:fixed;left:calc(18px + env(safe-area-inset-left));bottom:calc(20px + env(safe-area-inset-bottom));
+      width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 50% 40%,rgba(120,90,60,.5),rgba(20,16,28,.75));
+      border:3px solid var(--amber);touch-action:none;z-index:6;}
+    #knob{position:absolute;left:50%;top:50%;width:54px;height:54px;border-radius:50%;transform:translate(-50%,-50%);
+      background:radial-gradient(circle at 42% 36%,#ffe9c0,#ffae5c 60%,#c8801a);border:2px solid #ffe3c0;}
+    #act{position:fixed;right:calc(20px + env(safe-area-inset-right));bottom:calc(40px + env(safe-area-inset-bottom));
+      width:104px;height:104px;border-radius:50%;border:4px solid #ffe14a;font-size:22px;font-weight:900;color:#2a160a;z-index:6;
+      background:radial-gradient(circle at 42% 34%,#fff3b0,#ffd23d 55%,#f2a400);touch-action:manipulation;}
+    #spicebtns{position:fixed;right:calc(16px + env(safe-area-inset-right));bottom:calc(150px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:6px;z-index:6;}
+    #spicebtns button{padding:7px 10px;border-radius:10px;border:2px solid #c23b3b;background:rgba(20,16,28,.8);color:#ffd;font-weight:700;font-size:12px;touch-action:manipulation;}
   </style>
   <script type="importmap">
   {
@@ -62,6 +75,11 @@
     <p id="result-sub"></p>
     <div id="result-stats" style="line-height:1.8;font-size:15px"></div>
     <button id="replaybtn">▶ 다시 한 그릇</button>
+  </div>
+  <div id="touch" aria-hidden="true">
+    <div id="joy"><div id="knob"></div></div>
+    <button id="act">담기</button>
+    <div id="spicebtns"><button data-s="none">안맵게</button><button data-s="normal">기본</button><button data-s="extra">많이</button></div>
   </div>
   <script type="module" src="./src/main.js"></script>
 </body>
