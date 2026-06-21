@@ -68,6 +68,10 @@ export function createGame(seed = 1) {
     intermissionLeft: 0,
     lives: 5,
     score: 0,
+    combo: 0,
+    bestCombo: 0,
+    served: 0,
+    missed: 0,
     _rng: rng,
     _nextId: 1,
   };
@@ -107,7 +111,7 @@ export function tickCustomers(state, dt) {
   for (const c of state.customers) c.t += dt;
   const stayed = [];
   for (const c of state.customers) {
-    if (c.t >= ARCHETYPES[c.archetype].patience) loseLife(state);
+    if (c.t >= ARCHETYPES[c.archetype].patience) { loseLife(state); state.missed += 1; state.combo = 0; }
     else stayed.push(c);
   }
   state.customers = stayed;
@@ -130,8 +134,26 @@ export function near(ax, az, bx, bz, r = REACH) { return dist2(ax, az, bx, bz) <
 
 export const SERVE_BASE = 100;
 export const ACCURACY_BONUS = 30;
+export const SPEED_MAX = 50; // max speed bonus when the customer is fully calm
 
-// Serve the nearest in-range customer holding a DONE bowl. Score = base + doneness + accuracy.
+// Consecutive correct serves raise the multiplier: 1 → +0.4 per streak → capped ×3 (×3 at streak 6).
+export function comboMult(combo) {
+  return Math.min(3, 1 + Math.max(0, combo - 1) * 0.4);
+}
+
+// Title from the run's outcome (read by the result screen).
+export function grade(state) {
+  if (state.phase === 'won' && state.missed === 0) return '역전의 명인';
+  if (state.phase === 'won') return '0시 50분의 사나이';
+  if (state.missed >= 6) return '기차 도살자';
+  if (state.served >= 12) return '면치기 9단';
+  if (state.served >= 5) return '오늘 장사 쏠쏠';
+  return '오늘도 한 그릇';
+}
+
+// Serve the nearest in-range customer holding a DONE bowl.
+// Correct: combo++, speed bonus, score = (base+doneness+speed+accuracy)×comboMult.
+// Wrong spice: half base, no bonus, combo resets.
 export function serve(state) {
   const p = state.player;
   if (!p.holding || p.holding.stage !== 'done') return false;
@@ -142,8 +164,18 @@ export function serve(state) {
     if (d <= bestD) { best = c; bestD = d; }
   }
   if (!best) return false;
-  const accuracy = p.holding.spice === best.order.spice ? ACCURACY_BONUS : 0;
-  state.score += SERVE_BASE + p.holding.doneness + accuracy;
+  const correct = p.holding.spice === best.order.spice;
+  if (correct) {
+    state.combo += 1;
+    state.bestCombo = Math.max(state.bestCombo, state.combo);
+    const speed = Math.round((1 - patienceProgress(best)) * SPEED_MAX);
+    const raw = SERVE_BASE + p.holding.doneness + speed + ACCURACY_BONUS;
+    state.score += Math.round(raw * comboMult(state.combo));
+    state.served += 1;
+  } else {
+    state.score += Math.round(SERVE_BASE / 2); // mis-serve: half base, no bonus
+    state.combo = 0;
+  }
   p.holding = null;
   state.customers = state.customers.filter((c) => c.id !== best.id);
   return true;

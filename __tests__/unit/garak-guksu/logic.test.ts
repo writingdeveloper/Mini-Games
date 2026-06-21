@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, slotProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress, WAVES, INTERMISSION, tickWave } from '../../../public/garak-guksu/src/logic.js';
+import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, slotProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress, WAVES, INTERMISSION, tickWave, comboMult, SPEED_MAX, grade } from '../../../public/garak-guksu/src/logic.js';
 
 describe('createGame', () => {
   it('starts empty-handed, no customers, serving wave 0, 5 lives', () => {
@@ -15,6 +15,13 @@ describe('createGame', () => {
   it('exposes kitchen bounds', () => {
     expect(KITCHEN.minX).toBeLessThan(KITCHEN.maxX);
     expect(KITCHEN.minZ).toBeLessThan(KITCHEN.maxZ);
+  });
+  it('starts with zero combo and clean stats', () => {
+    const g = createGame(1);
+    expect(g.combo).toBe(0);
+    expect(g.bestCombo).toBe(0);
+    expect(g.served).toBe(0);
+    expect(g.missed).toBe(0);
   });
 });
 
@@ -47,33 +54,66 @@ describe('near (proximity boundary)', () => {
   });
 });
 
-describe('serve (가장 가까운 손님)', () => {
+describe('comboMult', () => {
+  it('1 at combo≤1, +0.4 per streak, capped at 3 (×3 at streak 6)', () => {
+    expect(comboMult(0)).toBe(1);
+    expect(comboMult(1)).toBe(1);
+    expect(comboMult(2)).toBeCloseTo(1.4, 5);
+    expect(comboMult(6)).toBe(3);
+    expect(comboMult(10)).toBe(3); // capped
+  });
+});
+
+describe('serve (콤보 · 속도 · 정확)', () => {
   function customerAt(g, slot, spice, arche = 'student') {
     const c = { id: g._nextId++, slot, archetype: arche, order: { spice }, t: 0 };
-    g.customers.push(c);
-    return c;
+    g.customers.push(c); return c;
   }
   function doneBowl(spice, doneness = 50) { return { stage: 'done', doneness, spice }; }
 
-  it('serves the nearest in-range customer, scoring completeness + accuracy', () => {
+  it('correct serve: combo++, full-speed bonus, score = (base+doneness+speed+accuracy)×mult', () => {
     const g = createGame(1);
-    const c = customerAt(g, 1, 'extra'); // slot 1 = x:-1
-    const slot = CUSTOMER_SLOTS[1];
-    g.player.x = slot.x; g.player.z = slot.z;
+    customerAt(g, 1, 'extra'); // t=0 → patienceProgress 0 → speed max
+    const slot = CUSTOMER_SLOTS[1]; g.player.x = slot.x; g.player.z = slot.z;
     g.player.holding = doneBowl('extra', 50);
     expect(serve(g)).toBe(true);
-    expect(g.score).toBe(SERVE_BASE + 50 + 30);
-    expect(g.player.holding).toBe(null);
-    expect(g.customers.find((x) => x.id === c.id)).toBeUndefined(); // left satisfied
+    expect(g.combo).toBe(1);
+    expect(g.bestCombo).toBe(1);
+    expect(g.served).toBe(1);
+    // (100 + 50 + 50 + 30) × comboMult(1)=1 = 230
+    expect(g.score).toBe(230);
   });
-  it('omits accuracy when spice is wrong', () => {
+  it('second correct serve multiplies by comboMult(2)=1.4', () => {
     const g = createGame(1);
+    g.combo = 1; // already one in
     customerAt(g, 0, 'none');
-    const slot = CUSTOMER_SLOTS[0];
-    g.player.x = slot.x; g.player.z = slot.z;
-    g.player.holding = doneBowl('extra', 20);
+    const slot = CUSTOMER_SLOTS[0]; g.player.x = slot.x; g.player.z = slot.z;
+    g.player.holding = doneBowl('none', 50); // t=0 → speed 50
+    serve(g);
+    expect(g.combo).toBe(2);
+    // (100+50+50+30) × 1.4 = 322
+    expect(g.score).toBe(322);
+  });
+  it('wrong spice: half base, no bonus, combo resets', () => {
+    const g = createGame(1);
+    g.combo = 4;
+    customerAt(g, 0, 'none');
+    const slot = CUSTOMER_SLOTS[0]; g.player.x = slot.x; g.player.z = slot.z;
+    g.player.holding = doneBowl('extra', 50);
     expect(serve(g)).toBe(true);
-    expect(g.score).toBe(SERVE_BASE + 20);
+    expect(g.score).toBe(50); // base/2
+    expect(g.combo).toBe(0);
+    expect(g.served).toBe(0); // mis-serve doesn't count as satisfied
+  });
+  it('speed bonus scales with remaining patience', () => {
+    const g = createGame(1);
+    const c = customerAt(g, 2, 'normal', 'granny'); // patience 25
+    c.t = 12.5; // half patience → speed 25
+    const slot = CUSTOMER_SLOTS[2]; g.player.x = slot.x; g.player.z = slot.z;
+    g.player.holding = doneBowl('normal', 20);
+    serve(g);
+    // (100 + 20 + 25 + 30) × 1 = 175
+    expect(g.score).toBe(175);
   });
   it('refuses when no customer is in range', () => {
     const g = createGame(1);
@@ -99,6 +139,17 @@ describe('serve (가장 가까운 손님)', () => {
     expect(serve(g)).toBe(true);
     expect(g.customers.find((c) => c.id === nearer.id)).toBeUndefined();
     expect(g.customers.length).toBe(1);   // the farther one remains
+  });
+});
+
+describe('grade (등급/칭호)', () => {
+  it('perfect run wins as 역전의 명인', () => {
+    const g = createGame(1); g.phase = 'won'; g.missed = 0; g.served = 12;
+    expect(grade(g)).toBe('역전의 명인');
+  });
+  it('many walkouts → 기차 도살자', () => {
+    const g = createGame(1); g.missed = 6;
+    expect(grade(g)).toBe('기차 도살자');
   });
 });
 
@@ -278,6 +329,13 @@ describe('초조 + 이탈 (tickCustomers / lives)', () => {
     tickCustomers(g, 13); // both past soldier patience 12
     expect(g.customers.length).toBe(0);
     expect(g.lives).toBe(3); // 5 - 2
+  });
+  it('a walkout increments missed and resets combo', () => {
+    const g = createGame(1); g.combo = 4;
+    g.customers.push({ id: 1, slot: 0, archetype: 'soldier', order: { spice: 'normal' }, t: 0 });
+    tickCustomers(g, 13);
+    expect(g.missed).toBe(1);
+    expect(g.combo).toBe(0);
   });
 });
 
