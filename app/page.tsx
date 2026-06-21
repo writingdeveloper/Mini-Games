@@ -161,6 +161,29 @@ export default function Home() {
               </div>
             </div>
           </Link>
+
+          {/* 역전국수 카드 */}
+          <Link href="/garak-guksu" aria-label="역전국수 가락국수 서빙 게임 플레이하기">
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-600 to-yellow-700 p-8 shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-amber-500/50 cursor-pointer">
+              <div aria-hidden="true" className="absolute -right-8 -top-8 text-9xl opacity-20">
+                🍜
+              </div>
+              <div className="relative z-10">
+                <h2 className="mb-3 text-3xl font-bold text-white">역전국수</h2>
+                <p className="mb-4 text-white/90">
+                  대전역 심야 플랫폼, 기차 놓칠라 후루룩! 가락국수를 말아내세요!
+                </p>
+                <ul className="mb-6 space-y-2 text-sm text-white/80">
+                  <li>✓ WASD 주방 서빙</li>
+                  <li>✓ 데치기 타이밍 · 손님 5인</li>
+                  <li>✓ 증기→디젤→막차 러시</li>
+                </ul>
+                <div className="inline-block rounded-full bg-white/20 px-6 py-2 font-semibold text-white backdrop-blur-sm transition-colors group-hover:bg-white/30">
+                  플레이하기 →
+                </div>
+              </div>
+            </div>
+          </Link>
         </div>
 
         <div className="mt-8 text-center">
