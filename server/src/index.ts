@@ -22,13 +22,23 @@ const corsOrigin = CORS_ORIGIN === '*'
     ? CORS_ORIGIN.split(',').map(s => s.trim())
     : CORS_ORIGIN;
 
+if (corsOrigin === '*') {
+  console.warn(
+    '[Server] WARNING: CORS_ORIGIN is "*" — any website can drive this socket server. ' +
+    'Set CORS_ORIGIN to your site origin (e.g. https://games.writingdeveloper.blog) in production.'
+  );
+}
+
 const io = new Server(server, {
   cors: {
     origin: corsOrigin,
     methods: ['GET', 'POST'],
   },
-  pingInterval: 10000,
-  pingTimeout: 5000,
+  // Bound incoming payload size so a client can't send arbitrarily large messages (memory DoS).
+  maxHttpBufferSize: 1e5, // 100 KB
+  // socket.io defaults: timeout >= interval so a brief lag spike isn't treated as a disconnect.
+  pingInterval: 25000,
+  pingTimeout: 20000,
 });
 
 const socketManager = new SocketManager(io);
@@ -51,3 +61,12 @@ const shutdown = () => {
 
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
+
+// Last-resort guards: a stray throw or rejected promise must never take the whole server
+// (and every active room) down. Log and keep serving.
+process.on('uncaughtException', (err) => {
+  console.error('[Server] uncaughtException:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[Server] unhandledRejection:', reason);
+});

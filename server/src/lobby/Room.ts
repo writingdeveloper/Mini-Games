@@ -1,5 +1,6 @@
 import type { GameType, RoomState, PlayerInfo, RoomInfo } from '../network/MessageTypes.js';
 import { MAX_PLAYERS_PER_ROOM, RECONNECT_GRACE_MS } from '../config.js';
+import { sanitizePlayerName } from '../network/validation.js';
 
 const PLAYER_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A'];
 
@@ -36,7 +37,7 @@ export class Room {
     const player: RoomPlayer = {
       id: socketId,
       socketId,
-      name,
+      name: sanitizePlayerName(name),
       ready: false,
       color,
       connected: true,

@@ -239,14 +239,31 @@ export class LobbyUI {
     for (const player of room.players) {
       const li = document.createElement('li');
       li.className = 'lobby-player-item';
-      li.innerHTML = `
-        <span class="lobby-player-color" style="background:${player.color}"></span>
-        <span class="lobby-player-name">${player.name}</span>
-        ${player.id === room.hostId ? '<span class="lobby-player-badge">HOST</span>' : ''}
-        <span class="lobby-player-ready ${player.ready ? 'ready' : 'not-ready'}">
-          ${player.ready ? '준비됨' : '대기중'}
-        </span>
-      `;
+
+      // Build with DOM + textContent, NEVER innerHTML — player.name is attacker-controlled, so
+      // interpolating it into HTML was a stored-XSS vector (e.g. name = "<img src=x onerror=...>").
+      const colorEl = document.createElement('span');
+      colorEl.className = 'lobby-player-color';
+      colorEl.style.background = /^#[0-9a-fA-F]{3,8}$/.test(player.color || '') ? player.color : '#888';
+      li.appendChild(colorEl);
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'lobby-player-name';
+      nameEl.textContent = player.name; // inert: rendered as text, not markup
+      li.appendChild(nameEl);
+
+      if (player.id === room.hostId) {
+        const badge = document.createElement('span');
+        badge.className = 'lobby-player-badge';
+        badge.textContent = 'HOST';
+        li.appendChild(badge);
+      }
+
+      const readyEl = document.createElement('span');
+      readyEl.className = 'lobby-player-ready ' + (player.ready ? 'ready' : 'not-ready');
+      readyEl.textContent = player.ready ? '준비됨' : '대기중';
+      li.appendChild(readyEl);
+
       list.appendChild(li);
     }
 

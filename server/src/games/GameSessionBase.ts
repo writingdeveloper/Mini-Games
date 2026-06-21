@@ -29,8 +29,16 @@ export abstract class GameSessionBase {
 
     const intervalMs = Math.round(1000 / this.tickRate);
     this.tickInterval = setInterval(() => {
-      this.tickCount++;
-      this.onTick(intervalMs / 1000);
+      // Isolate a throwing tick to THIS session — without this guard a single bad tick
+      // (e.g. from a malformed client action) escapes the interval callback and crashes the
+      // whole Node process, killing every concurrent room.
+      try {
+        this.tickCount++;
+        this.onTick(intervalMs / 1000);
+      } catch (err) {
+        console.error(`[GameSession ${this.room.code}] tick error, ending game:`, err);
+        this.endGame({ error: 'server_error' });
+      }
     }, intervalMs);
   }
 
@@ -44,11 +52,20 @@ export abstract class GameSessionBase {
   }
 
   handleInput(playerId: string, input: Record<string, unknown>): void {
-    this.onInput(playerId, input);
+    // Client-driven; a throw here must not take down the process (and thus all other rooms).
+    try {
+      this.onInput(playerId, input);
+    } catch (err) {
+      console.error(`[GameSession ${this.room.code}] onInput error from ${playerId}:`, err);
+    }
   }
 
   handleAction(playerId: string, type: string, data: Record<string, unknown>): void {
-    this.onAction(playerId, type, data);
+    try {
+      this.onAction(playerId, type, data);
+    } catch (err) {
+      console.error(`[GameSession ${this.room.code}] onAction(${type}) error from ${playerId}:`, err);
+    }
   }
 
   handleDisconnect(playerId: string): void {
