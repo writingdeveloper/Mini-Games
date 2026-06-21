@@ -5,6 +5,9 @@ import {
 } from './logic.js';
 import { createScene } from './scene.js';
 import { createInput } from './input.js';
+import { createAudio } from './audio.js';
+
+const audio = createAudio();
 
 const $ = (id) => document.getElementById(id);
 
@@ -34,6 +37,8 @@ let running = false;
 let last = 0;
 let rafId = 0;
 let prevMissed = 0;
+let seenIds = new Set();
+let prevPhase = 'serving';
 
 function seedNow() { return ((performance.now() | 0) ^ 0x9e3779b9) >>> 0; }
 
@@ -50,7 +55,12 @@ function action() {
     serve(state); // serve picks the nearest in-range customer (no-op if none)
     if (state.combo > before) {
       const cheers = ['좋았어!', '척척!', '신들렸다!', '오늘 장사 대박!'];
-      if (state.combo >= 3) { popup(cheers[Math.min(state.combo - 3, cheers.length - 1)]); flash(); }
+      if (state.combo >= 3) {
+        popup(cheers[Math.min(state.combo - 3, cheers.length - 1)]); flash();
+        audio.playVoice('combo');
+      } else {
+        audio.playVoice('happy');
+      }
     }
   }
   renderHud();
@@ -121,7 +131,27 @@ function loop(now) {
   tickWave(state, dt);
   tickSpawns(state, dt);
   tickCustomers(state, dt);
-  if (state.missed > prevMissed) { prevMissed = state.missed; popup('아이고 기차!'); }
+  if (state.missed > prevMissed) { prevMissed = state.missed; popup('아이고 기차!'); audio.playVoice('leave'); }
+
+  // detect newly spawned customers and play order voice
+  for (const c of state.customers) {
+    if (!seenIds.has(c.id)) {
+      seenIds.add(c.id);
+      // ~1/4 chance rush or gop by id parity; else map by spice
+      const r = c.id % 4;
+      if (r === 0) audio.playVoice('rush');
+      else if (r === 1) audio.playVoice('orderGop');
+      else if (c.order.spice === 'extra') audio.playVoice('orderSpicy');
+      else if (c.order.spice === 'none') audio.playVoice('orderMild');
+      else audio.playVoice('orderBasic');
+    }
+  }
+
+  // detect entering intermission phase (wave PA announcement)
+  if (state.phase === 'intermission' && prevPhase !== 'intermission') {
+    audio.playVoice('pa');
+  }
+  prevPhase = state.phase;
   scene.sync(state, now / 1000);
   scene.render();
   renderHud();
@@ -146,16 +176,33 @@ function start() {
   if (rafId) cancelAnimationFrame(rafId);
   state = createGame(seedNow());
   prevMissed = 0;
+  seenIds = new Set();
+  prevPhase = 'serving';
   running = true;
   $('start').classList.add('off');
   $('result').classList.add('off');
   renderHud();
+  audio.playVoice('chefReady');
   last = performance.now();
   rafId = requestAnimationFrame(loop);
 }
 
 $('startbtn').addEventListener('click', start);
 $('replaybtn').addEventListener('click', start);
+
+// Mute button
+const muteBtn = $('mute');
+if (muteBtn) {
+  // Sync initial display with persisted state
+  muteBtn.textContent = audio.isMuted() ? '🔇' : '🔊';
+  muteBtn.setAttribute('aria-pressed', String(audio.isMuted()));
+  muteBtn.addEventListener('click', () => {
+    const next = !audio.isMuted();
+    audio.setMuted(next);
+    muteBtn.textContent = next ? '🔇' : '🔊';
+    muteBtn.setAttribute('aria-pressed', String(next));
+  });
+}
 
 window.__garak = {
   STATIONS,

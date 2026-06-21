@@ -11,6 +11,8 @@
     #game{display:block;width:100vw;height:100vh;touch-action:none;}
     #home{position:fixed;top:10px;left:12px;z-index:6;background:rgba(0,0,0,.5);color:#fff;
       text-decoration:none;font-size:13px;font-weight:700;padding:10px 12px;border-radius:12px;}
+    #mute{position:fixed;top:10px;right:12px;z-index:6;background:rgba(0,0,0,.5);color:#fff;border:0;
+      font-size:18px;font-weight:700;padding:8px 12px;border-radius:12px;cursor:pointer;line-height:1;}
     #hud{position:fixed;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:14px;
       background:rgba(0,0,0,.5);padding:8px 16px;border-radius:14px;font-weight:800;font-size:15px;z-index:5;
       flex-wrap:wrap;justify-content:center;max-width:96vw;}
@@ -56,6 +58,7 @@
   <div id="pop" aria-live="polite"></div>
   <div id="flash"></div>
   <a id="home" href="/">← 홈</a>
+  <button id="mute" aria-label="음소거" aria-pressed="false">🔊</button>
   <div id="hud" role="status" aria-live="off">
     <span class="lives" id="lives" aria-label="라이프">❤❤❤❤❤</span>
     <span>점수 <span id="score">0</span></span>
