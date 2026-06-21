@@ -44,15 +44,29 @@ export const ARCHETYPE_KEYS = Object.keys(ARCHETYPES);
 export const SPAWN_INTERVAL = 2.5;     // seconds between spawns while a slot is free
 export const BLANCH_SLOTS = 2;          // simultaneous baskets
 
+// 5 waves = 5 trains. Era curve: steam(여유) → diesel(압박) → 막차(클라이맥스).
+export const WAVES = [
+  { era: '증기', dwell: 75, count: 3 },
+  { era: '증기', dwell: 70, count: 4 },
+  { era: '디젤', dwell: 55, count: 5 },
+  { era: '디젤', dwell: 50, count: 6 },
+  { era: '막차', dwell: 40, count: 8 },
+];
+export const INTERMISSION = 2.5; // seconds between waves (정산·안내방송)
+
 export function createGame(seed = 1) {
   const rng = mulberry32(seed);
   return {
     player: { x: 0, z: 0, holding: null },
-    blancher: { slots: new Array(BLANCH_SLOTS).fill(null) }, // each: null | { t }
-    customers: [],         // active: { id, slot, archetype, order:{spice}, t }
+    blancher: { slots: new Array(BLANCH_SLOTS).fill(null) },
+    customers: [],
     spawnTimer: 0,
+    waveSpawned: 0,
+    wave: 0,
+    phase: 'serving',                 // 'serving' | 'intermission' | 'won' | 'over'
+    dwellLeft: WAVES[0].dwell,
+    intermissionLeft: 0,
     lives: 5,
-    over: false,
     score: 0,
     _rng: rng,
     _nextId: 1,
@@ -67,27 +81,29 @@ function makeOrder(rng, arche) {
 
 // Spawn one customer into the first free slot once the spawn timer passes SPAWN_INTERVAL.
 export function tickSpawns(state, dt) {
-  if (state.over) return;
+  if (state.phase !== 'serving') return;
+  if (state.waveSpawned >= WAVES[state.wave].count) return; // this wave's quota is full
   state.spawnTimer += dt;
   if (state.spawnTimer < SPAWN_INTERVAL) return;
-  state.spawnTimer = 0; // reset each interval whether or not a slot was free (no burst on free-up)
+  state.spawnTimer = 0;
   const occupied = new Set(state.customers.map((c) => c.slot));
   const free = CUSTOMER_SLOTS.findIndex((_, i) => !occupied.has(i));
   if (free === -1) return;
   const arche = ARCHETYPE_KEYS[Math.floor(state._rng() * ARCHETYPE_KEYS.length)];
   state.customers.push({ id: state._nextId++, slot: free, archetype: arche, order: makeOrder(state._rng, arche), t: 0 });
+  state.waveSpawned += 1;
 }
 
 export function patienceProgress(c) { return c.t / ARCHETYPES[c.archetype].patience; }
 
 function loseLife(state) {
   state.lives -= 1;
-  if (state.lives <= 0) { state.lives = 0; state.over = true; }
+  if (state.lives <= 0) { state.lives = 0; state.phase = 'over'; }
 }
 
 // Advance every customer's patience; those past their limit storm off (lose a life each).
 export function tickCustomers(state, dt) {
-  if (state.over) return;
+  if (state.phase !== 'serving') return;
   for (const c of state.customers) c.t += dt;
   const stayed = [];
   for (const c of state.customers) {

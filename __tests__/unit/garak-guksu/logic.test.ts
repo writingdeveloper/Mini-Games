@@ -1,14 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, slotProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress } from '../../../public/garak-guksu/src/logic.js';
+import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, slotProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress, WAVES, INTERMISSION, tickWave } from '../../../public/garak-guksu/src/logic.js';
 
 describe('createGame', () => {
-  it('starts with empty hands, no customers, two empty baskets, 5 lives', () => {
+  it('starts empty-handed, no customers, serving wave 0, 5 lives', () => {
     const g = createGame(1);
     expect(g.player).toEqual({ x: 0, z: 0, holding: null });
     expect(g.customers).toEqual([]);
     expect(g.blancher.slots).toEqual([null, null]);
     expect(g.lives).toBe(5);
-    expect(g.over).toBe(false);
+    expect(g.phase).toBe('serving');
+    expect(g.wave).toBe(0);
     expect(g.score).toBe(0);
   });
   it('exposes kitchen bounds', () => {
@@ -217,6 +218,7 @@ describe('스폰 (tickSpawns)', () => {
   });
   it('fills at most all slots (never double-books a slot)', () => {
     const g = createGame(1);
+    g.wave = 4; g.dwellLeft = WAVES[4].dwell; // wave 4 count=8 > 4 slots
     for (let i = 0; i < 50; i++) tickSpawns(g, SPAWN_INTERVAL);
     expect(g.customers.length).toBe(CUSTOMER_SLOTS.length);
     const slots = g.customers.map((c) => c.slot);
@@ -224,9 +226,11 @@ describe('스폰 (tickSpawns)', () => {
   });
   it('does not burst-spawn when a slot frees after the counter was full', () => {
     const g = createGame(1);
+    g.wave = 4; g.dwellLeft = WAVES[4].dwell; // wave 4 count=8 > 4 slots
     for (let i = 0; i < 20; i++) tickSpawns(g, SPAWN_INTERVAL); // fill all 4
     expect(g.customers.length).toBe(CUSTOMER_SLOTS.length);
     g.customers.shift(); // a slot frees
+    g.waveSpawned = CUSTOMER_SLOTS.length; // reset waveSpawned to match actual spawned
     tickSpawns(g, 0.1);  // tiny dt — timer was reset while full, so NO instant spawn
     expect(g.customers.length).toBe(CUSTOMER_SLOTS.length - 1);
     tickSpawns(g, SPAWN_INTERVAL); // after a full interval it spawns again
@@ -252,17 +256,17 @@ describe('초조 + 이탈 (tickCustomers / lives)', () => {
     expect(g.customers.length).toBe(0);
     expect(g.lives).toBe(4);
   });
-  it('lives hitting 0 sets over', () => {
+  it('lives hitting 0 sets phase to over', () => {
     const g = createGame(1);
     g.lives = 1;
     withOneCustomer(g, 'soldier');
     tickCustomers(g, 13);
     expect(g.lives).toBe(0);
-    expect(g.over).toBe(true);
+    expect(g.phase).toBe('over');
   });
-  it('does not advance once over', () => {
+  it('does not advance once phase is not serving', () => {
     const g = createGame(1);
-    g.over = true;
+    g.phase = 'over';
     const c = withOneCustomer(g);
     tickCustomers(g, 100);
     expect(c.t).toBe(0);
@@ -274,5 +278,65 @@ describe('초조 + 이탈 (tickCustomers / lives)', () => {
     tickCustomers(g, 13); // both past soldier patience 12
     expect(g.customers.length).toBe(0);
     expect(g.lives).toBe(3); // 5 - 2
+  });
+});
+
+describe('waves & phase (setup + spawn gate)', () => {
+  it('starts on wave 0, serving, with the era-1 dwell timer', () => {
+    const g = createGame(1);
+    expect(g.wave).toBe(0);
+    expect(g.phase).toBe('serving');
+    expect(g.dwellLeft).toBe(WAVES[0].dwell);
+    expect(g.waveSpawned).toBe(0);
+  });
+  it('tickSpawns stops after the wave quota (count) is reached', () => {
+    const g = createGame(1);
+    // wave 0 count is small; spawn many intervals, freeing slots each time
+    for (let i = 0; i < 30; i++) { tickSpawns(g, SPAWN_INTERVAL); g.customers = []; }
+    expect(g.waveSpawned).toBe(WAVES[0].count);
+  });
+  it('tickSpawns does nothing unless phase is serving', () => {
+    const g = createGame(1);
+    g.phase = 'intermission';
+    tickSpawns(g, SPAWN_INTERVAL);
+    expect(g.customers.length).toBe(0);
+  });
+});
+
+describe('tickWave (정차 타이머 → 전환 → 완주)', () => {
+  it('dwell timer counts down while serving', () => {
+    const g = createGame(1);
+    tickWave(g, 10);
+    expect(g.dwellLeft).toBe(WAVES[0].dwell - 10);
+    expect(g.phase).toBe('serving');
+  });
+  it('dwell reaching 0 clears customers and enters intermission (no life penalty)', () => {
+    const g = createGame(1);
+    g.customers.push({ id: 1, slot: 0, archetype: 'granny', order: { spice: 'none' }, t: 0 });
+    tickWave(g, WAVES[0].dwell + 1);
+    expect(g.customers).toEqual([]);     // train departed
+    expect(g.lives).toBe(5);             // departure is NOT a life loss
+    expect(g.phase).toBe('intermission');
+    expect(g.wave).toBe(1);
+  });
+  it('intermission elapsing starts the next wave with its dwell', () => {
+    const g = createGame(1);
+    tickWave(g, WAVES[0].dwell + 1);     // → intermission, wave 1
+    tickWave(g, INTERMISSION + 0.1);     // → serving wave 1
+    expect(g.phase).toBe('serving');
+    expect(g.dwellLeft).toBe(WAVES[1].dwell);
+    expect(g.waveSpawned).toBe(0);
+  });
+  it('finishing the last wave wins', () => {
+    const g = createGame(1);
+    g.wave = WAVES.length - 1; g.dwellLeft = WAVES[g.wave].dwell;
+    tickWave(g, WAVES[g.wave].dwell + 1);
+    expect(g.phase).toBe('won');
+  });
+  it('does nothing once won/over', () => {
+    const g = createGame(1);
+    g.phase = 'won';
+    tickWave(g, 100);
+    expect(g.wave).toBe(0);
   });
 });
