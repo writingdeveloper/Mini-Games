@@ -1,5 +1,5 @@
 // Pure, dependency-free simulation for /garak-guksu (unit-testable; no DOM/three).
-// Plan 1 = vertical slice: one cook station, one customer, single-step "make a bowl".
+// Plan 2 = 4-station pipeline: 사리세팅 → 데치기(timed doneness) → 육수 → 마감(spice) → 배식.
 
 // The chef walks this floor plane (x = left/right, z = depth toward counter).
 export const KITCHEN = { minX: -4, maxX: 4, minZ: -2.5, maxZ: 2.5 };
