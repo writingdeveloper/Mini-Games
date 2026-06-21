@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOT, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, blancherProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL } from '../../../public/garak-guksu/src/logic.js';
+import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOT, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, blancherProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress } from '../../../public/garak-guksu/src/logic.js';
 
 describe('createGame', () => {
   it('starts with an empty-handed chef at origin, a waiting customer, zero score', () => {
@@ -190,5 +190,40 @@ describe('스폰 (tickSpawns)', () => {
     expect(g.customers.length).toBe(CUSTOMER_SLOTS.length);
     const slots = g.customers.map((c) => c.slot);
     expect(new Set(slots).size).toBe(slots.length); // unique
+  });
+});
+
+describe('초조 + 이탈 (tickCustomers / lives)', () => {
+  function withOneCustomer(g, arche = 'soldier') {
+    g.customers.push({ id: 1, slot: 0, archetype: arche, order: { spice: 'normal' }, t: 0 });
+    return g.customers[0];
+  }
+  it('patienceProgress is t / patience', () => {
+    const g = createGame(1);
+    const c = withOneCustomer(g, 'soldier'); // patience 12
+    c.t = 6;
+    expect(patienceProgress(c)).toBeCloseTo(0.5, 5);
+  });
+  it('a customer past patience leaves and costs a life', () => {
+    const g = createGame(1);
+    withOneCustomer(g, 'soldier'); // patience 12
+    tickCustomers(g, 12.1);
+    expect(g.customers.length).toBe(0);
+    expect(g.lives).toBe(4);
+  });
+  it('lives hitting 0 sets over', () => {
+    const g = createGame(1);
+    g.lives = 1;
+    withOneCustomer(g, 'soldier');
+    tickCustomers(g, 13);
+    expect(g.lives).toBe(0);
+    expect(g.over).toBe(true);
+  });
+  it('does not advance once over', () => {
+    const g = createGame(1);
+    g.over = true;
+    const c = withOneCustomer(g);
+    tickCustomers(g, 100);
+    expect(c.t).toBe(0);
   });
 });

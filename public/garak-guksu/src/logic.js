@@ -78,6 +78,25 @@ export function tickSpawns(state, dt) {
   state.customers.push({ id: state._nextId++, slot: free, archetype: arche, order: makeOrder(state._rng, arche), t: 0 });
 }
 
+export function patienceProgress(c) { return c.t / ARCHETYPES[c.archetype].patience; }
+
+function loseLife(state) {
+  state.lives -= 1;
+  if (state.lives <= 0) { state.lives = 0; state.over = true; }
+}
+
+// Advance every customer's patience; those past their limit storm off (lose a life each).
+export function tickCustomers(state, dt) {
+  if (state.over) return;
+  for (const c of state.customers) c.t += dt;
+  const stayed = [];
+  for (const c of state.customers) {
+    if (c.t >= ARCHETYPES[c.archetype].patience) loseLife(state);
+    else stayed.push(c);
+  }
+  state.customers = stayed;
+}
+
 export const PLAYER_SPEED = 4.5; // units/second
 
 export function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
