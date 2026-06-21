@@ -89,19 +89,18 @@ export function createGauge() {
   return g;
 }
 
-export function createCustomer() {
+export function createCustomer(color = 0x4a6a8a) {
   const g = new THREE.Group();
   const body = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.3, 0.7, 6, 12),
-    new THREE.MeshStandardMaterial({ color: 0x4a6a8a, roughness: 0.7 })
+    new THREE.MeshStandardMaterial({ color, roughness: 0.7 })
   );
   body.position.y = 0.75; body.castShadow = true;
   const head = new THREE.Mesh(
     new THREE.SphereGeometry(0.26, 16, 12),
     new THREE.MeshStandardMaterial({ color: 0xffd9b0, roughness: 0.7 })
   );
-  head.position.y = 1.45;
-  head.castShadow = true;
+  head.position.y = 1.45; head.castShadow = true;
   g.add(body, head);
   return g;
 }
