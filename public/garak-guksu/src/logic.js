@@ -40,7 +40,7 @@ export const ARCHETYPES = {
   couple:  { name: '연인',   patience: 24, spice: 'normal' },
   granny:  { name: '할머니', patience: 25, spice: 'none'   },
 };
-export const ARCHETYPE_KEYS = ['soldier', 'worker', 'student', 'couple', 'granny'];
+export const ARCHETYPE_KEYS = Object.keys(ARCHETYPES);
 export const SPAWN_INTERVAL = 2.5;     // seconds between spawns while a slot is free
 export const BLANCH_SLOTS = 2;          // simultaneous baskets
 
@@ -70,10 +70,10 @@ export function tickSpawns(state, dt) {
   if (state.over) return;
   state.spawnTimer += dt;
   if (state.spawnTimer < SPAWN_INTERVAL) return;
+  state.spawnTimer = 0; // reset each interval whether or not a slot was free (no burst on free-up)
   const occupied = new Set(state.customers.map((c) => c.slot));
   const free = CUSTOMER_SLOTS.findIndex((_, i) => !occupied.has(i));
   if (free === -1) return;
-  state.spawnTimer = 0;
   const arche = ARCHETYPE_KEYS[Math.floor(state._rng() * ARCHETYPE_KEYS.length)];
   state.customers.push({ id: state._nextId++, slot: free, archetype: arche, order: makeOrder(state._rng, arche), t: 0 });
 }

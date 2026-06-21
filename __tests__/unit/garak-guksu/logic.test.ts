@@ -89,6 +89,16 @@ describe('serve (가장 가까운 손님)', () => {
     g.player.holding = { stage: 'brothed', doneness: 50 };
     expect(serve(g)).toBe(false);
   });
+  it('serves the NEARER of two in-range customers', () => {
+    const g = createGame(1);
+    customerAt(g, 1, 'normal');           // slot 1 = x:-1
+    const nearer = customerAt(g, 2, 'extra'); // slot 2 = x:1
+    g.player.x = 1; g.player.z = 3.2;     // exactly at slot 2
+    g.player.holding = doneBowl('extra', 50);
+    expect(serve(g)).toBe(true);
+    expect(g.customers.find((c) => c.id === nearer.id)).toBeUndefined();
+    expect(g.customers.length).toBe(1);   // the farther one remains
+  });
 });
 
 describe('setNoodle (사리세팅대)', () => {
@@ -212,6 +222,16 @@ describe('스폰 (tickSpawns)', () => {
     const slots = g.customers.map((c) => c.slot);
     expect(new Set(slots).size).toBe(slots.length); // unique
   });
+  it('does not burst-spawn when a slot frees after the counter was full', () => {
+    const g = createGame(1);
+    for (let i = 0; i < 20; i++) tickSpawns(g, SPAWN_INTERVAL); // fill all 4
+    expect(g.customers.length).toBe(CUSTOMER_SLOTS.length);
+    g.customers.shift(); // a slot frees
+    tickSpawns(g, 0.1);  // tiny dt — timer was reset while full, so NO instant spawn
+    expect(g.customers.length).toBe(CUSTOMER_SLOTS.length - 1);
+    tickSpawns(g, SPAWN_INTERVAL); // after a full interval it spawns again
+    expect(g.customers.length).toBe(CUSTOMER_SLOTS.length);
+  });
 });
 
 describe('초조 + 이탈 (tickCustomers / lives)', () => {
@@ -246,5 +266,13 @@ describe('초조 + 이탈 (tickCustomers / lives)', () => {
     const c = withOneCustomer(g);
     tickCustomers(g, 100);
     expect(c.t).toBe(0);
+  });
+  it('multiple simultaneous walkouts each cost a life', () => {
+    const g = createGame(1);
+    g.customers.push({ id: 1, slot: 0, archetype: 'soldier', order: { spice: 'normal' }, t: 0 });
+    g.customers.push({ id: 2, slot: 1, archetype: 'soldier', order: { spice: 'normal' }, t: 0 });
+    tickCustomers(g, 13); // both past soldier patience 12
+    expect(g.customers.length).toBe(0);
+    expect(g.lives).toBe(3); // 5 - 2
   });
 });
