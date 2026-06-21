@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { createFloor, createChef, createStation, createCustomer } from './models.js';
-import { COOK_STATION, CUSTOMER_SLOT } from './logic.js';
+import { createFloor, createChef, createStation, createCustomer, createGauge } from './models.js';
+import { STATIONS, CUSTOMER_SLOT, blancherProgress } from './logic.js';
 
 export function createScene(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -27,15 +27,23 @@ export function createScene(canvas) {
   scene.add(lamp);
 
   scene.add(createFloor());
-  const station = createStation();
-  station.position.set(COOK_STATION.x, 0, COOK_STATION.z);
-  scene.add(station);
+  for (const [kind, pos] of Object.entries(STATIONS)) {
+    const s = createStation(kind);
+    s.position.set(pos.x, 0, pos.z);
+    scene.add(s);
+  }
+  const gauge = createGauge();
+  gauge.position.set(STATIONS.blancher.x, 1.6, STATIONS.blancher.z);
+  gauge.rotation.x = -0.35;
+  scene.add(gauge);
+
   const customer = createCustomer();
   customer.position.set(CUSTOMER_SLOT.x, 0, CUSTOMER_SLOT.z);
   scene.add(customer);
   const chef = createChef();
   scene.add(chef);
   const heldBowl = chef.getObjectByName('heldBowl');
+  const gaugeFill = gauge.getObjectByName('fill');
 
   addEventListener('resize', () => {
     camera.aspect = innerWidth / innerHeight;
@@ -45,8 +53,16 @@ export function createScene(canvas) {
 
   function sync(state) {
     chef.position.set(state.player.x, 0, state.player.z);
-    heldBowl.visible = state.player.holding === 'bowl';
+    heldBowl.visible = state.player.holding !== null;
     customer.visible = state.customer.present;
+    const p = blancherProgress(state);
+    gauge.visible = state.blancher.bowl !== null;
+    if (gauge.visible) {
+      gaugeFill.scale.x = Math.min(1, p);
+      gaugeFill.position.x = -(1 - Math.min(1, p)) * 0.5;
+      const inBand = p >= 0.7 && p <= 0.9;
+      gaugeFill.material.color.setHex(p > 0.9 ? 0xff5a5a : inBand ? 0x6dff8f : 0xffcf6a);
+    }
   }
   function render() { renderer.render(scene, camera); }
   function dispose() { renderer.dispose(); }

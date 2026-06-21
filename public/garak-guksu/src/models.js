@@ -54,14 +54,38 @@ export function createBowl() {
   return g;
 }
 
-export function createStation() {
+const STATION_COLORS = {
+  setting:  0xb08d57,
+  blancher: 0x9aa3ad,
+  broth:    0x7a5a3a,
+  garnish:  0xc23b3b,
+};
+
+export function createStation(kind = 'blancher') {
   const g = new THREE.Group();
   const pot = new THREE.Mesh(
     new THREE.CylinderGeometry(0.5, 0.5, 0.7, 18),
-    new THREE.MeshStandardMaterial({ color: 0x9aa3ad, metalness: 0.6, roughness: 0.4 })
+    new THREE.MeshStandardMaterial({ color: STATION_COLORS[kind] ?? 0x9aa3ad, metalness: 0.4, roughness: 0.5 })
   );
   pot.position.y = 0.55; pot.castShadow = true; pot.receiveShadow = true;
   g.add(pot);
+  return g;
+}
+
+export function createGauge() {
+  const g = new THREE.Group();
+  const bg = new THREE.Mesh(
+    new THREE.BoxGeometry(1.0, 0.12, 0.04),
+    new THREE.MeshBasicMaterial({ color: 0x222831 })
+  );
+  const fill = new THREE.Mesh(
+    new THREE.BoxGeometry(1.0, 0.12, 0.05),
+    new THREE.MeshBasicMaterial({ color: 0xffcf6a })
+  );
+  fill.name = 'fill';
+  fill.position.z = 0.01;
+  g.add(bg, fill);
+  g.visible = false;
   return g;
 }
 
