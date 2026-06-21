@@ -1,7 +1,7 @@
 import {
   createGame, movePlayer, near, STATIONS, CUSTOMER_SLOTS,
   setNoodle, putInBlancher, liftFromBlancher, tickBlancher, tickSpawns, tickCustomers,
-  pourBroth, garnish, serve, ARCHETYPES,
+  pourBroth, garnish, serve, ARCHETYPES, tickWave, WAVES,
 } from './logic.js';
 import { createScene } from './scene.js';
 import { createInput } from './input.js';
@@ -55,6 +55,10 @@ function nearestCustomer() {
 function renderHud() {
   $('score').textContent = state.score;
   $('lives').textContent = '❤'.repeat(Math.max(0, state.lives)) || '—';
+  const w = WAVES[state.wave];
+  $('wave').textContent = `${w.era} · ${state.wave + 1}/${WAVES.length}`;
+  const sec = Math.max(0, Math.ceil(state.dwellLeft));
+  $('dwell').textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
   const nearby = nearestCustomer();
   $('order').textContent = nearby ? SPICE_KO[nearby.order.spice] : '-';
   $('held').textContent = state.player.holding ? STAGE_KO[state.player.holding.stage] : '빈손';
@@ -66,18 +70,22 @@ function loop(now) {
   last = now;
   movePlayer(state, input.getMoveDir(), dt);
   tickBlancher(state, dt);
+  tickWave(state, dt);
   tickSpawns(state, dt);
   tickCustomers(state, dt);
   scene.sync(state);
   scene.render();
-  renderHud(); // HUD updates each frame now (patience changes over time)
-  if (state.over) { running = false; gameOver(); return; }
+  renderHud();
+  if (state.phase === 'won' || state.phase === 'over') { running = false; endGame(); return; }
   rafId = requestAnimationFrame(loop);
 }
 
-function gameOver() {
-  $('result-title').textContent = '영업 종료';
-  $('result-sub').textContent = `점수 ${state.score} · 손님 ${state.lives <= 0 ? '너무 많이 놓쳤습니다' : '마감'}`;
+function endGame() {
+  const won = state.phase === 'won';
+  $('result-title').textContent = won ? '🎉 영업 대박!' : '영업 종료';
+  $('result-sub').textContent = won
+    ? `5웨이브 완주 · 점수 ${state.score}`
+    : `${state.wave + 1}웨이브에서 마감 · 점수 ${state.score}`;
   $('result').classList.remove('off');
 }
 
@@ -102,7 +110,8 @@ window.__garak = {
   get holding() { return state.player.holding; },
   get customers() { return state.customers; },
   get lives() { return state.lives; },
-  get over() { return state.over; },
+  get phase() { return state.phase; },
+  get wave() { return state.wave; },
   teleport(x, z) { state.player.x = x; state.player.z = z; },
   setNoodle() { setNoodle(state); renderHud(); },
   putInBlancher() { putInBlancher(state); renderHud(); },
@@ -113,6 +122,7 @@ window.__garak = {
   serve() { serve(state); renderHud(); },
   tickSpawns(dt) { tickSpawns(state, dt); },
   tickCustomers(dt) { tickCustomers(state, dt); },
+  tickWave(dt) { tickWave(state, dt); },
 };
 
 scene.sync(state);

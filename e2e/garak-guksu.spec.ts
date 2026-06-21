@@ -48,3 +48,16 @@ test('a timed-out customer costs a life', async ({ page }) => {
   });
   expect(lives).toBe(4);
 });
+
+test('clearing all waves wins', async ({ page }) => {
+  await page.goto('/garak-guksu');
+  const frame = page.frameLocator('iframe[title="역전국수"]');
+  await frame.locator('#startbtn').click();
+  const phase = await frame.locator('canvas#game').evaluate(() => {
+    const g = window.__garak;
+    // blow through every wave's dwell + intermission
+    for (let i = 0; i < 12; i++) { g.tickWave(80); g.tickWave(3); }
+    return g.phase;
+  });
+  expect(phase).toBe('won');
+});
