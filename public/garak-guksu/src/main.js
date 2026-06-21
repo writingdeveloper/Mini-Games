@@ -9,6 +9,7 @@ const scene = createScene(canvas);
 let state = createGame();
 let running = false;
 let last = 0;
+let rafId = 0;
 
 function action() {
   if (!running) return;
@@ -29,17 +30,18 @@ function loop(now) {
   movePlayer(state, input.getMoveDir(), dt);
   scene.sync(state);
   scene.render();
-  requestAnimationFrame(loop);
+  rafId = requestAnimationFrame(loop);
 }
 
 function start() {
+  if (rafId) cancelAnimationFrame(rafId);
   state = createGame();
   running = true;
   $('start').classList.add('off');
   $('result').classList.add('off');
   renderHud();
   last = performance.now();
-  requestAnimationFrame(loop);
+  rafId = requestAnimationFrame(loop);
 }
 
 $('startbtn').addEventListener('click', start);

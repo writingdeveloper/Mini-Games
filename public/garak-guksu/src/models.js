@@ -6,7 +6,7 @@ import * as THREE from 'three';
 export function createFloor() {
   const g = new THREE.Group();
   const floor = new THREE.Mesh(
-    new THREE.BoxGeometry(9, 0.4, 6),
+    new THREE.BoxGeometry(9, 0.4, 7),
     new THREE.MeshStandardMaterial({ color: 0x2a2030, roughness: 0.9 })
   );
   floor.position.y = -0.2;
@@ -77,6 +77,7 @@ export function createCustomer() {
     new THREE.MeshStandardMaterial({ color: 0xffd9b0, roughness: 0.7 })
   );
   head.position.y = 1.45;
+  head.castShadow = true;
   g.add(body, head);
   return g;
 }
