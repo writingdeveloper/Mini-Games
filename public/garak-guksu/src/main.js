@@ -1,7 +1,7 @@
 import {
-  createGame, movePlayer, near, STATIONS, CUSTOMER_SLOT,
-  setNoodle, putInBlancher, liftFromBlancher, tickBlancher, blancherProgress,
-  pourBroth, garnish, serve,
+  createGame, movePlayer, near, STATIONS, CUSTOMER_SLOTS,
+  setNoodle, putInBlancher, liftFromBlancher, tickBlancher, tickSpawns, tickCustomers,
+  pourBroth, garnish, serve, ARCHETYPES,
 } from './logic.js';
 import { createScene } from './scene.js';
 import { createInput } from './input.js';
@@ -25,9 +25,9 @@ function action() {
   const p = state.player;
   if (near(p.x, p.z, STATIONS.setting.x, STATIONS.setting.z)) setNoodle(state);
   else if (near(p.x, p.z, STATIONS.blancher.x, STATIONS.blancher.z)) {
-    if (state.blancher.bowl) liftFromBlancher(state); else putInBlancher(state);
+    if (state.blancher.slots.some((s) => s)) liftFromBlancher(state); else putInBlancher(state);
   } else if (near(p.x, p.z, STATIONS.broth.x, STATIONS.broth.z)) pourBroth(state);
-  else if (near(p.x, p.z, CUSTOMER_SLOT.x, CUSTOMER_SLOT.z)) serve(state);
+  else serve(state); // serve picks the nearest in-range customer (no-op if none)
   renderHud();
 }
 const input = createInput(action);
@@ -41,9 +41,21 @@ addEventListener('keydown', (e) => {
   if (near(p.x, p.z, STATIONS.garnish.x, STATIONS.garnish.z)) { garnish(state, spice); renderHud(); }
 });
 
+function nearestCustomer() {
+  const p = state.player; let best = null, bestD = Infinity;
+  for (const c of state.customers) {
+    const slot = CUSTOMER_SLOTS[c.slot];
+    const d = (p.x - slot.x) ** 2 + (p.z - slot.z) ** 2;
+    if (d < bestD) { best = c; bestD = d; }
+  }
+  return best;
+}
+
 function renderHud() {
   $('score').textContent = state.score;
-  $('order').textContent = state.customer.present ? SPICE_KO[state.customer.order.spice] : '-';
+  $('lives').textContent = '❤'.repeat(Math.max(0, state.lives)) || '—';
+  const nearby = nearestCustomer();
+  $('order').textContent = nearby ? SPICE_KO[nearby.order.spice] : '-';
   $('held').textContent = state.player.holding ? STAGE_KO[state.player.holding.stage] : '빈손';
 }
 
@@ -53,9 +65,19 @@ function loop(now) {
   last = now;
   movePlayer(state, input.getMoveDir(), dt);
   tickBlancher(state, dt);
+  tickSpawns(state, dt);
+  tickCustomers(state, dt);
   scene.sync(state);
   scene.render();
+  renderHud(); // HUD updates each frame now (patience changes over time)
+  if (state.over) { running = false; gameOver(); return; }
   rafId = requestAnimationFrame(loop);
+}
+
+function gameOver() {
+  $('result-title').textContent = '영업 종료';
+  $('result-sub').textContent = `점수 ${state.score} · 손님 ${state.lives <= 0 ? '너무 많이 놓쳤습니다' : '마감'}`;
+  $('result').classList.remove('off');
 }
 
 function start() {
@@ -73,11 +95,13 @@ $('startbtn').addEventListener('click', start);
 $('replaybtn').addEventListener('click', start);
 
 window.__garak = {
-  STATIONS, CUSTOMER_SLOT,
+  STATIONS,
+  CUSTOMER_SLOTS,
   get score() { return state.score; },
   get holding() { return state.player.holding; },
-  get order() { return state.customer.order; },
-  get progress() { return blancherProgress(state); },
+  get customers() { return state.customers; },
+  get lives() { return state.lives; },
+  get over() { return state.over; },
   teleport(x, z) { state.player.x = x; state.player.z = z; },
   setNoodle() { setNoodle(state); renderHud(); },
   putInBlancher() { putInBlancher(state); renderHud(); },
@@ -86,6 +110,8 @@ window.__garak = {
   pourBroth() { pourBroth(state); renderHud(); },
   garnish(spice) { garnish(state, spice); renderHud(); },
   serve() { serve(state); renderHud(); },
+  tickSpawns(dt) { tickSpawns(state, dt); },
+  tickCustomers(dt) { tickCustomers(state, dt); },
 };
 
 scene.sync(state);
