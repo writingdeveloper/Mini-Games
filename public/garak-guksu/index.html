@@ -19,6 +19,15 @@
     .overlay h1{font-size:40px;margin:0;}
     .overlay button{font-size:20px;font-weight:900;padding:14px 32px;border:0;border-radius:16px;cursor:pointer;
       background:linear-gradient(135deg,var(--amber),#ff8a5c);color:#1a0f10;}
+    #pop{position:fixed;left:50%;top:34%;transform:translateX(-50%);pointer-events:none;opacity:0;
+      font-size:34px;font-weight:900;color:#ffd34d;text-shadow:0 2px 0 #7a3a00,0 0 14px rgba(255,200,60,.7);white-space:nowrap;z-index:8;}
+    #pop.show{animation:popUp .9s ease-out;}
+    @keyframes popUp{0%{opacity:0;transform:translateX(-50%) translateY(10px) scale(.6);}
+      20%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.1);}
+      100%{opacity:0;transform:translateX(-50%) translateY(-40px) scale(1);}}
+    #flash{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .12s;z-index:7;
+      background:radial-gradient(circle,rgba(255,200,60,0) 45%,rgba(255,170,40,.4) 100%);}
+    @media (prefers-reduced-motion: reduce){#pop.show{animation-duration:.3s;}}
   </style>
   <script type="importmap">
   {
@@ -31,6 +40,8 @@
 </head>
 <body>
   <canvas id="game"></canvas>
+  <div id="pop" aria-live="polite"></div>
+  <div id="flash"></div>
   <a id="home" href="/">← 홈</a>
   <div id="hud" role="status" aria-live="off">
     <span class="lives" id="lives" aria-label="라이프">❤❤❤❤❤</span>

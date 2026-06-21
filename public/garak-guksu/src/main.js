@@ -8,6 +8,17 @@ import { createInput } from './input.js';
 
 const $ = (id) => document.getElementById(id);
 
+const RM = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+function popup(text) {
+  const el = $('pop'); el.textContent = text; el.classList.remove('show');
+  void el.offsetWidth; el.classList.add('show');
+}
+function flash() {
+  if (RM) return;
+  const f = $('flash'); f.style.opacity = '1';
+  setTimeout(() => (f.style.opacity = '0'), 130);
+}
+
 const BEST_KEY = 'garak-guksu-best';
 const loadBest = () => { try { return Number(localStorage.getItem(BEST_KEY)) || 0; } catch { return 0; } };
 function saveBest(s) { try { if (s > loadBest()) localStorage.setItem(BEST_KEY, String(s)); } catch { /* localStorage unavailable */ } }
@@ -22,6 +33,7 @@ let state = createGame(seedNow());
 let running = false;
 let last = 0;
 let rafId = 0;
+let prevMissed = 0;
 
 function seedNow() { return ((performance.now() | 0) ^ 0x9e3779b9) >>> 0; }
 
@@ -33,7 +45,14 @@ function action() {
     if (p.holding && p.holding.stage === 'noodle') putInBlancher(state);
     else liftFromBlancher(state);
   } else if (near(p.x, p.z, STATIONS.broth.x, STATIONS.broth.z)) pourBroth(state);
-  else serve(state); // serve picks the nearest in-range customer (no-op if none)
+  else {
+    const before = state.combo;
+    serve(state); // serve picks the nearest in-range customer (no-op if none)
+    if (state.combo > before) {
+      const cheers = ['좋았어!', '척척!', '신들렸다!', '오늘 장사 대박!'];
+      if (state.combo >= 3) { popup(cheers[Math.min(state.combo - 3, cheers.length - 1)]); flash(); }
+    }
+  }
   renderHud();
 }
 const input = createInput(action);
@@ -79,6 +98,7 @@ function loop(now) {
   tickWave(state, dt);
   tickSpawns(state, dt);
   tickCustomers(state, dt);
+  if (state.missed > prevMissed) { prevMissed = state.missed; popup('아이고 기차!'); }
   scene.sync(state, now / 1000);
   scene.render();
   renderHud();
@@ -90,7 +110,8 @@ function endGame() {
   const won = state.phase === 'won';
   saveBest(state.score);
   $('result-title').textContent = `${won ? '🎉 ' : ''}${grade(state)}`;
-  $('result-sub').textContent = won ? '5웨이브 완주!' : `${state.wave + 1}웨이브에서 마감`;
+  const comicNote = state.missed === 0 ? ' 단 한 명도 못 놓쳤다!' : state.missed >= 6 ? ' 기차가 우리 편이었다…' : '';
+  $('result-sub').textContent = (won ? '5웨이브 완주!' : `${state.wave + 1}웨이브에서 마감`) + comicNote;
   $('result-stats').innerHTML =
     `점수 <b>${state.score}</b> · 최고 콤보 <b>${state.bestCombo}</b><br>` +
     `😋 만족 ${state.served} · 🚂 놓침 ${state.missed}<br>` +
@@ -101,6 +122,7 @@ function endGame() {
 function start() {
   if (rafId) cancelAnimationFrame(rafId);
   state = createGame(seedNow());
+  prevMissed = 0;
   running = true;
   $('start').classList.add('off');
   $('result').classList.add('off');
