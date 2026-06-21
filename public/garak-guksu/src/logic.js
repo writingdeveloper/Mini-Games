@@ -214,3 +214,28 @@ export function garnish(state, spice) {
   }
   return false;
 }
+
+function startWave(state, i) {
+  state.phase = 'serving';
+  state.dwellLeft = WAVES[i].dwell;
+  state.waveSpawned = 0;
+  state.spawnTimer = 0;
+}
+
+function endWave(state) {
+  state.customers = [];       // the train departs — remaining customers leave (score loss only, no life penalty)
+  state.wave += 1;
+  if (state.wave >= WAVES.length) { state.phase = 'won'; }
+  else { state.phase = 'intermission'; state.intermissionLeft = INTERMISSION; }
+}
+
+// Drive the dwell timer (serving) and the intermission timer. Call each frame.
+export function tickWave(state, dt) {
+  if (state.phase === 'serving') {
+    state.dwellLeft -= dt;
+    if (state.dwellLeft <= 0) endWave(state);
+  } else if (state.phase === 'intermission') {
+    state.intermissionLeft -= dt;
+    if (state.intermissionLeft <= 0) startWave(state, state.wave);
+  }
+}
