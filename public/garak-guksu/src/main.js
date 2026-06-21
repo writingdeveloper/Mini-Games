@@ -25,7 +25,8 @@ function action() {
   const p = state.player;
   if (near(p.x, p.z, STATIONS.setting.x, STATIONS.setting.z)) setNoodle(state);
   else if (near(p.x, p.z, STATIONS.blancher.x, STATIONS.blancher.z)) {
-    if (state.blancher.slots.some((s) => s)) liftFromBlancher(state); else putInBlancher(state);
+    if (p.holding && p.holding.stage === 'noodle') putInBlancher(state);
+    else liftFromBlancher(state);
   } else if (near(p.x, p.z, STATIONS.broth.x, STATIONS.broth.z)) pourBroth(state);
   else serve(state); // serve picks the nearest in-range customer (no-op if none)
   renderHud();
