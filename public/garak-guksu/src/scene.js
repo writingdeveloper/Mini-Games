@@ -12,6 +12,7 @@ const ERA_MOOD = {
 };
 let curEra = null;
 let lastDwellSec = -1;
+let prevWaveScene = 0;
 
 // 손님 머리 위 주문 말풍선(양념). 가까운 손님 1명만 보이던 HUD 한계를 공간적으로 해소.
 const SPICE_BUBBLE = { none: { t: '순하게', c: '#2e7d32' }, normal: { t: '기본', c: '#7a5a22' }, extra: { t: '맵게!', c: '#d23b2a' } };
@@ -93,6 +94,7 @@ export function createScene(canvas) {
 
   // 플랫폼 무대 장식(배경판/기둥/등/역사인/증기). scene/logic 불변, 별도 모듈.
   const station = buildStation(scene, { reducedMotion: RM });
+  if (typeof window !== 'undefined') window.__station = station; // QA 디버그 훅(__garak 관례)
 
   const chef = createChef();
   scene.add(chef);
@@ -161,6 +163,13 @@ export function createScene(canvas) {
       // 무대(배경 틴트/등/증기)도 같은 에라로 동기화. setEra 가 스팀 농도까지 처리.
       station.setEra(era);
     }
+    // 발차: 웨이브가 넘어가면 정차 열차가 미끄러져 나가고(다음 열차 진입). 리플레이면 복구.
+    if (state.wave > prevWaveScene) {
+      station.departTrain(state.wave >= WAVES.length ? null : era);
+    } else if (state.wave < prevWaveScene) {
+      station.resetTrain(era);
+    }
+    prevWaveScene = state.wave;
     // 발차 안내판 텍스트 = HUD 와 동일한 mm:ss. 초가 바뀔 때만 캔버스 재그림(매프레임 낭비 방지).
     const sec = Math.max(0, Math.ceil(state.dwellLeft));
     if (sec !== lastDwellSec) {

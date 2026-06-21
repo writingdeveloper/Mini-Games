@@ -200,7 +200,30 @@ export function buildStation(scene, opts = {}) {
   const steam = makeSteam(reducedMotion, CHIMNEY);
   group.add(steam.points);
 
+  // ---- 기관차 발차/도착 애니메이션 -----------------------------------------
+  let locoX = 0, locoState = 'idle', locoPending = null;
+  function showLocoEra(key) {
+    for (const [k, mesh] of Object.entries(loco.byEra)) mesh.visible = (k === key);
+    loco.group.visible = !!STATION_MOOD[key];
+  }
+  function tickLoco(dt) {
+    if (locoState === 'idle' || locoState === 'gone') return;
+    if (locoState === 'departing') {
+      locoX -= (8 + (-locoX) * 0.85) * dt;                  // 천천히 출발 → 가속하며 빠져나감
+      if (locoX <= -50) {
+        if (locoPending == null) { locoState = 'gone'; loco.group.visible = false; return; }
+        showLocoEra(locoPending); locoX = 50; locoState = 'arriving'; // 다음 열차가 반대편에서 진입
+      }
+    } else if (locoState === 'arriving') {
+      locoX -= (9 + locoX * 0.5) * dt;                      // 미끄러져 들어와 감속 정차
+      if (locoX <= 0.05) { locoX = 0; locoState = 'idle'; steam.setDensity(STATION_MOOD[curEra]?.steam ?? 1); }
+    }
+    loco.group.position.x = locoX;
+  }
+  _locoRef = tickLoco;
+
   // ---- 핸들 메서드 --------------------------------------------------------
+  // setEra: 등/증기 무드만 갱신(기관차 교체는 발차 애니메이션이 담당).
   function setEra(era) {
     const key = typeof era === 'string' ? era : era?.era;
     const m = STATION_MOOD[key];
@@ -208,25 +231,43 @@ export function buildStation(scene, opts = {}) {
     curEra = key;
     for (const mat of bulbMats) mat.emissiveIntensity = m.bulb;
     for (const l of lights) l.intensity = 1.0 * m.bulb;
-    steam.setDensity(m.steam);
-    for (const [k, mesh] of Object.entries(loco.byEra)) mesh.visible = (k === key);
+    if (locoState === 'idle') steam.setDensity(m.steam);
   }
   function setDwell(text, urgent = false) {
     drawDwellCanvas(dwellCanvas, String(text), urgent ? '#ff4d3a' : '#ffb12e');
     dwellTex.needsUpdate = true;
   }
   function setSteam(d) { steam.setDensity(d); }
+  // departTrain: 발차! 정차 열차가 미끄러져 나가고 다음 era 열차가 진입. null=막차 후 영영 떠남.
+  function departTrain(nextEra) {
+    if (locoState !== 'idle') return;
+    locoPending = (nextEra && STATION_MOOD[nextEra]) ? nextEra : null;
+    locoState = 'departing';
+    steam.setDensity(0);
+  }
+  // resetTrain: 리플레이 시 기관차를 초기 정차 상태로 복구.
+  function resetTrain(era) {
+    const key = (era && STATION_MOOD[era]) ? era : '증기';
+    locoState = 'idle'; locoPending = null; locoX = 0;
+    loco.group.position.x = 0; loco.group.visible = true;
+    showLocoEra(key);
+    steam.setDensity(STATION_MOOD[key].steam);
+  }
 
-  // 초기 가시성: 증기기관차만.
-  for (const [k, mesh] of Object.entries(loco.byEra)) mesh.visible = (k === curEra);
+  // 초기 가시성: 현재 에라 기관차만.
+  showLocoEra(curEra);
 
-  return { setEra, setDwell, setSteam, group };
+  return { setEra, setDwell, setSteam, departTrain, resetTrain, group, loco: loco.group };
 }
 
-// 매 프레임 시간기반 애니메이션(t=초). 증기 상승.
+// 매 프레임(t=초). 증기 상승 + 기관차 발차/도착 애니메이션.
 let _steamRef = null;
+let _locoRef = null;
+let _lastT = 0;
 export function tickStation(t) {
+  const dt = Math.min(0.05, t - _lastT || 0); _lastT = t;
   if (_steamRef) _steamRef.update(t);
+  if (_locoRef) _locoRef(dt);
 }
 
 // ---- 절차적 한국 플랫폼 배경 -----------------------------------------------
@@ -275,7 +316,7 @@ function buildKoreanPlatform(group) {
   }
 
   // 기관차/선로를 비추는 따뜻한 키라이트(그림자 없음 — 성능). 주인공이 어둠에 묻히지 않게.
-  const trainKey = new THREE.PointLight(0xffd2a0, 1.7, 20, 1.4);
+  const trainKey = new THREE.PointLight(0xffd2a0, 2.2, 22, 1.4);
   trainKey.position.set(0, 4.6, 6.0); group.add(trainKey);
 }
 
