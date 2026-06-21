@@ -3,8 +3,8 @@
 export function createInput(onAction) {
   const keys = new Set();
   let touch = { x: 0, z: 0 };
-  const MOVE = { KeyW: [0, -1], KeyS: [0, 1], KeyA: [-1, 0], KeyD: [1, 0],
-                 ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+  const MOVE = { KeyW: [0, 1], KeyS: [0, -1], KeyA: [1, 0], KeyD: [-1, 0],
+                 ArrowUp: [0, 1], ArrowDown: [0, -1], ArrowLeft: [1, 0], ArrowRight: [-1, 0] };
 
   addEventListener('keydown', (e) => {
     if (e.code === 'KeyE' || e.code === 'Space') { e.preventDefault(); onAction(); return; }
@@ -22,9 +22,8 @@ export function createInput(onAction) {
     return len > 0 ? { x: x / len, z: z / len } : { x: 0, z: 0 };
   }
   // setTouchDir: called from joystick handler in main.js.
-  // Screen-x right → world +x (right). Screen-y up (dy<0) → world -z (forward, away from camera).
-  // Camera sits at z=-7 looking +z, so screen-up should translate to -z in world space.
-  // We pass (dx/len, dy/len) from the joystick; dy is negative when pushing up, so touch.z stays negative → chef moves -z (forward). Sign is correct without inversion.
+  // 화면 위=월드 +z, 화면 오른쪽=월드 -x. 조이스틱 부호 반전은 main.js에서 처리하고
+  // 여기 setTouchDir은 전달만 한다.
   function setTouchDir(x, z) { touch = { x, z }; }
   return { getMoveDir, setTouchDir };
 }

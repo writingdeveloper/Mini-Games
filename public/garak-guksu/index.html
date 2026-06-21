@@ -16,6 +16,15 @@
     #hud{position:fixed;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:14px;
       background:rgba(0,0,0,.5);padding:8px 16px;border-radius:14px;font-weight:800;font-size:15px;z-index:5;
       flex-wrap:wrap;justify-content:center;max-width:96vw;}
+    /* 모바일: 7칸 HUD 가 좌상 홈/우상 뮤트와 겹치지 않게 상단바 아래로 내리고 폰트·간격 축소 */
+    @media (max-width:560px){
+      #hud{top:56px;gap:7px 10px;padding:6px 10px;font-size:12px;border-radius:12px;max-width:94vw;}
+      #home{font-size:12px;padding:8px 10px;}
+      #mute{font-size:16px;padding:7px 10px;}
+    }
+    @media (max-width:360px){
+      #hud{font-size:11px;gap:6px 8px;}
+    }
     .overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
       gap:18px;background:rgba(8,10,20,.92);z-index:10;text-align:center;padding:24px;}
     .overlay.off{display:none;}

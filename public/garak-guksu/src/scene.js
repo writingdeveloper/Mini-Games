@@ -1,13 +1,17 @@
 import * as THREE from 'three';
 import { createFloor, createChef, createStation, createCustomer, createGauge } from './models.js';
-import { STATIONS, CUSTOMER_SLOTS, ARCHETYPES, slotProgress, patienceProgress, BLANCH_SLOTS, WAVES } from './logic.js';
+import { STATIONS, CUSTOMER_SLOTS, slotProgress, patienceProgress, BLANCH_SLOTS, WAVES } from './logic.js';
+import { buildStation, tickStation } from './station.js';
 
+// 가독성 상향(현 어두움 지적): hemi/lamp/fill 를 소폭 올려 막차에서도 조리대~카운터가 읽히게.
+// 과노출 금지 — 무드는 유지하되 플레이영역만 들어올린다.
 const ERA_MOOD = {
-  '증기': { bg: 0x161b2a, amb: 0.95, lamp: 2.6, fogN: 16, fogF: 34 },
-  '디젤': { bg: 0x1a1f2c, amb: 1.05, lamp: 2.9, fogN: 18, fogF: 38 },
-  '막차': { bg: 0x0a0c14, amb: 0.75, lamp: 2.3, fogN: 11, fogF: 25 },
+  '증기': { bg: 0x161b2a, amb: 1.05, lamp: 2.9, fill: 0.45, fogN: 16, fogF: 34 },
+  '디젤': { bg: 0x1a1f2c, amb: 1.12, lamp: 3.1, fill: 0.45, fogN: 18, fogF: 38 },
+  '막차': { bg: 0x0a0c14, amb: 0.95, lamp: 2.9, fill: 0.55, fogN: 12, fogF: 27 },
 };
 let curEra = null;
+let lastDwellSec = -1;
 
 export function createScene(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -45,12 +49,22 @@ export function createScene(canvas) {
   sun.target.position.set(0, 0, 0.5);
   scene.add(sun); scene.add(sun.target);
 
+  // soft frontal fill (no shadow) so the play area (조리대~카운터) stays readable even at 막차.
+  // aimed from the camera side toward the counters; intensity tuned per era in sync().
+  const fillLight = new THREE.DirectionalLight(0xffe6c4, 0.45);
+  fillLight.position.set(0, 6, -6); // camera side
+  fillLight.target.position.set(0, 0.5, 1.5);
+  scene.add(fillLight); scene.add(fillLight.target);
+
   scene.add(createFloor());
   for (const [kind, pos] of Object.entries(STATIONS)) {
     const s = createStation(kind);
     s.position.set(pos.x, 0, pos.z);
     scene.add(s);
   }
+
+  // 플랫폼 무대 장식(배경판/기둥/등/역사인/증기). scene/logic 불변, 별도 모듈.
+  const station = buildStation(scene, { reducedMotion: RM });
 
   const chef = createChef();
   scene.add(chef);
@@ -105,7 +119,17 @@ export function createScene(canvas) {
       scene.fog.near = m.fogN; scene.fog.far = m.fogF;
       hemi.intensity = m.amb;
       lamp.intensity = m.lamp;
+      fillLight.intensity = m.fill;
+      // 무대(배경 틴트/등/증기)도 같은 에라로 동기화. setEra 가 스팀 농도까지 처리.
+      station.setEra(era);
     }
+    // 발차 안내판 텍스트 = HUD 와 동일한 mm:ss. 초가 바뀔 때만 캔버스 재그림(매프레임 낭비 방지).
+    const sec = Math.max(0, Math.ceil(state.dwellLeft));
+    if (sec !== lastDwellSec) {
+      lastDwellSec = sec;
+      station.setDwell(`발차 ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`);
+    }
+    tickStation(t);
     // chef: gentle idle bob, stronger when moving
     const moving = Math.hypot(state.player.x - chef.position.x, state.player.z - chef.position.z) > 0.001;
     const bobY = RM ? 0 : moving ? Math.abs(Math.sin((t || 0) * 10)) * 0.08 : Math.sin((t || 0) * 2) * 0.03;
