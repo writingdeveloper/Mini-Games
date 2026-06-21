@@ -61,8 +61,8 @@ function renderHud() {
   $('score').textContent = state.score;
   $('combo').textContent = state.combo >= 2 ? `콤보 ×${comboMult(state.combo).toFixed(1)}` : `콤보 ${state.combo}`;
   $('lives').textContent = '❤'.repeat(Math.max(0, state.lives)) || '—';
-  const w = WAVES[state.wave];
-  $('wave').textContent = `${w.era} · ${state.wave + 1}/${WAVES.length}`;
+  const w = WAVES[Math.min(state.wave, WAVES.length - 1)];
+  $('wave').textContent = `${w.era} · ${Math.min(state.wave + 1, WAVES.length)}/${WAVES.length}`;
   const sec = Math.max(0, Math.ceil(state.dwellLeft));
   $('dwell').textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
   const nearby = nearestCustomer();
