@@ -35,6 +35,7 @@
   <div id="hud" role="status" aria-live="off">
     <span class="lives" id="lives" aria-label="라이프">❤❤❤❤❤</span>
     <span>점수 <span id="score">0</span></span>
+    <span id="combo">콤보 0</span>
     <span id="wave">증기 · 1/5</span>
     <span>🚂 <span id="dwell">1:15</span></span>
     <span>주문 <span id="order">-</span></span>
@@ -48,6 +49,7 @@
   <div class="overlay off" id="result">
     <h1 id="result-title">오늘의 장사 마감</h1>
     <p id="result-sub"></p>
+    <div id="result-stats" style="line-height:1.8;font-size:15px"></div>
     <button id="replaybtn">▶ 다시 한 그릇</button>
   </div>
   <script type="module" src="./src/main.js"></script>

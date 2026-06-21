@@ -1,12 +1,17 @@
 import {
   createGame, movePlayer, near, STATIONS, CUSTOMER_SLOTS,
   setNoodle, putInBlancher, liftFromBlancher, tickBlancher, tickSpawns, tickCustomers,
-  pourBroth, garnish, serve, ARCHETYPES, tickWave, WAVES,
+  pourBroth, garnish, serve, ARCHETYPES, tickWave, WAVES, grade, comboMult,
 } from './logic.js';
 import { createScene } from './scene.js';
 import { createInput } from './input.js';
 
 const $ = (id) => document.getElementById(id);
+
+const BEST_KEY = 'garak-guksu-best';
+const loadBest = () => Number(localStorage.getItem(BEST_KEY) || 0);
+function saveBest(s) { if (s > loadBest()) localStorage.setItem(BEST_KEY, String(s)); }
+
 const canvas = $('game');
 const scene = createScene(canvas);
 
@@ -54,6 +59,7 @@ function nearestCustomer() {
 
 function renderHud() {
   $('score').textContent = state.score;
+  $('combo').textContent = state.combo >= 2 ? `콤보 ×${comboMult(state.combo).toFixed(1)}` : `콤보 ${state.combo}`;
   $('lives').textContent = '❤'.repeat(Math.max(0, state.lives)) || '—';
   const w = WAVES[state.wave];
   $('wave').textContent = `${w.era} · ${state.wave + 1}/${WAVES.length}`;
@@ -82,10 +88,13 @@ function loop(now) {
 
 function endGame() {
   const won = state.phase === 'won';
-  $('result-title').textContent = won ? '🎉 영업 대박!' : '영업 종료';
-  $('result-sub').textContent = won
-    ? `5웨이브 완주 · 점수 ${state.score}`
-    : `${state.wave + 1}웨이브에서 마감 · 점수 ${state.score}`;
+  saveBest(state.score);
+  $('result-title').textContent = `${won ? '🎉 ' : ''}${grade(state)}`;
+  $('result-sub').textContent = won ? '5웨이브 완주!' : `${state.wave + 1}웨이브에서 마감`;
+  $('result-stats').innerHTML =
+    `점수 <b>${state.score}</b> · 최고 콤보 <b>${state.bestCombo}</b><br>` +
+    `😋 만족 ${state.served} · 🚂 놓침 ${state.missed}<br>` +
+    `🏆 최고기록 ${loadBest()}`;
   $('result').classList.remove('off');
 }
 
@@ -112,6 +121,8 @@ window.__garak = {
   get lives() { return state.lives; },
   get phase() { return state.phase; },
   get wave() { return state.wave; },
+  get combo() { return state.combo; },
+  get bestCombo() { return state.bestCombo; },
   teleport(x, z) { state.player.x = x; state.player.z = z; },
   setNoodle() { setNoodle(state); renderHud(); },
   putInBlancher() { putInBlancher(state); renderHud(); },
