@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createGame, KITCHEN } from '../../../public/garak-guksu/src/logic.js';
+import { createGame, KITCHEN, movePlayer, clamp, COOK_STATION, interact, CUSTOMER_SLOT, serve, SERVE_POINTS } from '../../../public/garak-guksu/src/logic.js';
 
 describe('createGame', () => {
   it('starts with an empty-handed chef at origin, a waiting customer, zero score', () => {
@@ -11,5 +11,27 @@ describe('createGame', () => {
   it('exposes kitchen bounds', () => {
     expect(KITCHEN.minX).toBeLessThan(KITCHEN.maxX);
     expect(KITCHEN.minZ).toBeLessThan(KITCHEN.maxZ);
+  });
+});
+
+describe('movePlayer', () => {
+  it('moves the chef in the given direction scaled by dt', () => {
+    const g = createGame();
+    movePlayer(g, { x: 1, z: 0 }, 0.1); // 4.5 * 0.1 = 0.45
+    expect(g.player.x).toBeCloseTo(0.45, 5);
+    expect(g.player.z).toBe(0);
+  });
+  it('clamps to kitchen bounds', () => {
+    const g = createGame();
+    movePlayer(g, { x: 1, z: 0 }, 100); // way past maxX
+    expect(g.player.x).toBe(KITCHEN.maxX);
+  });
+});
+
+describe('clamp', () => {
+  it('bounds a value', () => {
+    expect(clamp(5, 0, 3)).toBe(3);
+    expect(clamp(-5, 0, 3)).toBe(0);
+    expect(clamp(2, 0, 3)).toBe(2);
   });
 });

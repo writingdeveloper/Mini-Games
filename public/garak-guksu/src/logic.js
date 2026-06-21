@@ -16,3 +16,18 @@ export function createGame() {
     score: 0,
   };
 }
+
+export const PLAYER_SPEED = 4.5; // units/second
+
+export function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+// dir = {x, z} (roughly unit length), dt = seconds. Mutates + returns state.
+export function movePlayer(state, dir, dt) {
+  const s = PLAYER_SPEED * dt;
+  state.player.x = clamp(state.player.x + dir.x * s, KITCHEN.minX, KITCHEN.maxX);
+  state.player.z = clamp(state.player.z + dir.z * s, KITCHEN.minZ, KITCHEN.maxZ);
+  return state;
+}
+
+export function dist2(ax, az, bx, bz) { const dx = ax - bx, dz = az - bz; return dx * dx + dz * dz; }
+export function near(ax, az, bx, bz, r = REACH) { return dist2(ax, az, bx, bz) <= r * r; }
