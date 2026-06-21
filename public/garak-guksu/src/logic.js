@@ -4,8 +4,11 @@
 // The chef walks this floor plane (x = left/right, z = depth toward counter).
 export const KITCHEN = { minX: -4, maxX: 4, minZ: -2.5, maxZ: 2.5 };
 
-// Fixed positions.
-export const CUSTOMER_SLOT = { x: 0, z: 3.2 };       // across the counter (beyond the kitchen)
+// Customer slots along the counter (front, z = 3.2), spread across x.
+export const CUSTOMER_SLOTS = [
+  { x: -3, z: 3.2 }, { x: -1, z: 3.2 }, { x: 1, z: 3.2 }, { x: 3, z: 3.2 },
+];
+
 export const REACH = 1.2;                            // how close counts as "at" a thing
 
 // The four cook stations, left→right across the back of the kitchen.
@@ -29,15 +32,50 @@ export function mulberry32(seed) {
 
 export const SPICES = ['none', 'normal', 'extra']; // 안맵게 / 기본 / 많이
 
+// 5 archetypes: patience (seconds before they storm off) + display name + spice tendency.
+export const ARCHETYPES = {
+  soldier: { name: '군인',   patience: 12, spice: 'extra'  },
+  worker:  { name: '회사원', patience: 15, spice: 'extra'  },
+  student: { name: '통학생', patience: 18, spice: 'normal' },
+  couple:  { name: '연인',   patience: 24, spice: 'normal' },
+  granny:  { name: '할머니', patience: 25, spice: 'none'   },
+};
+export const ARCHETYPE_KEYS = ['soldier', 'worker', 'student', 'couple', 'granny'];
+export const SPAWN_INTERVAL = 2.5;     // seconds between spawns while a slot is free
+export const BLANCH_SLOTS = 2;          // simultaneous baskets
+
 export function createGame(seed = 1) {
   const rng = mulberry32(seed);
   return {
     player: { x: 0, z: 0, holding: null },
     blancher: { bowl: null }, // bowl: null | { t }
-    customer: { present: true, served: false, order: { spice: SPICES[Math.floor(rng() * 3)] } },
+    customers: [],         // active: { id, slot, archetype, order:{spice}, t }
+    spawnTimer: 0,
+    lives: 5,
+    over: false,
     score: 0,
     _rng: rng,
+    _nextId: 1,
   };
+}
+
+// 70% the archetype's preferred spice, else a random one (so it's not fully predictable).
+function makeOrder(rng, arche) {
+  const spice = rng() < 0.7 ? ARCHETYPES[arche].spice : SPICES[Math.floor(rng() * 3)];
+  return { spice };
+}
+
+// Spawn one customer into the first free slot once the spawn timer passes SPAWN_INTERVAL.
+export function tickSpawns(state, dt) {
+  if (state.over) return;
+  state.spawnTimer += dt;
+  if (state.spawnTimer < SPAWN_INTERVAL) return;
+  const occupied = new Set(state.customers.map((c) => c.slot));
+  const free = CUSTOMER_SLOTS.findIndex((_, i) => !occupied.has(i));
+  if (free === -1) return;
+  state.spawnTimer = 0;
+  const arche = ARCHETYPE_KEYS[Math.floor(state._rng() * ARCHETYPE_KEYS.length)];
+  state.customers.push({ id: state._nextId++, slot: free, archetype: arche, order: makeOrder(state._rng, arche), t: 0 });
 }
 
 export const PLAYER_SPEED = 4.5; // units/second
@@ -61,7 +99,7 @@ export const ACCURACY_BONUS = 30;
 export function serve(state) {
   const p = state.player, c = state.customer;
   if (p.holding && p.holding.stage === 'done' && c.present && !c.served &&
-      near(p.x, p.z, CUSTOMER_SLOT.x, CUSTOMER_SLOT.z)) {
+      near(p.x, p.z, CUSTOMER_SLOTS[0].x, CUSTOMER_SLOTS[0].z)) {
     const accuracy = p.holding.spice === c.order.spice ? ACCURACY_BONUS : 0;
     state.score += SERVE_BASE + p.holding.doneness + accuracy;
     p.holding = null;

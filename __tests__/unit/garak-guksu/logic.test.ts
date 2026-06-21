@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOT, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, blancherProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish } from '../../../public/garak-guksu/src/logic.js';
+import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOT, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, blancherProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL } from '../../../public/garak-guksu/src/logic.js';
 
 describe('createGame', () => {
   it('starts with an empty-handed chef at origin, a waiting customer, zero score', () => {
@@ -164,5 +164,31 @@ describe('육수 + 마감 (pourBroth / garnish)', () => {
     expect(garnish(g, 'ketchup')).toBe(false);
     g.player.holding = { stage: 'noodle' };
     expect(garnish(g, 'normal')).toBe(false);
+  });
+});
+
+describe('스폰 (tickSpawns)', () => {
+  it('spawns into a free slot after SPAWN_INTERVAL with a valid archetype + order', () => {
+    const g = createGame(1);
+    expect(g.customers).toEqual([]);
+    tickSpawns(g, SPAWN_INTERVAL); // exactly the interval
+    expect(g.customers.length).toBe(1);
+    const c = g.customers[0];
+    expect(ARCHETYPE_KEYS).toContain(c.archetype);
+    expect(typeof c.slot).toBe('number');
+    expect(SPICES).toContain(c.order.spice);
+    expect(c.t).toBe(0);
+  });
+  it('does not spawn before the interval elapses', () => {
+    const g = createGame(1);
+    tickSpawns(g, SPAWN_INTERVAL * 0.5);
+    expect(g.customers.length).toBe(0);
+  });
+  it('fills at most all slots (never double-books a slot)', () => {
+    const g = createGame(1);
+    for (let i = 0; i < 50; i++) tickSpawns(g, SPAWN_INTERVAL);
+    expect(g.customers.length).toBe(CUSTOMER_SLOTS.length);
+    const slots = g.customers.map((c) => c.slot);
+    expect(new Set(slots).size).toBe(slots.length); // unique
   });
 });
