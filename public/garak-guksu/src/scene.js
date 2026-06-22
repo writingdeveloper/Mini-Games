@@ -267,9 +267,14 @@ export function createScene(canvas) {
       _chaseLook.set(ex + Math.sin(lookYaw) * cp, ey + Math.sin(P), ez + Math.cos(lookYaw) * cp);
       camera.lookAt(_chaseLook);
     }
-    if (fpHands && fpHands.visible) { // 조리 시 손 까딱(내렸다 올림)
-      if (cookBump > 0) cookBump = Math.max(0, cookBump - 0.06);
-      fpHands.position.y = -Math.sin(cookBump * Math.PI) * 0.14;
+    if (cookBump > 0) cookBump = Math.max(0, cookBump - 0.06);
+    if (camMode === 'first') {
+      // 1인칭: 손·그릇이 보는 방향(yaw)을 따라가고, 조리 시 손 까딱.
+      if (fpHands) { fpHands.rotation.y = lookYaw; fpHands.position.y = -Math.sin(cookBump * Math.PI) * 0.14; }
+      heldBowl.position.set(0.42 * Math.sin(lookYaw), 1.18, 0.42 * Math.cos(lookYaw));
+      heldBowl.rotation.y = lookYaw;
+    } else { // 3인칭/고정: 그릇은 가슴 정면.
+      heldBowl.position.set(0, 1.18, 0.42); heldBowl.rotation.y = 0;
     }
     const holding = state.player.holding;
     heldBowl.visible = holding !== null;
@@ -323,5 +328,7 @@ export function createScene(canvas) {
   function render() { renderer.render(scene, camera); }
   function dispose() { orbit.dispose(); renderer.dispose(); }
 
-  return { sync, render, dispose, cycleCamMode, getCamMode: () => camMode, requestLook, isLooking: () => pointerLocked, cookMotion: () => { cookBump = 1; } };
+  // 이동을 시점 기준으로 회전시키기 위한 현재 시점 yaw(1인칭/추격에서만, 그 외 0).
+  function getViewYaw() { return (camMode === 'first' || camMode === 'chase') ? lookYaw : 0; }
+  return { sync, render, dispose, cycleCamMode, getCamMode: () => camMode, requestLook, isLooking: () => pointerLocked, cookMotion: () => { cookBump = 1; }, getViewYaw };
 }

@@ -187,7 +187,10 @@ function loop(now) {
   if (!running) return;
   const dt = Math.min(0.05, (now - last) / 1000 || 0);
   last = now;
-  movePlayer(state, input.getMoveDir(), dt, input.isSprint() ? 1.8 : 1);
+  let _dir = input.getMoveDir();
+  const _vy = scene.getViewYaw ? scene.getViewYaw() : 0; // 1인칭/추격: 보는 방향 기준 이동
+  if (_vy) { const s = Math.sin(_vy), c = Math.cos(_vy); _dir = { x: _dir.z * s + _dir.x * c, z: _dir.z * c - _dir.x * s }; }
+  movePlayer(state, _dir, dt, input.isSprint() ? 1.8 : 1);
   tickBlancher(state, dt);
   tickWave(state, dt);
   tickSpawns(state, dt);
