@@ -39,6 +39,40 @@ function makeOrderBoard() {
   return mesh;
 }
 
+// 주방 작업대/하부장/매달린 도구/소품 — 조리대(STATIONS, z=-1.5)가 바닥이 아닌 카운터 위에 놓이도록.
+function makeKitchen() {
+  const g = new THREE.Group();
+  const Z = -1.5;
+  const steel = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, metalness: 0.55, roughness: 0.4 });
+  const wood = new THREE.MeshStandardMaterial({ color: 0x4a3324, roughness: 0.85 });
+  const front = new THREE.MeshStandardMaterial({ color: 0x7a1f14, roughness: 0.7 }); // 포장마차 적색 앞면
+  const top = new THREE.Mesh(new THREE.BoxGeometry(9.4, 0.14, 1.7), steel);   // 스테인리스 상판
+  top.position.set(0, 0.55, Z); top.receiveShadow = true; top.castShadow = true; g.add(top);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(9.0, 0.5, 1.45), wood);    // 하부장
+  base.position.set(0, 0.25, Z); base.castShadow = true; base.receiveShadow = true; g.add(base);
+  const apron = new THREE.Mesh(new THREE.BoxGeometry(9.05, 0.46, 0.06), front); // 앞면 적색 띠
+  apron.position.set(0, 0.3, Z + 0.76); g.add(apron);
+  // 매달린 국자/주걱(작업대 위).
+  const tool = new THREE.MeshStandardMaterial({ color: 0x868c93, metalness: 0.5, roughness: 0.5 });
+  for (const tx of [-2.6, -1.3, 1.3, 2.6]) {
+    const h = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.5, 8), tool);
+    h.position.set(tx, 2.75, Z + 0.25); g.add(h);
+    const sc = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), tool);
+    sc.position.set(tx, 2.5, Z + 0.25); sc.rotation.x = Math.PI; g.add(sc);
+  }
+  // 작업대 끝 소품 — 그릇 스택 + 주전자.
+  const bowlMat = new THREE.MeshStandardMaterial({ color: 0xcdd1d6, metalness: 0.3, roughness: 0.5 });
+  const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.28, 0.42, 16), bowlMat);
+  stack.position.set(-4.1, 0.78, Z); stack.castShadow = true; g.add(stack);
+  const ket = new THREE.MeshStandardMaterial({ color: 0x2c2c34, metalness: 0.4, roughness: 0.5 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 12), ket); body.scale.set(1, 0.8, 1);
+  body.position.set(4.0, 0.78, Z); body.castShadow = true; g.add(body);
+  const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.07, 0.3, 8), ket);
+  spout.position.set(4.3, 0.84, Z); spout.rotation.z = -0.7; g.add(spout);
+  const lid = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), ket); lid.position.set(4.0, 0.95, Z); g.add(lid);
+  return g;
+}
+
 export function createScene(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   const LOW = typeof matchMedia === 'function' &&
@@ -83,13 +117,14 @@ export function createScene(canvas) {
   scene.add(fillLight); scene.add(fillLight.target);
 
   scene.add(createFloor());
+  scene.add(makeKitchen()); // 주방 작업대 — 조리대가 카운터 위에 놓이도록
   const STATION_LABEL = { setting: '① 면', blancher: '② 데치기', broth: '③ 멸치육수', garnish: '④ 고명 1·2·3' };
   for (const [kind, pos] of Object.entries(STATIONS)) {
     const s = createStation(kind);
-    s.position.set(pos.x, 0, pos.z);
+    s.position.set(pos.x, 0.55, pos.z); // 작업대 상판 위
     scene.add(s);
     const label = makeStationLabel(STATION_LABEL[kind]);
-    label.position.set(pos.x, 1.72, pos.z);
+    label.position.set(pos.x, 2.0, pos.z);
     scene.add(label);
   }
 
