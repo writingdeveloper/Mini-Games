@@ -340,6 +340,8 @@ function makeLocomotive() {
   group.add(steam, diesel, last);
   // 증기 에라: AI 생성 증기기관차(garak_loco.glb)로 교체. 로드 실패 시 절차적 유지.
   loadLocoModel('/garak-guksu/models/garak_loco.glb', steam);
+  // 객차(승객칸) — 기관차 뒤(+x, 화면 왼쪽)로 연결. 모든 에라 공통, 그룹과 함께 발차.
+  for (const cx of [5.5, 10.1, 14.7]) group.add(makeCoach(cx));
   return { group, byEra: { '증기': steam, '디젤': diesel, '막차': last } };
 }
 
@@ -439,6 +441,42 @@ function makeDieselLoco(isLast) {
     bogie.position.set(bx, 0.6, 0); g.add(bogie);
     g.add(wheel(0.42, bx - 0.5, 0.45)); g.add(wheel(0.42, bx + 0.5, 0.45));
   }
+  return g;
+}
+
+// 승객 객차 — 비둘기호풍 짙은 녹색 차체 + 따뜻한 점등창 띠 + 대차/차륜. x=연결 위치.
+function makeCoach(x) {
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x274034, roughness: 0.72, metalness: 0.2 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(4.4, 1.95, 1.6), bodyMat);
+  body.position.set(0, 1.78, 0); body.castShadow = true; g.add(body);
+  // 노란 허리 띠.
+  const belt = new THREE.Mesh(new THREE.BoxGeometry(4.42, 0.16, 1.62),
+    new THREE.MeshStandardMaterial({ color: 0xd8b24a, roughness: 0.7 }));
+  belt.position.set(0, 2.18, 0); g.add(belt);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(4.3, 0.34, 1.5),
+    new THREE.MeshStandardMaterial({ color: 0x1d2a22, roughness: 0.85 }));
+  roof.position.set(0, 2.92, 0); g.add(roof);
+  // 점등창 띠(야간에 객차가 읽히도록).
+  const winMat = new THREE.MeshBasicMaterial({ color: 0xffd98a, fog: true });
+  for (const sx of [-1.45, -0.5, 0.5, 1.45]) {
+    const w = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 1.62), winMat);
+    w.position.set(sx, 1.92, 0); g.add(w);
+  }
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.34, 1.5),
+    new THREE.MeshStandardMaterial({ color: 0x14141a, roughness: 0.8 }));
+  frame.position.set(0, 0.86, 0); g.add(frame);
+  // 연결기(기관차 쪽 -x).
+  const coupler = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.22, 0.3),
+    new THREE.MeshStandardMaterial({ color: 0x0e0e12, roughness: 0.8 }));
+  coupler.position.set(-2.4, 0.86, 0); g.add(coupler);
+  for (const bx of [-1.5, 1.5]) {
+    const bogie = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.5, 1.35),
+      new THREE.MeshStandardMaterial({ color: 0x0e0e12, roughness: 0.8 }));
+    bogie.position.set(bx, 0.56, 0); g.add(bogie);
+    g.add(wheel(0.4, bx - 0.45, 0.42)); g.add(wheel(0.4, bx + 0.45, 0.42));
+  }
+  g.position.set(x, 0, 0);
   return g;
 }
 
