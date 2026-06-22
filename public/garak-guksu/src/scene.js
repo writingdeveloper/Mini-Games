@@ -117,11 +117,14 @@ export function createScene(canvas) {
   orbit.enabled = false;                 // 기본은 고정 모드
   const _chasePos = new THREE.Vector3();  // 추격 3인칭 보간용
   const _chaseLook = new THREE.Vector3();
+  let lookYaw = 0, lookPitch = 0;          // 추격/1인칭 마우스 둘러보기 오프셋(rad)
   const CAM_MODES = ['fixed', 'orbit', 'chase', 'first'];
   let camMode = 'fixed';
   function applyCamMode(mode) {
     if (!CAM_MODES.includes(mode)) return camMode;
     camMode = mode;
+    if (mode === 'chase' || mode === 'first') { lookYaw = 0; lookPitch = 0; } // 진입 시 기본 시점
+    else if (document.pointerLockElement) document.exitPointerLock(); // 고정/궤도로 가면 포인터락 해제
     orbit.enabled = (mode === 'orbit');
     chef.visible = (mode !== 'first'); // 1인칭에선 주인장 본체를 숨겨 시야 가림 방지
     camera.up.set(0, 1, 0);
@@ -130,6 +133,31 @@ export function createScene(canvas) {
     return camMode;
   }
   function cycleCamMode() { return applyCamMode(CAM_MODES[(CAM_MODES.indexOf(camMode) + 1) % CAM_MODES.length]); }
+  // 추격/1인칭 마우스 드래그 둘러보기 — 캔버스 드래그로 yaw/pitch 조절(탭=조리 동작은 main.js 가 별도 판정).
+  {
+    let dragging = false, lpx = 0, lpy = 0;
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+      if (camMode === 'chase' || camMode === 'first') { dragging = true; lpx = e.clientX; lpy = e.clientY; }
+    });
+    addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      lookYaw -= (e.clientX - lpx) * 0.005; lookPitch -= (e.clientY - lpy) * 0.005;
+      lookPitch = Math.max(-0.55, Math.min(0.95, lookPitch));
+      lpx = e.clientX; lpy = e.clientY;
+    });
+    addEventListener('pointerup', () => { dragging = false; });
+    addEventListener('pointercancel', () => { dragging = false; });
+  }
+  // 마우스 전환(포인터락, FPS식) — 클릭으로 잠그면 마우스 이동=시점 회전, ESC 해제. (모바일은 위 드래그 폴백.)
+  let pointerLocked = false;
+  document.addEventListener('pointerlockchange', () => { pointerLocked = (document.pointerLockElement === renderer.domElement); });
+  addEventListener('mousemove', (e) => {
+    if (!pointerLocked || (camMode !== 'chase' && camMode !== 'first')) return;
+    lookYaw -= e.movementX * 0.0022;
+    lookPitch = Math.max(-0.55, Math.min(0.95, lookPitch - e.movementY * 0.0022));
+  });
+  function requestLook() { if (camMode === 'chase' || camMode === 'first') renderer.domElement.requestPointerLock?.(); }
+  applyCamMode('first'); // 기본 시점 = 1인칭(주인장)
 
   // archetype display colors (Plan 6 polish refines these)
   const ARCH_COLOR = { soldier: 0x4a6a4a, worker: 0x4a5a8a, student: 0x8a7a4a, couple: 0xaa5a7a, granny: 0x8a8a8a };
@@ -219,14 +247,20 @@ export function createScene(canvas) {
     // 카메라 모드별 매 프레임 갱신(고정은 정적이라 불필요).
     if (camMode === 'orbit') orbit.update();
     else if (camMode === 'chase') {
-      // 추격 3인칭: 주인공 뒤(-z)·위에서 부드럽게 따라가며 앞(작업대~손님)을 응시.
-      _chasePos.set(state.player.x, 4.3, state.player.z - 6.2);
-      camera.position.lerp(_chasePos, 0.12);
-      _chaseLook.set(state.player.x, 1.1, state.player.z + 2.6);
+      // 추격 3인칭: 주인공 주위를 돌며 따라감 — 드래그로 yaw(둘레)·pitch(상하). 기본=뒤(-z)·위.
+      const A = Math.PI + lookYaw;
+      const E = Math.max(0.12, Math.min(1.2, 0.55 + lookPitch));
+      const R = 7.5, cx = state.player.x, cz = state.player.z;
+      _chasePos.set(cx + R * Math.cos(E) * Math.sin(A), R * Math.sin(E) + 0.5, cz + R * Math.cos(E) * Math.cos(A));
+      camera.position.lerp(_chasePos, 0.15);
+      _chaseLook.set(cx, 1.1, cz);
       camera.lookAt(_chaseLook);
     } else if (camMode === 'first') {
-      camera.position.set(state.player.x, 1.5, state.player.z);
-      camera.lookAt(state.player.x, 1.25, state.player.z + 3.2); // 카운터/손님(+z) 응시
+      // 1인칭: 주인장 눈높이에서 드래그로 고개 돌리기(yaw/pitch). 기본=+z(카운터/손님).
+      const ex = state.player.x, ey = 1.5, ez = state.player.z, cp = Math.cos(lookPitch);
+      camera.position.set(ex, ey, ez);
+      _chaseLook.set(ex + Math.sin(lookYaw) * cp, ey + Math.sin(lookPitch), ez + Math.cos(lookYaw) * cp);
+      camera.lookAt(_chaseLook);
     }
     const holding = state.player.holding;
     heldBowl.visible = holding !== null;
@@ -280,5 +314,5 @@ export function createScene(canvas) {
   function render() { renderer.render(scene, camera); }
   function dispose() { orbit.dispose(); renderer.dispose(); }
 
-  return { sync, render, dispose, cycleCamMode, getCamMode: () => camMode };
+  return { sync, render, dispose, cycleCamMode, getCamMode: () => camMode, requestLook, isLooking: () => pointerLocked };
 }

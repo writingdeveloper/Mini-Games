@@ -58,10 +58,13 @@ function action() {
   const p = state.player;
   if (near(p.x, p.z, STATIONS.setting.x, STATIONS.setting.z)) { const fresh = !p.holding; setNoodle(state); audio.cue('cook'); if (fresh) audio.playVoice('owner_take'); }
   else if (near(p.x, p.z, STATIONS.blancher.x, STATIONS.blancher.z)) {
-    if (p.holding && p.holding.stage === 'noodle') putInBlancher(state);
-    else liftFromBlancher(state);
+    if (p.holding && p.holding.stage === 'noodle') { putInBlancher(state); popup('🍜 데치는 중! 다시 눌러 면 건지기'); }
+    else { const lifted = liftFromBlancher(state); if (!lifted && !p.holding) popup('데칠 면이 없어요 (① 면부터)'); }
     audio.cue('cook');
-  } else if (near(p.x, p.z, STATIONS.broth.x, STATIONS.broth.z)) { pourBroth(state); audio.cue('cook'); }
+  } else if (near(p.x, p.z, STATIONS.broth.x, STATIONS.broth.z)) {
+    const okBroth = pourBroth(state); audio.cue('cook');
+    if (!okBroth && (!p.holding || p.holding.stage !== 'blanched')) popup('③ 육수는 데친 면에! ② 데치기 → 다시 눌러 건지기');
+  }
   else if (near(p.x, p.z, STATIONS.garnish.x, STATIONS.garnish.z)) {
     // ④ 고명/양념: action 키 = 기본 양념으로 빠른 마무리, 1·2·3(또는 버튼) = 손님 주문에 맞춰 선택.
     if (p.holding && p.holding.stage === 'brothed') {
@@ -91,7 +94,19 @@ function action() {
   renderHud();
 }
 const input = createInput(action);
-canvas.addEventListener('pointerdown', action);
+// 캔버스: 탭(거의 안 움직임)=조리 동작, 드래그=시점 둘러보기(scene.js가 처리)라 구분.
+let _tapX = 0, _tapY = 0, _tapT = 0;
+canvas.addEventListener('pointerdown', (e) => { _tapX = e.clientX; _tapY = e.clientY; _tapT = performance.now(); });
+canvas.addEventListener('pointerup', (e) => {
+  if (Math.abs(e.clientX - _tapX) + Math.abs(e.clientY - _tapY) >= 10 || performance.now() - _tapT >= 400) return;
+  const m = scene.getCamMode ? scene.getCamMode() : 'fixed';
+  // 마우스 + 추격/1인칭 + 미잠금 → 시점 잠금(마우스 이동 둘러보기 시작); 그 외/잠금 중 → 조리 동작.
+  if (e.pointerType === 'mouse' && (m === 'chase' || m === 'first') && scene.isLooking && !scene.isLooking()) {
+    scene.requestLook();
+  } else {
+    action();
+  }
+});
 
 // Mobile joystick → movement direction via input.setTouchDir.
 // 카메라가 z=-7 에서 +z 를 본다 → 화면 위(dy<0)=월드 +z, 화면 오른쪽(dx>0)=월드 -x.
@@ -127,7 +142,7 @@ addEventListener('keydown', (e) => {
 });
 
 // V키: 카메라 시점 순환(고정 → 자유 궤도 → 1인칭). 게임 상태와 무관하게 동작.
-const CAM_MODE_KO = { fixed: '고정 시점', orbit: '자유 시점 · 드래그/휠', chase: '추격 3인칭 · 주인장 뒤', first: '1인칭 · 주인장 시야' };
+const CAM_MODE_KO = { fixed: '고정 시점', orbit: '자유 시점 · 드래그/휠', chase: '추격 3인칭 · 클릭=마우스 둘러보기', first: '1인칭 · 클릭=마우스 둘러보기 · ESC 해제' };
 addEventListener('keydown', (e) => {
   if (e.code !== 'KeyV' || e.repeat) return;
   const mode = scene.cycleCamMode ? scene.cycleCamMode() : null;
@@ -172,7 +187,7 @@ function loop(now) {
   if (!running) return;
   const dt = Math.min(0.05, (now - last) / 1000 || 0);
   last = now;
-  movePlayer(state, input.getMoveDir(), dt);
+  movePlayer(state, input.getMoveDir(), dt, input.isSprint() ? 1.8 : 1);
   tickBlancher(state, dt);
   tickWave(state, dt);
   tickSpawns(state, dt);

@@ -3,15 +3,17 @@
 export function createInput(onAction) {
   const keys = new Set();
   let touch = { x: 0, z: 0 };
+  let sprint = false;       // Shift = 달리기
   const MOVE = { KeyW: [0, 1], KeyS: [0, -1], KeyA: [1, 0], KeyD: [-1, 0],
                  ArrowUp: [0, 1], ArrowDown: [0, -1], ArrowLeft: [1, 0], ArrowRight: [-1, 0] };
 
   addEventListener('keydown', (e) => {
     if (e.code === 'KeyE' || e.code === 'Space') { e.preventDefault(); onAction(); return; }
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') { sprint = true; return; }
     if (MOVE[e.code]) { e.preventDefault(); keys.add(e.code); }
   });
-  addEventListener('keyup', (e) => keys.delete(e.code));
-  addEventListener('blur', () => keys.clear());
+  addEventListener('keyup', (e) => { if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') sprint = false; keys.delete(e.code); });
+  addEventListener('blur', () => { keys.clear(); sprint = false; });
 
   function getMoveDir() {
     let x = 0, z = 0;
@@ -25,5 +27,5 @@ export function createInput(onAction) {
   // 화면 위=월드 +z, 화면 오른쪽=월드 -x. 조이스틱 부호 반전은 main.js에서 처리하고
   // 여기 setTouchDir은 전달만 한다.
   function setTouchDir(x, z) { touch = { x, z }; }
-  return { getMoveDir, setTouchDir };
+  return { getMoveDir, setTouchDir, isSprint: () => sprint };
 }

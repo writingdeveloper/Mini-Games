@@ -122,8 +122,8 @@ export const PLAYER_SPEED = 4.5; // units/second
 export function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
 // dir = {x, z} (roughly unit length), dt = seconds. Mutates + returns state.
-export function movePlayer(state, dir, dt) {
-  const s = PLAYER_SPEED * dt;
+export function movePlayer(state, dir, dt, speedMul = 1) {
+  const s = PLAYER_SPEED * speedMul * dt;
   state.player.x = clamp(state.player.x + dir.x * s, KITCHEN.minX, KITCHEN.maxX);
   state.player.z = clamp(state.player.z + dir.z * s, KITCHEN.minZ, KITCHEN.maxZ);
   return state;
