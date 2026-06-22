@@ -8,26 +8,32 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _loadedModels = {};   // key -> 정규화된 템플릿(clone 해서 사용)
 const _modelWaiters = {};   // key -> [로드 후 콜백]
 
-// 바운딩박스 중심을 원점에 두고 maxDim = targetSize 로 스케일(+그림자).
-function normalizeModel(scene, targetSize) {
+// 바운딩박스 중심을 원점에 두고 targetSize 로 스케일(+그림자).
+// opts.byHeight: maxDim 대신 높이(y)를 targetSize 에 맞춤(서있는 캐릭터용).
+// opts.ground: 스케일 후 발(min.y)을 y=0 에 정렬(바닥 위에 세움; 캐릭터/탈것용).
+function normalizeModel(scene, targetSize, opts = {}) {
   const box = new THREE.Box3().setFromObject(scene);
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
-  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  const denom = (opts.byHeight ? size.y : Math.max(size.x, size.y, size.z)) || 1;
   scene.position.sub(center);
   scene.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   const wrap = new THREE.Group();
   wrap.add(scene);
-  wrap.scale.setScalar(targetSize / maxDim);
+  wrap.scale.setScalar(targetSize / denom);
+  if (opts.ground) {
+    const b2 = new THREE.Box3().setFromObject(wrap);
+    wrap.position.y -= b2.min.y; // 발/바닥을 y=0 으로
+  }
   return wrap;
 }
 
-export function preloadModel(key, url, targetSize) {
+export function preloadModel(key, url, targetSize, opts = {}) {
   try {
     new GLTFLoader().load(
       url,
       (gltf) => {
-        _loadedModels[key] = normalizeModel(gltf.scene, targetSize);
+        _loadedModels[key] = normalizeModel(gltf.scene, targetSize, opts);
         (_modelWaiters[key] || []).forEach((fn) => fn());
         _modelWaiters[key] = [];
       },
@@ -49,8 +55,10 @@ function attachModel(key, group, procGroup) {
   else (_modelWaiters[key] = _modelWaiters[key] || []).push(apply);
 }
 
-// 모듈 로드 시 그릇 에셋 프리로드(없으면 절차적 폴백).
+// 모듈 로드 시 에셋 프리로드(없으면 절차적 폴백).
 preloadModel('bowl', '/garak-guksu/models/garak_bowl.glb', 0.42);
+// 셰프(주인장): 서있는 캐릭터 → 키 기준 + 발을 바닥(y=0)에 정렬.
+preloadModel('chef', '/garak-guksu/models/garak_chef.glb', 1.5, { ground: true, byHeight: true });
 
 export function createFloor() {
   const g = new THREE.Group();
@@ -80,7 +88,10 @@ export function createChef() {
     new THREE.MeshStandardMaterial({ color: 0xffd9b0, roughness: 0.7 })
   );
   head.position.y = 1.2; head.castShadow = true;
-  g.add(body, head);
+  const proc = new THREE.Group(); proc.name = 'procChef'; // garak_chef.glb 로드되면 숨겨짐
+  proc.add(body, head);
+  g.add(proc);
+  attachModel('chef', g, proc); // garak_chef.glb 있으면 절차적 셰프를 대체
   const bowl = createBowl();
   bowl.position.set(0, 1.1, 0.45); bowl.scale.setScalar(1.7);
   bowl.name = 'heldBowl'; bowl.visible = false;
