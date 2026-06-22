@@ -1,6 +1,56 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // 모든 팩토리는 THREE.Group 을 반환(추후 glTF 교체 시 scene/logic 불변).
+
+// ---- 3D 에셋(glTF) 로더 — 있으면 절차적 메시를 대체, 404/실패면 절차적 폴백 ----
+// 3d-asset-studio 로 생성한 .glb 를 public/garak-guksu/models/ 에 두면 자동 사용.
+const _loadedModels = {};   // key -> 정규화된 템플릿(clone 해서 사용)
+const _modelWaiters = {};   // key -> [로드 후 콜백]
+
+// 바운딩박스 중심을 원점에 두고 maxDim = targetSize 로 스케일(+그림자).
+function normalizeModel(scene, targetSize) {
+  const box = new THREE.Box3().setFromObject(scene);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  scene.position.sub(center);
+  scene.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  const wrap = new THREE.Group();
+  wrap.add(scene);
+  wrap.scale.setScalar(targetSize / maxDim);
+  return wrap;
+}
+
+export function preloadModel(key, url, targetSize) {
+  try {
+    new GLTFLoader().load(
+      url,
+      (gltf) => {
+        _loadedModels[key] = normalizeModel(gltf.scene, targetSize);
+        (_modelWaiters[key] || []).forEach((fn) => fn());
+        _modelWaiters[key] = [];
+      },
+      undefined,
+      () => { /* 로드 실패 → 절차적 폴백 유지 */ }
+    );
+  } catch { /* GLTFLoader 미가용 → 폴백 */ }
+}
+
+// procGroup(절차적 버전)을 가진 group 에 로드된 에셋을 끼우고 절차적은 숨김.
+function attachModel(key, group, procGroup) {
+  const apply = () => {
+    const tpl = _loadedModels[key];
+    if (!tpl) return;
+    group.add(tpl.clone(true));
+    procGroup.visible = false;
+  };
+  if (_loadedModels[key]) apply();
+  else (_modelWaiters[key] = _modelWaiters[key] || []).push(apply);
+}
+
+// 모듈 로드 시 그릇 에셋 프리로드(없으면 절차적 폴백).
+preloadModel('bowl', '/garak-guksu/models/garak_bowl.glb', 0.42);
 
 export function createFloor() {
   const g = new THREE.Group();
@@ -44,11 +94,12 @@ export function createChef() {
 //   food_garnish : 쑥갓·김·고춧가루(done)
 export function createBowl() {
   const g = new THREE.Group();
+  const proc = new THREE.Group(); proc.name = 'procBowl'; // garak_bowl.glb 로드되면 숨겨짐
   const bowl = new THREE.Mesh(
     new THREE.CylinderGeometry(0.24, 0.15, 0.2, 16),
     new THREE.MeshStandardMaterial({ color: 0x8f9398, metalness: 0.55, roughness: 0.35 })
   );
-  bowl.castShadow = true; g.add(bowl);
+  bowl.castShadow = true; proc.add(bowl);
 
   // 면 — 굵은 가락면 다발(납작한 흰 덩이).
   const noodle = new THREE.Mesh(
@@ -56,14 +107,14 @@ export function createBowl() {
     new THREE.MeshStandardMaterial({ color: 0xf2ead2, roughness: 0.8 })
   );
   noodle.scale.set(1, 0.45, 1); noodle.position.y = 0.08;
-  noodle.name = 'food_noodle'; noodle.visible = false; g.add(noodle);
+  noodle.name = 'food_noodle'; noodle.visible = false; proc.add(noodle);
 
   // 멸치육수 — 반투명 갈색 국물 표면.
   const broth = new THREE.Mesh(
     new THREE.CylinderGeometry(0.205, 0.16, 0.05, 16),
     new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.4, transparent: true, opacity: 0.9 })
   );
-  broth.position.y = 0.07; broth.name = 'food_broth'; broth.visible = false; g.add(broth);
+  broth.position.y = 0.07; broth.name = 'food_broth'; broth.visible = false; proc.add(broth);
 
   // 고명 — 쑥갓(초록) + 김(검정) + 고춧가루(빨강).
   const garnish = new THREE.Group();
@@ -79,7 +130,10 @@ export function createBowl() {
       new THREE.MeshStandardMaterial({ color: 0xd23b2a, roughness: 0.6 }));
     dot.position.set((i - 1.5) * 0.05, 0.12, 0.0 + (i % 2) * 0.05); garnish.add(dot);
   }
-  garnish.name = 'food_garnish'; garnish.visible = false; g.add(garnish);
+  garnish.name = 'food_garnish'; garnish.visible = false; proc.add(garnish);
+
+  g.add(proc);
+  attachModel('bowl', g, proc); // garak_bowl.glb 있으면 절차적 그릇을 대체
   return g;
 }
 
