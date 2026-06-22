@@ -103,6 +103,8 @@ export function createScene(canvas) {
   const foodNoodle = heldBowl.getObjectByName('food_noodle');
   const foodBroth = heldBowl.getObjectByName('food_broth');
   const foodGarnish = heldBowl.getObjectByName('food_garnish');
+  const procBowl = heldBowl.getObjectByName('procBowl');   // 절차적 그릇(조리 단계 표시)
+  const aiBowl = heldBowl.getObjectByName('aiBowl');       // AI 완성 그릇('done' 에서만)
 
   // ---- 카메라 모드: 고정(게임플레이) / 자유 궤도 / 1인칭(주인장) — V키 순환 ----
   const CAM_FIXED_POS = new THREE.Vector3(0, 7.5, -7);
@@ -221,9 +223,15 @@ export function createScene(canvas) {
     const holding = state.player.holding;
     heldBowl.visible = holding !== null;
     if (holding) {
-      if (foodNoodle) foodNoodle.visible = true;
-      if (foodBroth) foodBroth.visible = holding.stage === 'brothed' || holding.stage === 'done';
-      if (foodGarnish) foodGarnish.visible = holding.stage === 'done';
+      const isDone = holding.stage === 'done';
+      const useAI = isDone && aiBowl && aiBowl.children.length > 0; // 완성 시에만 AI 그릇
+      if (procBowl) procBowl.visible = !useAI;
+      if (aiBowl) aiBowl.visible = useAI;
+      if (!useAI) { // 조리 단계: 절차적 그릇 + 단계별 음식 레이어로 진행 상황 표시
+        if (foodNoodle) foodNoodle.visible = true;
+        if (foodBroth) foodBroth.visible = holding.stage === 'brothed' || isDone;
+        if (foodGarnish) foodGarnish.visible = isDone;
+      }
     }
 
     // customers by slot

@@ -62,6 +62,13 @@ function action() {
     else liftFromBlancher(state);
     audio.cue('cook');
   } else if (near(p.x, p.z, STATIONS.broth.x, STATIONS.broth.z)) { pourBroth(state); audio.cue('cook'); }
+  else if (near(p.x, p.z, STATIONS.garnish.x, STATIONS.garnish.z)) {
+    // ④ 고명/양념: action 키 = 기본 양념으로 빠른 마무리, 1·2·3(또는 버튼) = 손님 주문에 맞춰 선택.
+    if (p.holding && p.holding.stage === 'brothed') {
+      garnish(state, 'normal'); audio.cue('cook'); popup('🌶️ 기본 양념 완성! (1·2·3 으로 손님 맞춤)');
+    } else if (!p.holding) { popup('① 면부터! 면→데치기→육수→양념'); }
+    else { popup('③ 육수까지 받아오세요'); }
+  }
   else {
     const before = state.combo;
     const scoreBefore = state.score;
@@ -77,6 +84,8 @@ function action() {
       }
       audio.playVoice('owner_serve');
       if (Math.random() < 0.5) setTimeout(() => audio.playVoice('cust_happy'), 550);
+    } else if (p.holding && p.holding.stage !== 'done') {
+      popup('아직 완성 전! ④ 양념까지 마무리하세요');
     }
   }
   renderHud();

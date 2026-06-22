@@ -164,7 +164,11 @@ export function createBowl() {
   garnish.name = 'food_garnish'; garnish.visible = false; proc.add(garnish);
 
   g.add(proc);
-  attachModel('bowl', g, proc); // garak_bowl.glb 있으면 절차적 그릇을 대체
+  // AI 완성 그릇(garak_bowl.glb)은 별도 홀더 — scene.js 가 'done' 단계에서만 표시.
+  // (그 전 단계는 절차적 그릇 + 단계별 음식 레이어로 진행 상황을 보여줌.)
+  const aiBowl = new THREE.Group(); aiBowl.name = 'aiBowl'; aiBowl.visible = false;
+  g.add(aiBowl);
+  attachInto('bowl', aiBowl); // 로드되면 클론 주입(절차적은 숨기지 않음 — 가시성은 scene sync)
   return g;
 }
 
