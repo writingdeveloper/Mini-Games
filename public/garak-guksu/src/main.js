@@ -56,7 +56,7 @@ function seedNow() { return ((performance.now() | 0) ^ 0x9e3779b9) >>> 0; }
 function action() {
   if (!running) return;
   const p = state.player;
-  if (near(p.x, p.z, STATIONS.setting.x, STATIONS.setting.z)) { setNoodle(state); audio.cue('cook'); }
+  if (near(p.x, p.z, STATIONS.setting.x, STATIONS.setting.z)) { const fresh = !p.holding; setNoodle(state); audio.cue('cook'); if (fresh) audio.playVoice('owner_take'); }
   else if (near(p.x, p.z, STATIONS.blancher.x, STATIONS.blancher.z)) {
     if (p.holding && p.holding.stage === 'noodle') putInBlancher(state);
     else liftFromBlancher(state);
@@ -75,6 +75,8 @@ function action() {
         popup('😋 +' + (state.score - scoreBefore));
         audio.cue('serve');
       }
+      audio.playVoice('owner_serve');
+      if (Math.random() < 0.5) setTimeout(() => audio.playVoice('cust_happy'), 550);
     }
   }
   renderHud();
@@ -166,13 +168,14 @@ function loop(now) {
   tickWave(state, dt);
   tickSpawns(state, dt);
   tickCustomers(state, dt);
-  if (state.missed > prevMissed) { prevMissed = state.missed; popup('아이고 기차!'); audio.cue('leave'); }
+  if (state.missed > prevMissed) { prevMissed = state.missed; popup('아이고 기차!'); audio.cue('leave'); audio.playVoice('cust_leave'); }
 
-  // 신규 손님 감지 → 주문 큐 한 번(분위기 음 합성, 인물 음성 없음).
+  // 신규 손님 감지 → 주문 큐 + 손님 주문 음성(같은 채널 재생 중이면 자동 무시).
   for (const c of state.customers) {
     if (!seenIds.has(c.id)) {
       seenIds.add(c.id);
       audio.cue('order');
+      audio.playVoice('cust_order');
     }
   }
 
@@ -238,6 +241,7 @@ function start() {
   // 첫 사용자 제스처 → AudioContext 재개 + 시작 큐 + 현재 에라 분위기 베드.
   audio.resume();
   audio.cue('start');
+  audio.playVoice('owner_greet'); // 주인장 인사(영업 시작)
   audio.ambience(WAVES[Math.min(state.wave, WAVES.length - 1)].era);
   last = performance.now();
   rafId = requestAnimationFrame(loop);

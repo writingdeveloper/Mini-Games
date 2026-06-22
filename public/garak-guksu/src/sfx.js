@@ -188,6 +188,30 @@ export function createSfx() {
     fn(c, c.currentTime);
   }
 
+  // --- voice (원격 4080 사전합성 wav) -------------------------------------
+  // 주인장/손님 2채널 — 같은 채널이 재생 중이면 새 음성은 무시(말 겹침/스팸 방지).
+  // HTMLAudioElement 사용(WebAudio master gain과 별개라 muted를 직접 가드).
+  const VOICE_BASE = '/garak-guksu/voices/';
+  const VOICE_NAMES = ['owner_greet', 'owner_take', 'owner_serve', 'cust_order', 'cust_happy', 'cust_leave'];
+  const voiceEls = {};
+  const voicePlaying = { owner: null, cust: null };
+  if (typeof Audio !== 'undefined') {
+    for (const n of VOICE_NAMES) { const a = new Audio(VOICE_BASE + n + '.wav'); a.preload = 'auto'; voiceEls[n] = a; }
+  }
+  function playVoice(name) {
+    if (muted) return;
+    const a = voiceEls[name];
+    if (!a) return; // 알 수 없는 음성 무시
+    const ch = name.startsWith('owner') ? 'owner' : 'cust';
+    const cur = voicePlaying[ch];
+    if (cur && !cur.paused && !cur.ended) return; // 같은 채널 재생 중 → 끼어들지 않음
+    try { a.currentTime = 0; } catch { /* not ready */ }
+    a.volume = 1;
+    const p = a.play();
+    if (p && p.catch) p.catch(() => { /* autoplay 차단/미준비 무시 */ });
+    voicePlaying[ch] = a;
+  }
+
   // --- ambience ----------------------------------------------------------
 
   // era별 베드 파라미터(스팀 히스 볼륨/필터, 기적 빈도).
@@ -273,6 +297,7 @@ export function createSfx() {
       master.gain.setValueAtTime(master.gain.value, t);
       master.gain.linearRampToValueAtTime(muted ? 0 : 1, t + 0.05);
     }
+    if (muted) { for (const n in voiceEls) { try { voiceEls[n].pause(); } catch { /* */ } } }
   }
 
   function isMuted() { return muted; }
@@ -284,5 +309,5 @@ export function createSfx() {
     return Promise.resolve();
   }
 
-  return { cue, ambience, stopAmbience, setMuted, isMuted, resume };
+  return { cue, ambience, stopAmbience, setMuted, isMuted, resume, playVoice };
 }
