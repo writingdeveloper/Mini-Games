@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // 역전국수 플랫폼 장면 — 1970-80년대 한국 기차역 가락국수 컨셉.
 // scene.js / logic.js 를 건드리지 않는 "무대 장식" 모듈.
@@ -337,7 +338,33 @@ function makeLocomotive() {
   const diesel = makeDieselLoco(false);
   const last = makeDieselLoco(true);
   group.add(steam, diesel, last);
+  // 증기 에라: AI 생성 증기기관차(garak_loco.glb)로 교체. 로드 실패 시 절차적 유지.
+  loadLocoModel('/garak-guksu/models/garak_loco.glb', steam);
   return { group, byEra: { '증기': steam, '디젤': diesel, '막차': last } };
+}
+
+// AI glTF 기관차를 컨테이너에 로드(중심정렬 + 바닥을 선로 y0에 + 야간 가독용 화실 불빛). 실패 시 절차적 유지.
+function loadLocoModel(url, container) {
+  try {
+    new GLTFLoader().load(url, (gltf) => {
+      const s = gltf.scene;
+      const box = new THREE.Box3().setFromObject(s);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z) || 1;
+      s.position.sub(center);
+      s.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+      const wrap = new THREE.Group();
+      wrap.add(s);
+      wrap.scale.setScalar(6.2 / maxDim);
+      const b2 = new THREE.Box3().setFromObject(wrap);
+      wrap.position.y -= b2.min.y; // 바닥(차륜)을 선로 y0 에
+      container.clear();
+      container.add(wrap);
+      const fire = new THREE.PointLight(0xff8a3a, 1.3, 9, 1.6);
+      fire.position.set(1.8, 1.3, 0); container.add(fire);
+    }, undefined, () => { /* 로드 실패 → 절차적 기관차 유지 */ });
+  } catch { /* GLTFLoader 미가용 → 절차적 유지 */ }
 }
 
 // 증기기관차(미카급 실루엣) — 보일러가 X축으로 누움. 굴뚝이 증기 발생점.

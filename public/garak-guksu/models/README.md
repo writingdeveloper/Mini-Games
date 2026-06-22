@@ -8,3 +8,4 @@
 
 현재 에셋:
 - `garak_bowl.glb` — 가락국수 한 그릇(들고 있는 그릇). 스타일라이즈드.
+- `garak_loco.glb` — 증기기관차(증기 에라, `station.js` `loadLocoModel`). text→3D 생성 후 **trimesh로 바닥 슬래브 제거**(Hunyuan이 product-shot 바닥을 지오메트리로 만드는 아티팩트 → face-centroid Y 마스크로 절단).
