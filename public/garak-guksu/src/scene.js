@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createFloor, createChef, createStation, createCustomer, createGauge } from './models.js';
 import { STATIONS, CUSTOMER_SLOTS, slotProgress, patienceProgress, BLANCH_SLOTS, WAVES } from './logic.js';
 import { buildStation, tickStation, makeStationLabel } from './station.js';
@@ -103,6 +104,29 @@ export function createScene(canvas) {
   const foodBroth = heldBowl.getObjectByName('food_broth');
   const foodGarnish = heldBowl.getObjectByName('food_garnish');
 
+  // ---- 카메라 모드: 고정(게임플레이) / 자유 궤도 / 1인칭(주인장) — V키 순환 ----
+  const CAM_FIXED_POS = new THREE.Vector3(0, 7.5, -7);
+  const CAM_FIXED_LOOK = new THREE.Vector3(0, 0.5, 1.5);
+  const orbit = new OrbitControls(camera, renderer.domElement);
+  orbit.target.copy(CAM_FIXED_LOOK);
+  orbit.enableDamping = true; orbit.dampingFactor = 0.08;
+  orbit.minDistance = 3; orbit.maxDistance = 32;
+  orbit.maxPolarAngle = Math.PI * 0.49; // 지면 아래로는 못 내려가게
+  orbit.enabled = false;                 // 기본은 고정 모드
+  const CAM_MODES = ['fixed', 'orbit', 'first'];
+  let camMode = 'fixed';
+  function applyCamMode(mode) {
+    if (!CAM_MODES.includes(mode)) return camMode;
+    camMode = mode;
+    orbit.enabled = (mode === 'orbit');
+    chef.visible = (mode !== 'first'); // 1인칭에선 주인장 본체를 숨겨 시야 가림 방지
+    camera.up.set(0, 1, 0);
+    if (mode === 'fixed') { camera.position.copy(CAM_FIXED_POS); camera.lookAt(CAM_FIXED_LOOK); }
+    else if (mode === 'orbit') { camera.position.copy(CAM_FIXED_POS); orbit.target.copy(CAM_FIXED_LOOK); orbit.update(); }
+    return camMode;
+  }
+  function cycleCamMode() { return applyCamMode(CAM_MODES[(CAM_MODES.indexOf(camMode) + 1) % CAM_MODES.length]); }
+
   // archetype display colors (Plan 6 polish refines these)
   const ARCH_COLOR = { soldier: 0x4a6a4a, worker: 0x4a5a8a, student: 0x8a7a4a, couple: 0xaa5a7a, granny: 0x8a8a8a };
 
@@ -188,6 +212,12 @@ export function createScene(canvas) {
     const bobY = RM ? 0 : moving ? Math.abs(Math.sin((t || 0) * 10)) * 0.08 : Math.sin((t || 0) * 2) * 0.03;
     chef.position.set(state.player.x, bobY, state.player.z);
     chef.rotation.z = RM ? 0 : moving ? Math.sin((t || 0) * 10) * 0.06 : 0;
+    // 카메라 모드별 매 프레임 갱신(고정은 정적이라 불필요).
+    if (camMode === 'orbit') orbit.update();
+    else if (camMode === 'first') {
+      camera.position.set(state.player.x, 1.5, state.player.z);
+      camera.lookAt(state.player.x, 1.25, state.player.z + 3.2); // 카운터/손님(+z) 응시
+    }
     const holding = state.player.holding;
     heldBowl.visible = holding !== null;
     if (holding) {
@@ -232,7 +262,7 @@ export function createScene(canvas) {
     });
   }
   function render() { renderer.render(scene, camera); }
-  function dispose() { renderer.dispose(); }
+  function dispose() { orbit.dispose(); renderer.dispose(); }
 
-  return { sync, render, dispose };
+  return { sync, render, dispose, cycleCamMode, getCamMode: () => camMode };
 }

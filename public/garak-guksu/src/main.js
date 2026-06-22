@@ -115,6 +115,25 @@ addEventListener('keydown', (e) => {
   if (near(p.x, p.z, STATIONS.garnish.x, STATIONS.garnish.z)) { garnish(state, spice); renderHud(); }
 });
 
+// V키: 카메라 시점 순환(고정 → 자유 궤도 → 1인칭). 게임 상태와 무관하게 동작.
+const CAM_MODE_KO = { fixed: '고정 시점', orbit: '자유 시점 · 드래그/휠', first: '1인칭 · 주인장 시야' };
+addEventListener('keydown', (e) => {
+  if (e.code !== 'KeyV' || e.repeat) return;
+  const mode = scene.cycleCamMode ? scene.cycleCamMode() : null;
+  if (mode) showCamToast(CAM_MODE_KO[mode] || mode);
+});
+function showCamToast(text) {
+  let el = document.getElementById('camToast');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'camToast';
+    el.style.cssText = 'position:fixed;left:50%;top:13%;transform:translateX(-50%);background:rgba(13,28,48,0.9);color:#ffe0a8;padding:8px 16px;border-radius:10px;font:600 15px system-ui,sans-serif;z-index:50;pointer-events:none;transition:opacity .4s;border:1px solid rgba(255,207,106,0.55)';
+    document.body.appendChild(el);
+  }
+  el.textContent = '📷 ' + text + '   (V)';
+  el.style.opacity = '1';
+  clearTimeout(el._t); el._t = setTimeout(() => { el.style.opacity = '0'; }, 1700);
+}
+
 function nearestCustomer() {
   const p = state.player; let best = null, bestD = Infinity;
   for (const c of state.customers) {
