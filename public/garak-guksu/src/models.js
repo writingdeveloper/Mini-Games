@@ -110,12 +110,25 @@ export function createChef() {
   head.position.y = 1.2; head.castShadow = true;
   const proc = new THREE.Group(); proc.name = 'procChef'; // garak_chef.glb 로드되면 숨겨짐
   proc.add(body, head);
-  g.add(proc);
-  attachModel('chef', g, proc); // garak_chef.glb 있으면 절차적 셰프를 대체
+  const chefBody = new THREE.Group(); chefBody.name = 'chefBody'; // 1인칭에서 숨길 본체
+  chefBody.add(proc);
+  attachModel('chef', chefBody, proc); // garak_chef.glb 있으면 절차적 셰프를 대체(chefBody 안)
+  g.add(chefBody);
   const bowl = createBowl();
-  bowl.position.set(0, 1.1, 0.45); bowl.scale.setScalar(1.7);
+  bowl.position.set(0, 1.18, 0.42); bowl.scale.setScalar(1.7);
   bowl.name = 'heldBowl'; bowl.visible = false;
   g.add(bowl);
+  // 1인칭 손 — 그릇 양옆 둥근 손 + 흰 소매(평소 숨김, FP 에서만 표시).
+  const hands = new THREE.Group(); hands.name = 'fpHands'; hands.visible = false;
+  const skin = new THREE.MeshStandardMaterial({ color: 0xffd9b0, roughness: 0.75 });
+  const sleeve = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.6 });
+  for (const hx of [-0.4, 0.4]) {
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), skin);
+    hand.scale.set(1, 0.8, 1.25); hand.position.set(hx, 1.14, 0.48); hand.castShadow = true; hands.add(hand);
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.34, 10), sleeve);
+    cuff.position.set(hx * 1.18, 1.02, 0.28); cuff.rotation.x = 0.6; cuff.castShadow = true; hands.add(cuff);
+  }
+  g.add(hands);
   return g;
 }
 

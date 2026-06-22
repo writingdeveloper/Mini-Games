@@ -56,19 +56,19 @@ function seedNow() { return ((performance.now() | 0) ^ 0x9e3779b9) >>> 0; }
 function action() {
   if (!running) return;
   const p = state.player;
-  if (near(p.x, p.z, STATIONS.setting.x, STATIONS.setting.z)) { const fresh = !p.holding; setNoodle(state); audio.cue('cook'); if (fresh) audio.playVoice('owner_take'); }
+  if (near(p.x, p.z, STATIONS.setting.x, STATIONS.setting.z)) { const fresh = !p.holding; setNoodle(state); audio.cue('cook'); scene.cookMotion?.(); if (fresh) audio.playVoice('owner_take'); }
   else if (near(p.x, p.z, STATIONS.blancher.x, STATIONS.blancher.z)) {
     if (p.holding && p.holding.stage === 'noodle') { putInBlancher(state); popup('🍜 데치는 중! 다시 눌러 면 건지기'); }
     else { const lifted = liftFromBlancher(state); if (!lifted && !p.holding) popup('데칠 면이 없어요 (① 면부터)'); }
-    audio.cue('cook');
+    audio.cue('cook'); scene.cookMotion?.();
   } else if (near(p.x, p.z, STATIONS.broth.x, STATIONS.broth.z)) {
-    const okBroth = pourBroth(state); audio.cue('cook');
+    const okBroth = pourBroth(state); audio.cue('cook'); scene.cookMotion?.();
     if (!okBroth && (!p.holding || p.holding.stage !== 'blanched')) popup('③ 육수는 데친 면에! ② 데치기 → 다시 눌러 건지기');
   }
   else if (near(p.x, p.z, STATIONS.garnish.x, STATIONS.garnish.z)) {
     // ④ 고명/양념: action 키 = 기본 양념으로 빠른 마무리, 1·2·3(또는 버튼) = 손님 주문에 맞춰 선택.
     if (p.holding && p.holding.stage === 'brothed') {
-      garnish(state, 'normal'); audio.cue('cook'); popup('🌶️ 기본 양념 완성! (1·2·3 으로 손님 맞춤)');
+      garnish(state, 'normal'); audio.cue('cook'); scene.cookMotion?.(); popup('🌶️ 기본 양념 완성! (1·2·3 으로 손님 맞춤)');
     } else if (!p.holding) { popup('① 면부터! 면→데치기→육수→양념'); }
     else { popup('③ 육수까지 받아오세요'); }
   }

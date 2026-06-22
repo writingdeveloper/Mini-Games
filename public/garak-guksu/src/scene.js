@@ -99,6 +99,8 @@ export function createScene(canvas) {
 
   const chef = createChef();
   scene.add(chef);
+  const chefBody = chef.getObjectByName('chefBody'); // 1인칭에서 숨길 본체
+  const fpHands = chef.getObjectByName('fpHands');   // 1인칭 손
   const heldBowl = chef.getObjectByName('heldBowl');
   const foodNoodle = heldBowl.getObjectByName('food_noodle');
   const foodBroth = heldBowl.getObjectByName('food_broth');
@@ -118,6 +120,7 @@ export function createScene(canvas) {
   const _chasePos = new THREE.Vector3();  // 추격 3인칭 보간용
   const _chaseLook = new THREE.Vector3();
   let lookYaw = 0, lookPitch = 0;          // 추격/1인칭 마우스 둘러보기 오프셋(rad)
+  let cookBump = 0;                        // 조리 시 1인칭 손 까딱 모션(1→0 감쇠)
   const CAM_MODES = ['fixed', 'orbit', 'chase', 'first'];
   let camMode = 'fixed';
   function applyCamMode(mode) {
@@ -126,7 +129,8 @@ export function createScene(canvas) {
     if (mode === 'chase' || mode === 'first') { lookYaw = 0; lookPitch = 0; } // 진입 시 기본 시점
     else if (document.pointerLockElement) document.exitPointerLock(); // 고정/궤도로 가면 포인터락 해제
     orbit.enabled = (mode === 'orbit');
-    chef.visible = (mode !== 'first'); // 1인칭에선 주인장 본체를 숨겨 시야 가림 방지
+    if (chefBody) chefBody.visible = (mode !== 'first'); // 1인칭에선 본체 숨김
+    if (fpHands) fpHands.visible = (mode === 'first');    // 1인칭에선 손 표시
     camera.up.set(0, 1, 0);
     if (mode === 'fixed') { camera.position.copy(CAM_FIXED_POS); camera.lookAt(CAM_FIXED_LOOK); }
     else if (mode === 'orbit') { camera.position.copy(CAM_FIXED_POS); orbit.target.copy(CAM_FIXED_LOOK); orbit.update(); }
@@ -256,11 +260,16 @@ export function createScene(canvas) {
       _chaseLook.set(cx, 1.1, cz);
       camera.lookAt(_chaseLook);
     } else if (camMode === 'first') {
-      // 1인칭: 주인장 눈높이에서 드래그로 고개 돌리기(yaw/pitch). 기본=+z(카운터/손님).
-      const ex = state.player.x, ey = 1.5, ez = state.player.z, cp = Math.cos(lookPitch);
+      // 1인칭: 주인장 눈높이에서 마우스로 고개 돌리기. 기본 시선 살짝 아래(손/그릇/작업대 보이게).
+      const ex = state.player.x, ey = 1.5, ez = state.player.z;
+      const P = lookPitch - 0.13, cp = Math.cos(P);
       camera.position.set(ex, ey, ez);
-      _chaseLook.set(ex + Math.sin(lookYaw) * cp, ey + Math.sin(lookPitch), ez + Math.cos(lookYaw) * cp);
+      _chaseLook.set(ex + Math.sin(lookYaw) * cp, ey + Math.sin(P), ez + Math.cos(lookYaw) * cp);
       camera.lookAt(_chaseLook);
+    }
+    if (fpHands && fpHands.visible) { // 조리 시 손 까딱(내렸다 올림)
+      if (cookBump > 0) cookBump = Math.max(0, cookBump - 0.06);
+      fpHands.position.y = -Math.sin(cookBump * Math.PI) * 0.14;
     }
     const holding = state.player.holding;
     heldBowl.visible = holding !== null;
@@ -314,5 +323,5 @@ export function createScene(canvas) {
   function render() { renderer.render(scene, camera); }
   function dispose() { orbit.dispose(); renderer.dispose(); }
 
-  return { sync, render, dispose, cycleCamMode, getCamMode: () => camMode, requestLook, isLooking: () => pointerLocked };
+  return { sync, render, dispose, cycleCamMode, getCamMode: () => camMode, requestLook, isLooking: () => pointerLocked, cookMotion: () => { cookBump = 1; } };
 }
