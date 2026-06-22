@@ -121,9 +121,15 @@ export function createScene(canvas) {
       student: c.getObjectByName('prop_student'), couple: c.getObjectByName('prop_couple'),
       granny: c.getObjectByName('prop_granny'),
     };
+    const ai = {
+      soldier: c.getObjectByName('ai_soldier'), worker: c.getObjectByName('ai_worker'),
+      student: c.getObjectByName('ai_student'), couple: c.getObjectByName('ai_couple'),
+      granny: c.getObjectByName('ai_granny'),
+    };
+    const proc = c.getObjectByName('procCust');
     const order = makeOrderBoard();
     order.position.set(pos.x, 2.55, pos.z); order.visible = false; scene.add(order);
-    return { mesh: c, body: c.children[0], gauge: pg, fill: pg.getObjectByName('fill'), props, order };
+    return { mesh: c, proc, body: proc.children[0], gauge: pg, fill: pg.getObjectByName('fill'), props, ai, order };
   });
 
   // one gauge per blancher slot, fanned out over the blancher
@@ -198,9 +204,16 @@ export function createScene(canvas) {
       sc.gauge.visible = !!c;
       sc.order.visible = !!c;
       if (c) {
-        sc.body.material.color.setHex(ARCH_COLOR[c.archetype] ?? 0x4a6a8a);
         sc.order.userData.setSpice(c.order.spice);
-        for (const k in sc.props) { const pr = sc.props[k]; if (pr) pr.visible = (c.archetype === k); }
+        // AI 캐릭터 GLB 가 로드돼 있으면 그걸 쓰고 절차적은 숨김; 없으면 절차적 몸통+소품 폴백.
+        const aiHolder = sc.ai[c.archetype];
+        const useAI = !!(aiHolder && aiHolder.children.length);
+        sc.proc.visible = !useAI;
+        for (const k in sc.ai) { const h = sc.ai[k]; if (h) h.visible = useAI && k === c.archetype; }
+        if (!useAI) {
+          sc.body.material.color.setHex(ARCH_COLOR[c.archetype] ?? 0x4a6a8a);
+          for (const k in sc.props) { const pr = sc.props[k]; if (pr) pr.visible = (c.archetype === k); }
+        }
         const pp = patienceProgress(c);
         // patience: green when calm → red when about to leave
         setGaugeFill(sc.fill, pp, pp > 0.75 ? 0xff5a5a : pp > 0.5 ? 0xffcf6a : 0x6dff8f);

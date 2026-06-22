@@ -11,6 +11,7 @@ const _modelWaiters = {};   // key -> [로드 후 콜백]
 // 바운딩박스 중심을 원점에 두고 targetSize 로 스케일(+그림자).
 // opts.byHeight: maxDim 대신 높이(y)를 targetSize 에 맞춤(서있는 캐릭터용).
 // opts.ground: 스케일 후 발(min.y)을 y=0 에 정렬(바닥 위에 세움; 캐릭터/탈것용).
+// opts.rotateY: Y축 회전(rad). 생성된 캐릭터 정면 방향을 게임 기준에 맞춤(손님=카메라 응시).
 function normalizeModel(scene, targetSize, opts = {}) {
   const box = new THREE.Box3().setFromObject(scene);
   const size = box.getSize(new THREE.Vector3());
@@ -21,6 +22,7 @@ function normalizeModel(scene, targetSize, opts = {}) {
   const wrap = new THREE.Group();
   wrap.add(scene);
   wrap.scale.setScalar(targetSize / denom);
+  if (opts.rotateY) wrap.rotation.y = opts.rotateY; // Y회전은 높이 불변 → ground 정렬 전 적용 OK
   if (opts.ground) {
     const b2 = new THREE.Box3().setFromObject(wrap);
     wrap.position.y -= b2.min.y; // 발/바닥을 y=0 으로
@@ -55,10 +57,24 @@ function attachModel(key, group, procGroup) {
   else (_modelWaiters[key] = _modelWaiters[key] || []).push(apply);
 }
 
+// holder 그룹에 로드된 GLB 클론만 주입(가시성은 호출부 sync 가 결정). 없으면 비워둠(폴백).
+function attachInto(key, holder) {
+  const apply = () => { const tpl = _loadedModels[key]; if (tpl) holder.add(tpl.clone(true)); };
+  if (_loadedModels[key]) apply();
+  else (_modelWaiters[key] = _modelWaiters[key] || []).push(apply);
+}
+
+// 손님 아키타입 키(절차적 소품 / AI GLB 공통).
+const CUSTOMER_ARCHES = ['soldier', 'worker', 'student', 'couple', 'granny'];
+
 // 모듈 로드 시 에셋 프리로드(없으면 절차적 폴백).
 preloadModel('bowl', '/garak-guksu/models/garak_bowl.glb', 0.42);
 // 셰프(주인장): 서있는 캐릭터 → 키 기준 + 발을 바닥(y=0)에 정렬.
 preloadModel('chef', '/garak-guksu/models/garak_chef.glb', 1.5, { ground: true, byHeight: true });
+// 손님 5종: 서있는 캐릭터 + 카메라(셰프)를 마주보도록 180° 회전.
+for (const key of CUSTOMER_ARCHES) {
+  preloadModel(`cust_${key}`, `/garak-guksu/models/garak_cust_${key}.glb`, 1.7, { ground: true, byHeight: true, rotateY: Math.PI });
+}
 
 export function createFloor() {
   const g = new THREE.Group();
@@ -217,6 +233,7 @@ export function createGauge() {
 // 카메라는 손님 뒤(+z)에서 보므로 머리/등/위쪽 소품이 잘 보인다.
 export function createCustomer(color = 0x4a6a8a) {
   const g = new THREE.Group();
+  const proc = new THREE.Group(); proc.name = 'procCust'; // garak_cust_*.glb 로드되면 sync 가 숨김
   const body = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.3, 0.7, 6, 12),
     new THREE.MeshStandardMaterial({ color, roughness: 0.7 })
@@ -227,7 +244,7 @@ export function createCustomer(color = 0x4a6a8a) {
     new THREE.MeshStandardMaterial({ color: 0xffd9b0, roughness: 0.7 })
   );
   head.position.y = 1.45; head.castShadow = true;
-  g.add(body, head);
+  proc.add(body, head);
 
   // soldier — 카키 군모(납작 + 챙).
   {
@@ -238,7 +255,7 @@ export function createCustomer(color = 0x4a6a8a) {
     const brim = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.04, 0.34),
       new THREE.MeshStandardMaterial({ color: 0x4a4e30, roughness: 0.8 }));
     brim.position.set(0, 1.6, -0.18);
-    p.add(cap, brim); p.name = 'prop_soldier'; p.visible = false; g.add(p);
+    p.add(cap, brim); p.name = 'prop_soldier'; p.visible = false; proc.add(p);
   }
   // worker — 진회색 중절모.
   {
@@ -249,25 +266,32 @@ export function createCustomer(color = 0x4a6a8a) {
     const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.04, 16),
       new THREE.MeshStandardMaterial({ color: 0x24242b, roughness: 0.7 }));
     brim.position.y = 1.6;
-    p.add(crown, brim); p.name = 'prop_worker'; p.visible = false; g.add(p);
+    p.add(crown, brim); p.name = 'prop_worker'; p.visible = false; proc.add(p);
   }
   // student — 네모 책가방(등).
   {
     const bag = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.5, 0.22),
       new THREE.MeshStandardMaterial({ color: 0x394a7a, roughness: 0.7 }));
-    bag.position.set(0, 0.95, 0.34); bag.name = 'prop_student'; bag.visible = false; g.add(bag);
+    bag.position.set(0, 0.95, 0.34); bag.name = 'prop_student'; bag.visible = false; proc.add(bag);
   }
   // granny — 회백 머릿수건.
   {
     const scarf = new THREE.Mesh(new THREE.SphereGeometry(0.31, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.62),
       new THREE.MeshStandardMaterial({ color: 0xb8b2a6, roughness: 0.9 }));
-    scarf.position.y = 1.5; scarf.name = 'prop_granny'; scarf.visible = false; g.add(scarf);
+    scarf.position.y = 1.5; scarf.name = 'prop_granny'; scarf.visible = false; proc.add(scarf);
   }
   // couple — 머리 위 분홍 하트.
   {
     const heart = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8),
       new THREE.MeshBasicMaterial({ color: 0xff5a8a }));
-    heart.scale.set(1, 0.9, 0.6); heart.position.y = 1.95; heart.name = 'prop_couple'; heart.visible = false; g.add(heart);
+    heart.scale.set(1, 0.9, 0.6); heart.position.y = 1.95; heart.name = 'prop_couple'; heart.visible = false; proc.add(heart);
+  }
+  g.add(proc);
+
+  // 아키타입별 AI 캐릭터 홀더 — GLB 있으면 채워지고, 없으면 비어 폴백. 가시성은 scene sync 가 결정.
+  for (const key of CUSTOMER_ARCHES) {
+    const holder = new THREE.Group(); holder.name = 'ai_' + key; holder.visible = false;
+    g.add(holder); attachInto('cust_' + key, holder);
   }
   return g;
 }
