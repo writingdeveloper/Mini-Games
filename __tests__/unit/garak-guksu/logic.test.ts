@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, slotProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress, WAVES, INTERMISSION, tickWave, comboMult, SPEED_MAX, grade } from '../../../public/garak-guksu/src/logic.js';
+import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, slotProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress, WAVES, INTERMISSION, tickWave, comboMult, SPEED_MAX, grade, placeOrPickup, PLACE_SLOTS } from '../../../public/garak-guksu/src/logic.js';
 
 describe('createGame', () => {
   it('starts empty-handed, no customers, serving wave 0, 5 lives', () => {
@@ -22,6 +22,40 @@ describe('createGame', () => {
     expect(g.bestCombo).toBe(0);
     expect(g.served).toBe(0);
     expect(g.missed).toBe(0);
+  });
+  it('starts with an empty placed shelf', () => {
+    const g = createGame(1);
+    expect(g.placed.length).toBe(PLACE_SLOTS.length);
+    expect(g.placed.every((s: unknown) => s === null)).toBe(true);
+  });
+});
+
+describe('placeOrPickup (미리 만들기 / 놓기 / 집기)', () => {
+  it('places a held bowl on the nearest shelf, then picks it back up', () => {
+    const g = createGame();
+    const slot = PLACE_SLOTS[0];
+    g.player.x = slot.x; g.player.z = slot.z;
+    g.player.holding = { stage: 'done', doneness: 5, spice: 'normal' };
+    expect(placeOrPickup(g)).toBe(true);                 // 놓기
+    expect(g.player.holding).toBe(null);
+    expect(g.placed[0]).toEqual({ stage: 'done', doneness: 5, spice: 'normal' });
+    expect(placeOrPickup(g)).toBe(true);                 // 집기
+    expect(g.placed[0]).toBe(null);
+    expect(g.player.holding).toEqual({ stage: 'done', doneness: 5, spice: 'normal' });
+  });
+  it('does nothing when far from any shelf slot', () => {
+    const g = createGame();
+    g.player.x = 0; g.player.z = -2;
+    g.player.holding = { stage: 'noodle' };
+    expect(placeOrPickup(g)).toBe(false);
+    expect(g.player.holding).toEqual({ stage: 'noodle' });
+  });
+  it('empty-handed near an empty shelf does nothing', () => {
+    const g = createGame();
+    const slot = PLACE_SLOTS[0];
+    g.player.x = slot.x; g.player.z = slot.z;
+    expect(placeOrPickup(g)).toBe(false);
+    expect(g.player.holding).toBe(null);
   });
 });
 

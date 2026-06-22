@@ -1,7 +1,7 @@
 import {
   createGame, movePlayer, near, STATIONS, CUSTOMER_SLOTS,
   setNoodle, putInBlancher, liftFromBlancher, tickBlancher, tickSpawns, tickCustomers,
-  pourBroth, garnish, serve, ARCHETYPES, tickWave, WAVES, grade, comboMult,
+  pourBroth, garnish, serve, ARCHETYPES, tickWave, WAVES, grade, comboMult, placeOrPickup,
 } from './logic.js';
 import { createScene } from './scene.js';
 import { createInput } from './input.js';
@@ -140,6 +140,12 @@ addEventListener('keydown', (e) => {
   if (!spice || !running) return;
   const p = state.player;
   if (near(p.x, p.z, STATIONS.garnish.x, STATIONS.garnish.z)) { garnish(state, spice); renderHud(); }
+});
+
+// F키: 완성/진행중 그릇을 진열대(서빙 카운터)에 놓기 / 집기 — 미리 만들어 쌓아둘 수 있음.
+addEventListener('keydown', (e) => {
+  if (e.code !== 'KeyF' || e.repeat || !running) return;
+  if (placeOrPickup(state)) { audio.cue('cook'); popup(state.player.holding ? '🥢 그릇 집기' : '🍜 진열대에 놓음'); renderHud(); }
 });
 
 // V키: 카메라 시점 순환(고정 → 자유 궤도 → 1인칭). 게임 상태와 무관하게 동작.
@@ -318,6 +324,8 @@ window.__garak = {
   liftFromBlancher() { liftFromBlancher(state); renderHud(); },
   pourBroth() { pourBroth(state); renderHud(); },
   garnish(spice) { garnish(state, spice); renderHud(); },
+  placeOrPickup() { placeOrPickup(state); renderHud(); },
+  get placed() { return state.placed; },
   serve() { serve(state); renderHud(); },
   tickSpawns(dt) { tickSpawns(state, dt); },
   tickCustomers(dt) { tickCustomers(state, dt); },

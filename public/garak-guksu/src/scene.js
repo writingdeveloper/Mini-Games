@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createFloor, createChef, createStation, createCustomer, createGauge, createKitchenStove } from './models.js';
-import { STATIONS, CUSTOMER_SLOTS, slotProgress, patienceProgress, BLANCH_SLOTS, WAVES } from './logic.js';
+import { createFloor, createChef, createStation, createCustomer, createGauge, createKitchenStove, createBowl } from './models.js';
+import { STATIONS, CUSTOMER_SLOTS, slotProgress, patienceProgress, BLANCH_SLOTS, WAVES, PLACE_SLOTS } from './logic.js';
 import { buildStation, tickStation, makeStationLabel } from './station.js';
 
 // 가독성 상향(현 어두움 지적): hemi/lamp/fill 를 소폭 올려 막차에서도 조리대~카운터가 읽히게.
@@ -140,6 +140,16 @@ export function createScene(canvas) {
   const foodGarnish = heldBowl.getObjectByName('food_garnish');
   const procBowl = heldBowl.getObjectByName('procBowl');   // 절차적 그릇(조리 단계 표시)
   const aiBowl = heldBowl.getObjectByName('aiBowl');       // AI 완성 그릇('done' 에서만)
+
+  // 완성/진행중 그릇을 놓는 진열대(서빙 카운터) + slot별 그릇 — sync 가 state.placed 로 토글.
+  const ledgeMat = new THREE.MeshStandardMaterial({ color: 0x4a3324, roughness: 0.85 });
+  const placedBowls = PLACE_SLOTS.map((slot) => {
+    const ledge = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.1, 0.62), ledgeMat);
+    ledge.position.set(slot.x, 0.95, slot.z); ledge.receiveShadow = true; ledge.castShadow = true; scene.add(ledge);
+    const b = createBowl(); b.scale.setScalar(1.7); b.position.set(slot.x, 1.05, slot.z); b.visible = false; scene.add(b);
+    return { mesh: b, proc: b.getObjectByName('procBowl'), ai: b.getObjectByName('aiBowl'),
+      fn: b.getObjectByName('food_noodle'), fb: b.getObjectByName('food_broth'), fg: b.getObjectByName('food_garnish') };
+  });
 
   // ---- 카메라 모드: 고정 / 자유궤도 / 추격3인칭 / 1인칭 — V키 순환 ----
   const CAM_FIXED_POS = new THREE.Vector3(0, 7.5, -7);
@@ -322,6 +332,21 @@ export function createScene(canvas) {
         if (foodGarnish) foodGarnish.visible = isDone;
       }
     }
+    // 진열대에 놓인 그릇들 — state.placed 로 표시/단계 토글.
+    placedBowls.forEach((pb, i) => {
+      const b = state.placed[i];
+      pb.mesh.visible = !!b;
+      if (!b) return;
+      const isDone = b.stage === 'done';
+      const useAI = isDone && pb.ai && pb.ai.children.length > 0;
+      if (pb.proc) pb.proc.visible = !useAI;
+      if (pb.ai) pb.ai.visible = useAI;
+      if (!useAI) {
+        if (pb.fn) pb.fn.visible = true;
+        if (pb.fb) pb.fb.visible = b.stage === 'brothed' || isDone;
+        if (pb.fg) pb.fg.visible = isDone;
+      }
+    });
 
     // customers by slot
     const bySlot = new Map(state.customers.map((c) => [c.slot, c]));

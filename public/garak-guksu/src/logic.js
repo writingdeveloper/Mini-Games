@@ -10,6 +10,7 @@ export const CUSTOMER_SLOTS = [
 ];
 
 export const REACH = 1.2;                            // how close counts as "at" a thing
+export const PLACE_SLOTS = [{ x: -2.5, z: 2.3 }, { x: 0, z: 2.3 }, { x: 2.5, z: 2.3 }]; // 완성 그릇 놓는 진열대(서빙 카운터)
 
 // The four cook stations, left→right across the back of the kitchen.
 export const STATIONS = {
@@ -59,6 +60,8 @@ export function createGame(seed = 1) {
   return {
     player: { x: 0, z: 0, holding: null },
     blancher: { slots: new Array(BLANCH_SLOTS).fill(null) },
+    placed: new Array(PLACE_SLOTS.length).fill(null), // 진열대에 놓인 그릇들
+
     customers: [],
     spawnTimer: 0,
     waveSpawned: 0,
@@ -245,6 +248,22 @@ export function garnish(state, spice) {
     return true;
   }
   return false;
+}
+
+// 완성/진행중 그릇을 진열대에 놓거나 집기 — 손에 들었으면 가까운 빈 슬롯에 놓고, 빈손이면 가까운 채워진 슬롯에서 집는다.
+export function placeOrPickup(state) {
+  const p = state.player;
+  let idx = -1, bestD = REACH * REACH;
+  PLACE_SLOTS.forEach((s, i) => {
+    const free = state.placed[i] === null;
+    if (p.holding ? !free : free) return; // 들었으면 빈 슬롯만, 빈손이면 채워진 슬롯만 대상
+    const d = dist2(p.x, p.z, s.x, s.z);
+    if (d <= bestD) { bestD = d; idx = i; }
+  });
+  if (idx === -1) return false;
+  if (p.holding) { state.placed[idx] = p.holding; p.holding = null; }
+  else { p.holding = state.placed[idx]; state.placed[idx] = null; }
+  return true;
 }
 
 function startWave(state, i) {
