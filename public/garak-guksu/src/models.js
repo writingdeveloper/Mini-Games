@@ -79,6 +79,8 @@ for (const key of CUSTOMER_ARCHES) {
 for (const kind of ['setting', 'blancher', 'broth', 'garnish']) {
   preloadModel(`station_${kind}`, `/garak-guksu/models/garak_st_${kind}.glb`, 1.2, { ground: true });
 }
+// 주방 화덕(AI 복잡 객체) — 작업대 위 끓는 육수솥. 없으면 절차적 폴백.
+preloadModel('kit_stove', '/garak-guksu/models/garak_kit_stove.glb', 1.1, { ground: true });
 
 export function createFloor() {
   const g = new THREE.Group();
@@ -93,6 +95,21 @@ export function createFloor() {
   );
   counter.position.set(0, 0.5, 2.7);
   counter.castShadow = true; counter.receiveShadow = true; g.add(counter);
+  return g;
+}
+
+// 주방 화덕(garak_kit_stove.glb, AI 복잡 객체) — 절차적 폴백(가스링+솥). scene.js 가 작업대에 배치.
+export function createKitchenStove() {
+  const g = new THREE.Group();
+  const proc = new THREE.Group(); proc.name = 'procStove';
+  const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 0.18, 16),
+    new THREE.MeshStandardMaterial({ color: 0x2a2a30, roughness: 0.7, metalness: 0.4 }));
+  ring.position.y = 0.09; proc.add(ring);
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.34, 0.55, 18),
+    new THREE.MeshStandardMaterial({ color: 0x9aa0a6, metalness: 0.5, roughness: 0.4 }));
+  pot.position.y = 0.45; pot.castShadow = true; proc.add(pot);
+  g.add(proc);
+  attachModel('kit_stove', g, proc);
   return g;
 }
 

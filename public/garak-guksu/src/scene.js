@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createFloor, createChef, createStation, createCustomer, createGauge } from './models.js';
+import { createFloor, createChef, createStation, createCustomer, createGauge, createKitchenStove } from './models.js';
 import { STATIONS, CUSTOMER_SLOTS, slotProgress, patienceProgress, BLANCH_SLOTS, WAVES } from './logic.js';
 import { buildStation, tickStation, makeStationLabel } from './station.js';
 
@@ -64,12 +64,10 @@ function makeKitchen() {
   const bowlMat = new THREE.MeshStandardMaterial({ color: 0xcdd1d6, metalness: 0.3, roughness: 0.5 });
   const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.28, 0.42, 16), bowlMat);
   stack.position.set(-4.1, 0.78, Z); stack.castShadow = true; g.add(stack);
-  const ket = new THREE.MeshStandardMaterial({ color: 0x2c2c34, metalness: 0.4, roughness: 0.5 });
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 12), ket); body.scale.set(1, 0.8, 1);
-  body.position.set(4.0, 0.78, Z); body.castShadow = true; g.add(body);
-  const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.07, 0.3, 8), ket);
-  spout.position.set(4.3, 0.84, Z); spout.rotation.z = -0.7; g.add(spout);
-  const lid = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), ket); lid.position.set(4.0, 0.95, Z); g.add(lid);
+  // 주방 화덕(AI 복잡 객체, garak_kit_stove.glb) — 작업대 우측 끝. 없으면 절차적 폴백.
+  const stove = createKitchenStove();
+  stove.position.set(4.0, 0.62, Z);
+  g.add(stove);
   return g;
 }
 
