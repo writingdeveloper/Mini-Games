@@ -75,6 +75,10 @@ preloadModel('chef', '/garak-guksu/models/garak_chef.glb', 1.5, { ground: true, 
 for (const key of CUSTOMER_ARCHES) {
   preloadModel(`cust_${key}`, `/garak-guksu/models/garak_cust_${key}.glb`, 1.7, { ground: true, byHeight: true, rotateY: Math.PI });
 }
+// 조리대 4종 장비: 카운터 위 → 발(min.y)을 바닥에 정렬.
+for (const kind of ['setting', 'blancher', 'broth', 'garnish']) {
+  preloadModel(`station_${kind}`, `/garak-guksu/models/garak_st_${kind}.glb`, 1.2, { ground: true });
+}
 
 export function createFloor() {
   const g = new THREE.Group();
@@ -174,49 +178,52 @@ const STATION_COLORS = {
 // 조리대 + kind별 토핑(식별성·고증). logic 불변 — 색만 아니라 정체성을 보이게.
 export function createStation(kind = 'blancher') {
   const g = new THREE.Group();
+  const proc = new THREE.Group(); proc.name = 'procStation'; // garak_st_<kind>.glb 로드되면 숨겨짐
   const pot = new THREE.Mesh(
     new THREE.CylinderGeometry(0.5, 0.5, 0.7, 18),
     new THREE.MeshStandardMaterial({ color: STATION_COLORS[kind] ?? 0x9aa3ad, metalness: 0.4, roughness: 0.5 })
   );
-  pot.position.y = 0.55; pot.castShadow = true; pot.receiveShadow = true; g.add(pot);
+  pot.position.y = 0.55; pot.castShadow = true; pot.receiveShadow = true; proc.add(pot);
 
   if (kind === 'setting') {
     // 흰 생면 사리 더미(꼬인 토러스).
     const mat = new THREE.MeshStandardMaterial({ color: 0xf2ead2, roughness: 0.85 });
     for (let i = 0; i < 3; i++) {
       const coil = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.09, 8, 16), mat);
-      coil.position.set((i - 1) * 0.2, 0.98 + (i % 2) * 0.08, 0); coil.rotation.x = Math.PI / 2; g.add(coil);
+      coil.position.set((i - 1) * 0.2, 0.98 + (i % 2) * 0.08, 0); coil.rotation.x = Math.PI / 2; proc.add(coil);
     }
   } else if (kind === 'blancher') {
     // 스테인리스 채반 림 + 안의 면 + 물.
     const rim = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.06, 10, 22),
       new THREE.MeshStandardMaterial({ color: 0xb9c2cc, metalness: 0.7, roughness: 0.3 }));
-    rim.position.y = 0.92; rim.rotation.x = Math.PI / 2; g.add(rim);
+    rim.position.y = 0.92; rim.rotation.x = Math.PI / 2; proc.add(rim);
     const water = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.04, 18),
       new THREE.MeshStandardMaterial({ color: 0xcfe0d6, roughness: 0.2, metalness: 0.3, transparent: true, opacity: 0.7 }));
-    water.position.y = 0.9; g.add(water);
+    water.position.y = 0.9; proc.add(water);
   } else if (kind === 'broth') {
     // 멸치육수 가마솥 — 검은 솥 림 + 갈색 국물.
     const rim = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.07, 10, 22),
       new THREE.MeshStandardMaterial({ color: 0x161318, roughness: 0.8 }));
-    rim.position.y = 0.92; rim.rotation.x = Math.PI / 2; g.add(rim);
+    rim.position.y = 0.92; rim.rotation.x = Math.PI / 2; proc.add(rim);
     const soup = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.06, 20),
       new THREE.MeshStandardMaterial({ color: 0x6a4422, roughness: 0.35 }));
-    soup.position.y = 0.91; g.add(soup);
+    soup.position.y = 0.91; proc.add(soup);
   } else if (kind === 'garnish') {
     // 고춧가루 통(빨강 유지) + 쑥갓 묶음(초록) + 김 더미(검정).
     const chili = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.3, 12),
       new THREE.MeshStandardMaterial({ color: 0xd23b2a, roughness: 0.6 }));
-    chili.position.set(-0.22, 1.05, 0); g.add(chili);
+    chili.position.set(-0.22, 1.05, 0); proc.add(chili);
     const greenMat = new THREE.MeshStandardMaterial({ color: 0x4f7a3a, roughness: 0.8 });
     for (let i = 0; i < 3; i++) {
       const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.32, 6), greenMat);
-      stalk.position.set(0.18 + (i - 1) * 0.05, 1.05, 0.05); stalk.rotation.z = (i - 1) * 0.2; g.add(stalk);
+      stalk.position.set(0.18 + (i - 1) * 0.05, 1.05, 0.05); stalk.rotation.z = (i - 1) * 0.2; proc.add(stalk);
     }
     const gim = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.16),
       new THREE.MeshStandardMaterial({ color: 0x14140f, roughness: 0.9 }));
-    gim.position.set(0.2, 0.96, -0.18); g.add(gim);
+    gim.position.set(0.2, 0.96, -0.18); proc.add(gim);
   }
+  g.add(proc);
+  attachModel('station_' + kind, g, proc); // garak_st_<kind>.glb 있으면 절차적 조리대를 대체
   return g;
 }
 
