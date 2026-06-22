@@ -106,7 +106,7 @@ export function createScene(canvas) {
   const procBowl = heldBowl.getObjectByName('procBowl');   // 절차적 그릇(조리 단계 표시)
   const aiBowl = heldBowl.getObjectByName('aiBowl');       // AI 완성 그릇('done' 에서만)
 
-  // ---- 카메라 모드: 고정(게임플레이) / 자유 궤도 / 1인칭(주인장) — V키 순환 ----
+  // ---- 카메라 모드: 고정 / 자유궤도 / 추격3인칭 / 1인칭 — V키 순환 ----
   const CAM_FIXED_POS = new THREE.Vector3(0, 7.5, -7);
   const CAM_FIXED_LOOK = new THREE.Vector3(0, 0.5, 1.5);
   const orbit = new OrbitControls(camera, renderer.domElement);
@@ -115,7 +115,9 @@ export function createScene(canvas) {
   orbit.minDistance = 3; orbit.maxDistance = 32;
   orbit.maxPolarAngle = Math.PI * 0.49; // 지면 아래로는 못 내려가게
   orbit.enabled = false;                 // 기본은 고정 모드
-  const CAM_MODES = ['fixed', 'orbit', 'first'];
+  const _chasePos = new THREE.Vector3();  // 추격 3인칭 보간용
+  const _chaseLook = new THREE.Vector3();
+  const CAM_MODES = ['fixed', 'orbit', 'chase', 'first'];
   let camMode = 'fixed';
   function applyCamMode(mode) {
     if (!CAM_MODES.includes(mode)) return camMode;
@@ -216,7 +218,13 @@ export function createScene(canvas) {
     chef.rotation.z = RM ? 0 : moving ? Math.sin((t || 0) * 10) * 0.06 : 0;
     // 카메라 모드별 매 프레임 갱신(고정은 정적이라 불필요).
     if (camMode === 'orbit') orbit.update();
-    else if (camMode === 'first') {
+    else if (camMode === 'chase') {
+      // 추격 3인칭: 주인공 뒤(-z)·위에서 부드럽게 따라가며 앞(작업대~손님)을 응시.
+      _chasePos.set(state.player.x, 4.3, state.player.z - 6.2);
+      camera.position.lerp(_chasePos, 0.12);
+      _chaseLook.set(state.player.x, 1.1, state.player.z + 2.6);
+      camera.lookAt(_chaseLook);
+    } else if (camMode === 'first') {
       camera.position.set(state.player.x, 1.5, state.player.z);
       camera.lookAt(state.player.x, 1.25, state.player.z + 3.2); // 카운터/손님(+z) 응시
     }

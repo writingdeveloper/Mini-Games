@@ -127,7 +127,7 @@ addEventListener('keydown', (e) => {
 });
 
 // V키: 카메라 시점 순환(고정 → 자유 궤도 → 1인칭). 게임 상태와 무관하게 동작.
-const CAM_MODE_KO = { fixed: '고정 시점', orbit: '자유 시점 · 드래그/휠', first: '1인칭 · 주인장 시야' };
+const CAM_MODE_KO = { fixed: '고정 시점', orbit: '자유 시점 · 드래그/휠', chase: '추격 3인칭 · 주인장 뒤', first: '1인칭 · 주인장 시야' };
 addEventListener('keydown', (e) => {
   if (e.code !== 'KeyV' || e.repeat) return;
   const mode = scene.cycleCamMode ? scene.cycleCamMode() : null;
