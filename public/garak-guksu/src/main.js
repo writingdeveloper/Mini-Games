@@ -75,6 +75,7 @@ function action() {
   else {
     const before = state.combo;
     const scoreBefore = state.score;
+    const served = nearestCustomer(); // 만족 음성용(서빙 대상 손님)
     serve(state); // serve picks the nearest in-range customer (no-op if none)
     if (state.combo > before) {
       const cheers = ['좋았어!', '척척!', '신들렸다!', '오늘 장사 대박!'];
@@ -86,7 +87,7 @@ function action() {
         audio.cue('serve');
       }
       audio.playVoice('owner_serve');
-      if (Math.random() < 0.5) setTimeout(() => audio.playVoice('cust_happy'), 550);
+      if (served && Math.random() < 0.6) setTimeout(() => audio.playVoice(`${served.archetype}_happy`), 600);
     } else if (p.holding && p.holding.stage !== 'done') {
       popup('아직 완성 전! ④ 양념까지 마무리하세요');
     }
@@ -194,15 +195,20 @@ function loop(now) {
   tickBlancher(state, dt);
   tickWave(state, dt);
   tickSpawns(state, dt);
+  const _prevCust = state.customers.map((c) => ({ id: c.id, a: c.archetype })); // 이탈 음성용 스냅샷
   tickCustomers(state, dt);
-  if (state.missed > prevMissed) { prevMissed = state.missed; popup('아이고 기차!'); audio.cue('leave'); audio.playVoice('cust_leave'); }
+  if (state.missed > prevMissed) {
+    prevMissed = state.missed; popup('아이고 기차!'); audio.cue('leave');
+    const left = _prevCust.find((pc) => !state.customers.some((c) => c.id === pc.id)); // 떠난 손님
+    audio.playVoice(`${left ? left.a : 'soldier'}_leave`);
+  }
 
-  // 신규 손님 감지 → 주문 큐 + 손님 주문 음성(같은 채널 재생 중이면 자동 무시).
+  // 신규 손님 감지 → 주문 큐 + 손님 아키타입별 주문 음성(같은 채널 재생 중이면 자동 무시).
   for (const c of state.customers) {
     if (!seenIds.has(c.id)) {
       seenIds.add(c.id);
       audio.cue('order');
-      audio.playVoice('cust_order');
+      audio.playVoice(`${c.archetype}_order`);
     }
   }
 

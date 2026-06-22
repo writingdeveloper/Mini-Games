@@ -192,7 +192,10 @@ export function createSfx() {
   // 주인장/손님 2채널 — 같은 채널이 재생 중이면 새 음성은 무시(말 겹침/스팸 방지).
   // HTMLAudioElement 사용(WebAudio master gain과 별개라 muted를 직접 가드).
   const VOICE_BASE = '/garak-guksu/voices/';
-  const VOICE_NAMES = ['owner_greet', 'owner_take', 'owner_serve', 'cust_order', 'cust_happy', 'cust_leave'];
+  const VOICE_NAMES = ['owner_greet', 'owner_take', 'owner_serve']; // 손님은 아키타입별
+  for (const a of ['soldier', 'worker', 'student', 'granny', 'couple']) {
+    for (const k of ['order', 'happy', 'leave']) VOICE_NAMES.push(`${a}_${k}`);
+  }
   const voiceEls = {};
   const voicePlaying = { owner: null, cust: null };
   if (typeof Audio !== 'undefined') {
