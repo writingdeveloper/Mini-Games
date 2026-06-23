@@ -11,6 +11,7 @@ export const CUSTOMER_SLOTS = [
 
 export const REACH = 1.2;                            // how close counts as "at" a thing
 export const PLACE_SLOTS = [{ x: -2.5, z: 2.3 }, { x: 0, z: 2.3 }, { x: 2.5, z: 2.3 }]; // 완성 그릇 놓는 진열대(서빙 카운터)
+export const DOORWAY = { x: 4.7, z: 0 };             // 측면 창고 입구(문). 닫히면 통행 차단, 열면 통과.
 
 // The four cook stations. 화면 왼쪽=월드 +x(카메라가 +z 응시)이므로, 신규 플레이어가
 // 왼쪽부터 ①→④ 순서로 읽도록 x를 +3→-3 로 배치(setting=면이 화면 맨 왼쪽). — 게이머 QA
@@ -72,6 +73,7 @@ export function createGame(seed = 1) {
     player: { x: 0, z: 0, holding: null },
     blancher: { slots: new Array(BLANCH_SLOTS).fill(null) },
     placed: new Array(PLACE_SLOTS.length).fill(null), // 진열대에 놓인 그릇들
+    doorOpen: false,                  // 측면 창고 문(닫힘=창고 진입 차단)
 
     customers: [],
     spawnTimer: 0,
@@ -138,7 +140,9 @@ export function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 // dir = {x, z} (roughly unit length), dt = seconds. Mutates + returns state.
 export function movePlayer(state, dir, dt, speedMul = 1) {
   const s = PLAYER_SPEED * speedMul * dt;
-  let nx = clamp(state.player.x + dir.x * s, KITCHEN.minX, KITCHEN.maxX);
+  // 창고 문이 닫혀 있으면 우측 끝(x4.3)에서 막아 창고(x>4.7) 진입 차단 → 문을 열어야 들어감.
+  const maxX = state.doorOpen ? KITCHEN.maxX : 4.3;
+  let nx = clamp(state.player.x + dir.x * s, KITCHEN.minX, maxX);
   let nz = clamp(state.player.z + dir.z * s, KITCHEN.minZ, KITCHEN.maxZ);
   // 에셋 충돌: 각 blocker 원과 겹치면 표면 밖(법선 방향)으로 밀어냄 → 벽 따라 미끄러짐(slide).
   for (const b of BLOCKERS) {
@@ -152,10 +156,13 @@ export function movePlayer(state, dir, dt, speedMul = 1) {
     }
   }
   // push 후 다시 경계 안으로(모서리에서 밖으로 밀리는 것 방지).
-  state.player.x = clamp(nx, KITCHEN.minX, KITCHEN.maxX);
+  state.player.x = clamp(nx, KITCHEN.minX, maxX);
   state.player.z = clamp(nz, KITCHEN.minZ, KITCHEN.maxZ);
   return state;
 }
+
+// 창고 문 토글(여닫기). 플레이어가 입구(DOORWAY) 근처일 때 main.js가 호출.
+export function toggleDoor(state) { state.doorOpen = !state.doorOpen; return state.doorOpen; }
 
 export function dist2(ax, az, bx, bz) { const dx = ax - bx, dz = az - bz; return dx * dx + dz * dz; }
 export function near(ax, az, bx, bz, r = REACH) { return dist2(ax, az, bx, bz) <= r * r; }

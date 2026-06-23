@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, slotProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress, WAVES, INTERMISSION, tickWave, comboMult, SPEED_MAX, grade, placeOrPickup, PLACE_SLOTS } from '../../../public/garak-guksu/src/logic.js';
+import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, slotProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress, WAVES, INTERMISSION, tickWave, comboMult, SPEED_MAX, grade, placeOrPickup, PLACE_SLOTS, toggleDoor } from '../../../public/garak-guksu/src/logic.js';
 
 describe('createGame', () => {
   it('starts empty-handed, no customers, serving wave 0, 5 lives', () => {
@@ -66,10 +66,18 @@ describe('movePlayer', () => {
     expect(g.player.x).toBeCloseTo(0.45, 5);
     expect(g.player.z).toBe(0);
   });
-  it('clamps to kitchen bounds', () => {
+  it('clamps to kitchen bounds (창고 문 닫힘 → x4.3 게이트)', () => {
     const g = createGame();
     movePlayer(g, { x: 1, z: 0 }, 100); // way past maxX
+    expect(g.player.x).toBe(4.3); // 문 닫힘이 기본 → 창고 진입 차단
+  });
+  it('창고 문을 열면 maxX(창고)까지 들어갈 수 있다', () => {
+    const g = createGame();
+    expect(toggleDoor(g)).toBe(true); // 닫힘→열림
+    expect(g.doorOpen).toBe(true);
+    movePlayer(g, { x: 1, z: 0 }, 100);
     expect(g.player.x).toBe(KITCHEN.maxX);
+    expect(toggleDoor(g)).toBe(false); // 다시 닫힘
   });
 });
 

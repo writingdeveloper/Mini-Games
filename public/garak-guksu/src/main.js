@@ -2,6 +2,7 @@ import {
   createGame, movePlayer, near, STATIONS, CUSTOMER_SLOTS,
   setNoodle, putInBlancher, liftFromBlancher, tickBlancher, tickSpawns, tickCustomers,
   pourBroth, garnish, serve, ARCHETYPES, tickWave, WAVES, grade, comboMult, placeOrPickup,
+  DOORWAY, toggleDoor,
 } from './logic.js';
 import { createScene } from './scene.js';
 import { createInput } from './input.js';
@@ -152,9 +153,14 @@ addEventListener('keydown', (e) => {
   if (near(p.x, p.z, STATIONS.garnish.x, STATIONS.garnish.z)) { garnish(state, spice); renderHud(); }
 });
 
-// F키: 완성/진행중 그릇을 진열대(서빙 카운터)에 놓기 / 집기 — 미리 만들어 쌓아둘 수 있음.
+// F키(문맥형): 창고 입구 근처면 문 여닫기, 아니면 완성/진행중 그릇을 진열대에 놓기/집기.
 addEventListener('keydown', (e) => {
   if (e.code !== 'KeyF' || e.repeat || !running) return;
+  const p = state.player;
+  if (near(p.x, p.z, DOORWAY.x, DOORWAY.z, 1.8)) { // 창고 문 토글
+    const open = toggleDoor(state); audio.cue('cook'); popup(open ? '🚪 창고 문 열림 — 들어갈 수 있어요' : '🚪 창고 문 닫음');
+    return;
+  }
   if (placeOrPickup(state)) { audio.cue('cook'); scene.cookMotion?.('place'); popup(state.player.holding ? '🥢 그릇 집기' : '🍜 진열대에 놓음'); renderHud(); }
 });
 

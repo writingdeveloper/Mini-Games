@@ -94,6 +94,29 @@ function makeWalls() {
   const tarp = createBackWall(); tarp.position.set(0.4, 0, -3.0); tarp.rotation.y = Math.PI; g.add(tarp);
   return g;
 }
+
+// 측면 창고 여닫이 문 — 입구 x4.7, z0. state.doorOpen 에 따라 sync 가 hinge.rotation.y 를 보간(닫힘0→열림 -1.4, 창고쪽으로 swing).
+function makeDoor() {
+  const g = new THREE.Group();
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x4a3324, roughness: 0.82 });
+  const panelMat = new THREE.MeshStandardMaterial({ color: 0x6a4a30, roughness: 0.72 });
+  const X = 4.7;
+  for (const dz of [-0.85, 0.85]) { // 좌우 문기둥
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.7, 0.2), frameMat);
+    post.position.set(X, 1.35, dz); post.castShadow = true; g.add(post);
+  }
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.26, 2.0), frameMat); // 상인방
+  lintel.position.set(X, 2.6, 0); lintel.castShadow = true; g.add(lintel);
+  // 문짝: 경첩 그룹(z+0.85)에 매달고, 패널은 -z 로 뻗어 폭1.6 입구를 덮음.
+  const hinge = new THREE.Group(); hinge.position.set(X, 0, 0.85); g.add(hinge);
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(0.07, 2.3, 1.6), panelMat);
+  panel.position.set(0, 1.2, -0.8); panel.castShadow = true; hinge.add(panel);
+  for (const py of [0.55, 1.85]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.12, 1.5), frameMat); r.position.set(0, py, -0.8); hinge.add(r); } // 가로 판자띠
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), new THREE.MeshStandardMaterial({ color: 0xc8a84a, metalness: 0.6, roughness: 0.35 }));
+  knob.position.set(0.09, 1.2, -1.45); hinge.add(knob);
+  g.userData.hinge = hinge;
+  return g;
+}
 let curEra = null;
 let lastDwellSec = -1;
 let prevWaveScene = 0;
@@ -220,7 +243,8 @@ export function createScene(canvas) {
   const walls = makeWalls(); scene.add(walls);
   // 창고(측면 +x) — 주방 우측 '옆에 이어서' 항상 보이는 저장 공간(AI 냉장고 + 절차적 선반).
   const sideStore = makeSideStorage(); scene.add(sideStore);
-  if (typeof window !== 'undefined') { window.__walls = walls; window.__store = sideStore; }
+  const door = makeDoor(); scene.add(door);
+  if (typeof window !== 'undefined') { window.__walls = walls; window.__store = sideStore; window.__door = door; }
 
   const chef = createChef();
   scene.add(chef);
@@ -382,6 +406,8 @@ export function createScene(canvas) {
       station.setDwell(`발차 ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`, state.phase === 'serving' && sec <= 10);
     }
     tickStation(t);
+    // 창고 문 여닫이 보간(닫힘0 ↔ 열림 -1.4rad, 창고쪽으로 swing).
+    if (door.userData.hinge) door.userData.hinge.rotation.y += ((state.doorOpen ? -1.4 : 0) - door.userData.hinge.rotation.y) * 0.18;
     // chef: gentle idle bob, stronger when moving
     const moving = Math.hypot(state.player.x - chef.position.x, state.player.z - chef.position.z) > 0.001;
     const bobY = RM ? 0 : moving ? Math.abs(Math.sin((t || 0) * 10)) * 0.08 : Math.sin((t || 0) * 2) * 0.03;
