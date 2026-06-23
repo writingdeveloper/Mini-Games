@@ -7,10 +7,40 @@ import { buildStation, tickStation, makeStationLabel } from './station.js';
 // 가독성 상향(현 어두움 지적): hemi/lamp/fill 를 소폭 올려 막차에서도 조리대~카운터가 읽히게.
 // 과노출 금지 — 무드는 유지하되 플레이영역만 들어올린다.
 const ERA_MOOD = {
-  '증기': { bg: 0x161b2a, amb: 1.05, lamp: 2.9, fill: 0.45, fogN: 16, fogF: 34 },
-  '디젤': { bg: 0x1a1f2c, amb: 1.12, lamp: 3.1, fill: 0.45, fogN: 18, fogF: 38 },
-  '막차': { bg: 0x0a0c14, amb: 0.95, lamp: 2.9, fill: 0.55, fogN: 12, fogF: 27 },
+  '증기': { bg: 0x161b2a, amb: 1.05, lamp: 2.9, fill: 0.45, fogN: 16, fogF: 34, skyTop: 0x070b18, skyBot: 0x24304e },
+  '디젤': { bg: 0x1a1f2c, amb: 1.12, lamp: 3.1, fill: 0.45, fogN: 18, fogF: 38, skyTop: 0x0b0c18, skyBot: 0x2b2440 },
+  '막차': { bg: 0x0a0c14, amb: 0.95, lamp: 2.9, fill: 0.55, fogN: 12, fogF: 27, skyTop: 0x04050b, skyBot: 0x160d16 },
 };
+
+// 밤하늘 그라데이션 돔(CanvasTexture) + 별(상반구 절차적 점). 단색 background 대신 지평선→천정 그라데이션.
+function makeSkyDome() {
+  const group = new THREE.Group();
+  const canvas = document.createElement('canvas'); canvas.width = 8; canvas.height = 256;
+  const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthWrite: false });
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(80, 24, 14), mat);
+  dome.renderOrder = -10; group.add(dome);
+  // 별 — 상반구(천정쪽)에 흩뿌린 점.
+  const N = 340; const pos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const th = Math.random() * Math.PI * 2, ph = Math.acos(1 - Math.random() * 0.75), r = 72;
+    pos[i * 3] = r * Math.sin(ph) * Math.cos(th);
+    pos[i * 3 + 1] = r * Math.cos(ph) + 5;
+    pos[i * 3 + 2] = r * Math.sin(ph) * Math.sin(th);
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const stars = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xcfd8ff, size: 0.55, sizeAttenuation: true, fog: false, transparent: true, opacity: 0.85, depthWrite: false }));
+  stars.renderOrder = -9; group.add(stars);
+  const hx = (c) => '#' + c.toString(16).padStart(6, '0');
+  function setColors(topHex, botHex) {
+    const x = canvas.getContext('2d');
+    const grad = x.createLinearGradient(0, 0, 0, 256);
+    grad.addColorStop(0, hx(botHex)); grad.addColorStop(0.45, hx(topHex)); grad.addColorStop(1, hx(topHex));
+    x.fillStyle = grad; x.fillRect(0, 0, 8, 256); tex.needsUpdate = true;
+  }
+  setColors(0x070b18, 0x24304e);
+  return { mesh: group, setColors };
+}
 let curEra = null;
 let lastDwellSec = -1;
 let prevWaveScene = 0;
@@ -115,6 +145,7 @@ export function createScene(canvas) {
   scene.add(fillLight); scene.add(fillLight.target);
 
   scene.add(createFloor());
+  const skyDome = makeSkyDome(); scene.add(skyDome.mesh); // 밤하늘 그라데이션 돔(에라별 색은 sync 에서)
   scene.add(makeKitchen()); // 주방 작업대 — 조리대가 카운터 위에 놓이도록
   const STATION_LABEL = { setting: '① 면', blancher: '② 데치기', broth: '③ 멸치육수', garnish: '④ 고명 1·2·3' };
   for (const [kind, pos] of Object.entries(STATIONS)) {
@@ -269,6 +300,7 @@ export function createScene(canvas) {
       scene.background.setHex(m.bg);
       scene.fog.color.setHex(m.bg);
       scene.fog.near = m.fogN; scene.fog.far = m.fogF;
+      skyDome.setColors(m.skyTop, m.skyBot);
       hemi.intensity = m.amb;
       lamp.intensity = m.lamp;
       fillLight.intensity = m.fill;
