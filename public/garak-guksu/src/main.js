@@ -2,7 +2,7 @@ import {
   createGame, movePlayer, near, STATIONS, CUSTOMER_SLOTS,
   setNoodle, putInBlancher, liftFromBlancher, tickBlancher, tickSpawns, tickCustomers,
   pourBroth, garnish, serve, ARCHETYPES, tickWave, WAVES, grade, comboMult, placeOrPickup,
-  DOORWAY, toggleDoor, albaTick,
+  DOORWAY, toggleDoor, albaTick, throwBowl,
 } from './logic.js';
 import { createScene } from './scene.js';
 import { createInput } from './input.js';
@@ -62,6 +62,7 @@ function actionHint() {
   if (near(p.x, p.z, STATIONS.blancher.x, STATIONS.blancher.z)) return '♨ E — 데치기 / 면 건지기';
   if (near(p.x, p.z, STATIONS.broth.x, STATIONS.broth.z)) return '🍲 E — 멸치육수 붓기';
   if (near(p.x, p.z, STATIONS.garnish.x, STATIONS.garnish.z)) return '🌶 E — 양념 (1·2·3)';
+  if (p.holding && p.holding.stage === 'done') return '🥣 E — 손님께 서빙 / 던지기';
   return '';
 }
 
@@ -113,6 +114,9 @@ function action() {
       if (served && Math.random() < 0.6) setTimeout(() => audio.playVoice(`${served.archetype}_happy`), 600);
     } else if (did) {
       popup('😖 주문과 달라요…'); audio.cue('serve'); // mis-serve(양념 불일치 → 콤보 리셋)
+    } else if (p.holding && p.holding.stage === 'done') {
+      // 완성 그릇 들고 손님 없음 → 던지기(보는 방향으로; 너무 멀면 깨짐). E로 아무 데나 던져놓기.
+      if (throwBowl(state)) { scene.throwBowl?.(); audio.cue('cook'); popup('🥣 국수 던짐! (멀리 던지면 깨져요)'); }
     } else if (p.holding && p.holding.stage !== 'done') {
       popup('아직 완성 전! ④ 양념까지 마무리하세요');
     }

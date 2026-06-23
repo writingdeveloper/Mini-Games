@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, slotProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress, WAVES, INTERMISSION, tickWave, comboMult, SPEED_MAX, grade, placeOrPickup, PLACE_SLOTS, toggleDoor, albaTick, ALBA_RESCUE } from '../../../public/garak-guksu/src/logic.js';
+import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, slotProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress, WAVES, INTERMISSION, tickWave, comboMult, SPEED_MAX, grade, placeOrPickup, PLACE_SLOTS, toggleDoor, albaTick, ALBA_RESCUE, throwBowl } from '../../../public/garak-guksu/src/logic.js';
 
 describe('createGame', () => {
   it('starts empty-handed, no customers, serving wave 0, 5 lives', () => {
@@ -129,6 +129,23 @@ describe('albaTick (자율 일꾼 — 조리→배달)', () => {
   it('ALBA_RESCUE 임계값이 0~1 사이', () => {
     expect(ALBA_RESCUE).toBeGreaterThan(0);
     expect(ALBA_RESCUE).toBeLessThan(1);
+  });
+});
+
+describe('throwBowl (국수 던지기)', () => {
+  it('완성 그릇을 들고 있으면 손을 비우고 그릇을 반환', () => {
+    const g = createGame();
+    g.player.holding = { stage: 'done', spice: 'normal', doneness: 50 };
+    const b = throwBowl(g);
+    expect(b).toEqual({ stage: 'done', spice: 'normal', doneness: 50 });
+    expect(g.player.holding).toBe(null);
+  });
+  it('미완성 그릇/빈손은 던지지 않음(null)', () => {
+    const g = createGame();
+    expect(throwBowl(g)).toBe(null);          // 빈손
+    g.player.holding = { stage: 'noodle' };
+    expect(throwBowl(g)).toBe(null);          // 미완성
+    expect(g.player.holding).not.toBe(null);  // 그대로 유지
   });
 });
 

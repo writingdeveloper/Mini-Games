@@ -324,6 +324,8 @@ export function createScene(canvas) {
   const _chaseLook = new THREE.Vector3();
   let lookYaw = 0, lookPitch = 0;          // 추격/1인칭 마우스 둘러보기 오프셋(rad)
   let cookAnim = null;                      // 동작 모션 토큰 { kind, t0, dur } — 조리/서빙/놓기별 손·그릇 궤적
+  const thrown = [];                        // 던진 그릇 투사체/안착/파편 — throwBowl() 가 추가, sync 가 물리 시뮬
+  let lastSyncT = 0;                        // sync dt 계산용(투사체 물리)
   const CAM_MODES = ['fixed', 'orbit', 'chase', 'first'];
   // 모드별 시야각(수직 fov). 1인칭은 넓게(46°→64°, 모바일 70°) 잡아 "확대된 느낌" 해소, 부감/궤도는 차분히.
   const MODE_FOV = { fixed: 46, orbit: 46, chase: 54, first: LOW ? 80 : 72 };
@@ -450,6 +452,8 @@ export function createScene(canvas) {
       station.setDwell(`발차 ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`, state.phase === 'serving' && sec <= 10);
     }
     tickStation(t);
+    const dt = Math.min(0.05, Math.max(0, (t || 0) - lastSyncT)); lastSyncT = t || 0; // 투사체 물리용
+    if (thrown.length) tickThrown(dt); // 던진 국수 그릇 물리
     // 창고 문 여닫이 보간(닫힘0 ↔ 열림 -1.4rad, 창고쪽으로 swing).
     if (door.userData.hinge) door.userData.hinge.rotation.y += ((state.doorOpen ? -1.4 : 0) - door.userData.hinge.rotation.y) * 0.18;
     // 알바: 자율 일꾼 — logic 의 state.alba.{x,z,phase} 를 따라 이동/조리/배달 렌더.
@@ -594,5 +598,53 @@ export function createScene(canvas) {
   const _now = () => (typeof performance !== 'undefined' ? performance.now() : 0) / 1000;
   // 동작 모션 트리거 — kind: 'noodle'|'blanch'|'pour'|'spice'|'serve'|'place'. 기본 0.5s, 서빙/놓기는 0.45s.
   function cookMotion(kind = 'noodle') { cookAnim = { kind, t0: _now(), dur: (kind === 'serve' || kind === 'place') ? 0.45 : 0.5 }; }
-  return { sync, render, dispose, cycleCamMode, getCamMode: () => camMode, requestLook, isLooking: () => pointerLocked, cookMotion, getViewYaw };
+
+  // 국수 던지기 — 보는 방향(yaw·pitch)으로 그릇을 던진다. 물리는 sync 가 시뮬(멀면 깨짐, 가까우면 안착).
+  const THROW_SPEED = 7.2, THROW_G = 17, THROW_BREAK_DIST = 4.4, THROW_FLOOR = 0.13;
+  function throwBowl() {
+    const cy = Math.cos(lookYaw), sy = Math.sin(lookYaw), horiz = Math.max(0.42, Math.cos(lookPitch));
+    const b = createBowl(); b.scale.setScalar(1.0);
+    const ox = chef.position.x, oz = chef.position.z;
+    b.position.set(ox + sy * 0.5, 1.45, oz + cy * 0.5); scene.add(b);
+    thrown.push({ mesh: b, ox, oz, vx: sy * horiz * THROW_SPEED, vz: cy * horiz * THROW_SPEED,
+      vy: (Math.sin(lookPitch) * 0.7 + 0.62) * THROW_SPEED, spin: (Math.random() - 0.5) * 9, broke: false, rested: false, age: 0, frags: null });
+    // 안착 그릇 누적 제한(8개) — 가장 오래된 것 제거.
+    const rs = thrown.filter((p) => p.rested);
+    if (rs.length > 8) { const old = rs[0]; scene.remove(old.mesh); thrown.splice(thrown.indexOf(old), 1); }
+    return true;
+  }
+  function makeSpill(pos) { // 깨짐: 면·육수색 파편이 흩어지며 페이드
+    const frags = [];
+    for (let i = 0; i < 8; i++) {
+      const mat = new THREE.MeshStandardMaterial({ color: i % 2 ? 0xe7dcae : 0xb5732a, roughness: 0.9, transparent: true });
+      const f = new THREE.Mesh(new THREE.SphereGeometry(0.06 + Math.random() * 0.06, 6, 5), mat);
+      f.position.copy(pos); f.position.y = THROW_FLOOR + 0.06;
+      f.userData.v = { x: (Math.random() - 0.5) * 3.2, y: 1.2 + Math.random() * 2.2, z: (Math.random() - 0.5) * 3.2 };
+      scene.add(f); frags.push(f);
+    }
+    return frags;
+  }
+  function tickThrown(dt) {
+    for (let i = thrown.length - 1; i >= 0; i--) {
+      const p = thrown[i];
+      if (p.rested) continue;
+      if (p.broke) {
+        p.age += dt;
+        for (const f of p.frags) { const v = f.userData.v; f.position.x += v.x * dt; f.position.y += v.y * dt; f.position.z += v.z * dt; v.y -= THROW_G * dt; f.material.opacity = Math.max(0, 1 - p.age / 0.7); }
+        if (p.age > 0.7) { for (const f of p.frags) scene.remove(f); thrown.splice(i, 1); }
+        continue;
+      }
+      p.vy -= THROW_G * dt;
+      p.mesh.position.x += p.vx * dt; p.mesh.position.y += p.vy * dt; p.mesh.position.z += p.vz * dt;
+      p.mesh.rotation.x += p.spin * dt; p.mesh.rotation.z += p.spin * 0.6 * dt;
+      if (p.mesh.position.y <= THROW_FLOOR) {
+        p.mesh.position.y = THROW_FLOOR;
+        const dist = Math.hypot(p.mesh.position.x - p.ox, p.mesh.position.z - p.oz);
+        if (dist > THROW_BREAK_DIST) { p.broke = true; p.age = 0; p.frags = makeSpill(p.mesh.position); scene.remove(p.mesh); } // 멀리 → 깨짐
+        else { p.rested = true; p.mesh.rotation.set(0, p.mesh.rotation.y, 0); } // 가까이 → 안착(놓임)
+      }
+    }
+  }
+
+  return { sync, render, dispose, cycleCamMode, getCamMode: () => camMode, requestLook, isLooking: () => pointerLocked, cookMotion, getViewYaw, throwBowl };
 }

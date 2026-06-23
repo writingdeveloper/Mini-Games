@@ -238,6 +238,15 @@ export function serve(state) {
   return true;
 }
 
+// 들고 있는 완성 그릇을 던진다(아무 데나 놓기/내던지기). 손을 비우고 그릇 정보를 반환(없으면 null).
+// 물리(비행·낙하·멀면 깨짐)는 scene.js 가 처리 — 점수와 무관한 자유 행동.
+export function throwBowl(state) {
+  const b = state.player.holding;
+  if (!b || b.stage !== 'done') return null;
+  state.player.holding = null;
+  return b;
+}
+
 // 알바를 목표(gx,gz)로 이동. 도착하면 true.
 function albaMoveTo(a, gx, gz, dt) {
   const dx = gx - a.x, dz = gz - a.z, d = Math.hypot(dx, dz), step = ALBA_SPEED * dt;
