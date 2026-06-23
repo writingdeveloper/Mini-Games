@@ -2,7 +2,7 @@
 // Plan 2 = 4-station pipeline: 사리세팅 → 데치기(timed doneness) → 육수 → 마감(spice) → 배식.
 
 // The chef walks this floor plane (x = left/right, z = depth toward counter).
-export const KITCHEN = { minX: -4, maxX: 4, minZ: -2.5, maxZ: 2.5 };
+export const KITCHEN = { minX: -4, maxX: 5.5, minZ: -2.5, maxZ: 2.5 }; // maxX 4→5.5: 우측 측면 창고로 다가갈 수 있게
 
 // Customer slots along the counter (front, z = 3.2), spread across x.
 export const CUSTOMER_SLOTS = [

@@ -41,6 +41,39 @@ function makeSkyDome() {
   setColors(0x070b18, 0x24304e);
   return { mesh: group, setColors };
 }
+
+// 창고 저장 선반(절차적) — 나무 랙 + 스테인리스 그릇 더미.
+function makeStorageShelf() {
+  const g = new THREE.Group();
+  const wood = new THREE.MeshStandardMaterial({ color: 0x5a3f28, roughness: 0.85 });
+  const bowlMat = new THREE.MeshStandardMaterial({ color: 0xcdd1d6, metalness: 0.3, roughness: 0.5 });
+  for (const sx of [-0.7, 0.7]) for (const sz of [-0.25, 0.25]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.8, 0.08), wood);
+    post.position.set(sx, 0.9, sz); post.castShadow = true; g.add(post);
+  }
+  for (let i = 0; i < 3; i++) {
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.6), wood);
+    plank.position.set(0, 0.5 + i * 0.62, 0); plank.castShadow = true; plank.receiveShadow = true; g.add(plank);
+    for (const bx of [-0.45, 0.15]) {
+      const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.17, 0.2, 12), bowlMat);
+      bowl.position.set(bx, 0.5 + i * 0.62 + 0.13, 0); bowl.castShadow = true; g.add(bowl);
+    }
+  }
+  return g;
+}
+
+// 창고(측면 +x) — 주방 우측 옆에 보이는 저장 공간: 측면 바닥 + AI 냉장고 + 절차적 선반. 항상 표시(부감서도 보임).
+function makeSideStorage() {
+  const g = new THREE.Group();
+  g.position.set(5.7, 0, 0.2);
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.4, 7),
+    new THREE.MeshStandardMaterial({ color: 0x6e665c, roughness: 0.95 }));
+  floor.position.set(0, -0.2, 0); floor.receiveShadow = true; g.add(floor);
+  const fridge = createWarehouseFridge(); fridge.position.set(0.4, 0, -1.8); fridge.rotation.y = -Math.PI / 2; g.add(fridge);
+  const shelf = makeStorageShelf(); shelf.position.set(0.4, 0, 1.6); shelf.rotation.y = -Math.PI / 2; g.add(shelf);
+  const lite = new THREE.PointLight(0xffd2a0, 1.6, 9, 1.4); lite.position.set(-0.3, 3, 0); g.add(lite); // 창고 백열등(어둠서 분리)
+  return g;
+}
 let curEra = null;
 let lastDwellSec = -1;
 let prevWaveScene = 0;
@@ -163,13 +196,14 @@ export function createScene(canvas) {
 
   // 창고(분위기 공간) — -z 저장 구역: 포장마차 백월 + 작업대(프렙) + 냉장고. 둘러보는 배경, 메커니즘 없음.
   // 고정/궤도 부감에선 카메라 앞 가림 방지로 숨김(1인칭/추격에서만 표시).
+  // 등 뒤 포장마차 천막 백월(-z) — 부감서 카메라 앞 가림 → 1인칭/추격만 표시(toggle).
   const warehouse = new THREE.Group();
   const backWall = createBackWall();
   backWall.position.set(0, 0, -5.3); backWall.rotation.y = Math.PI; warehouse.add(backWall);
-  const whFridge = createWarehouseFridge();
-  whFridge.position.set(3.5, 0, -3.8); whFridge.rotation.y = -0.6; warehouse.add(whFridge);
   scene.add(warehouse);
-  if (typeof window !== 'undefined') window.__warehouse = warehouse; // 위치/회전 라이브 튜닝
+  // 창고(측면 +x) — 주방 우측 '옆에 이어서' 항상 보이는 저장 공간(AI 냉장고 + 절차적 선반).
+  const sideStore = makeSideStorage(); scene.add(sideStore);
+  if (typeof window !== 'undefined') { window.__warehouse = warehouse; window.__store = sideStore; }
 
   const chef = createChef();
   scene.add(chef);
