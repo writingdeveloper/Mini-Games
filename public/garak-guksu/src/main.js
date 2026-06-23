@@ -2,7 +2,7 @@ import {
   createGame, movePlayer, near, STATIONS, CUSTOMER_SLOTS,
   setNoodle, putInBlancher, liftFromBlancher, tickBlancher, tickSpawns, tickCustomers,
   pourBroth, garnish, serve, ARCHETYPES, tickWave, WAVES, grade, comboMult, placeOrPickup,
-  DOORWAY, toggleDoor,
+  DOORWAY, toggleDoor, albaTick,
 } from './logic.js';
 import { createScene } from './scene.js';
 import { createInput } from './input.js';
@@ -218,6 +218,10 @@ function loop(now) {
   tickBlancher(state, dt);
   tickWave(state, dt);
   tickSpawns(state, dt);
+  // 알바 자동 서빙(곧 이탈할 손님 구제) — tickCustomers 전에 돌려 떠나기 직전 구제.
+  const _albaBefore = state.alba.serveCount;
+  albaTick(state, dt);
+  if (state.alba.serveCount > _albaBefore) { popup('🧑‍🍳 알바가 한 그릇 냈어요!'); audio.cue('serve'); }
   const _prevCust = state.customers.map((c) => ({ id: c.id, a: c.archetype })); // 이탈 음성용 스냅샷
   tickCustomers(state, dt);
   if (state.missed > prevMissed) {

@@ -12,6 +12,9 @@ export const CUSTOMER_SLOTS = [
 export const REACH = 1.2;                            // how close counts as "at" a thing
 export const PLACE_SLOTS = [{ x: -2.5, z: 2.3 }, { x: 0, z: 2.3 }, { x: 2.5, z: 2.3 }]; // 완성 그릇 놓는 진열대(서빙 카운터)
 export const DOORWAY = { x: 4.7, z: 0 };             // 측면 창고 입구(문). 닫히면 통행 차단, 열면 통과.
+export const ALBA_INTERVAL = 3.2;                    // 알바가 한 그릇 나르는 주기(초)
+export const ALBA_RESCUE = 0.45;                     // 이 인내심% 넘긴(곧 이탈할) 손님만 알바가 구제 — 콤보용 손님은 플레이어 몫
+export const ALBA_IDLE = { x: 3.0, z: 1.85 };        // 알바 대기 위치(진열대 옆, 카운터 안쪽)
 
 // The four cook stations. 화면 왼쪽=월드 +x(카메라가 +z 응시)이므로, 신규 플레이어가
 // 왼쪽부터 ①→④ 순서로 읽도록 x를 +3→-3 로 배치(setting=면이 화면 맨 왼쪽). — 게이머 QA
@@ -74,6 +77,7 @@ export function createGame(seed = 1) {
     blancher: { slots: new Array(BLANCH_SLOTS).fill(null) },
     placed: new Array(PLACE_SLOTS.length).fill(null), // 진열대에 놓인 그릇들
     doorOpen: false,                  // 측면 창고 문(닫힘=창고 진입 차단)
+    alba: { cooldown: ALBA_INTERVAL, lastSlot: -1, serveCount: 0 }, // 자동 서빙 알바(곧 이탈할 손님 구제)
 
     customers: [],
     spawnTimer: 0,
@@ -229,6 +233,32 @@ export function serve(state) {
   if (fromShelf >= 0) state.placed[fromShelf] = null; else p.holding = null;
   state.customers = state.customers.filter((c) => c.id !== best.id);
   return true;
+}
+
+// 알바(자동 서빙 도우미): 진열대(placed)의 완성 그릇 중, 곧 이탈할(인내심 ALBA_RESCUE 초과) 손님의
+// 주문과 맞는 것을 자동으로 내준다. 구조대 역할 — 콤보는 건드리지 않아(플레이어 몫) 손님 가로채기 방지.
+// 한 번 내면 ALBA_INTERVAL 쿨다운. scene.js 는 alba.serveCount 증가로 배달 애니메이션을 트리거.
+export function albaTick(state, dt) {
+  if (state.phase !== 'serving') return null;
+  const a = state.alba;
+  a.cooldown -= dt;
+  if (a.cooldown > 0) return null;
+  for (let i = 0; i < state.placed.length; i++) {
+    const bowl = state.placed[i];
+    if (!bowl || bowl.stage !== 'done') continue;
+    const cust = state.customers.find((c) => c.order.spice === bowl.spice && patienceProgress(c) > ALBA_RESCUE);
+    if (!cust) continue;
+    const speed = Math.round((1 - patienceProgress(cust)) * SPEED_MAX);
+    state.score += SERVE_BASE + bowl.doneness + speed + ACCURACY_BONUS; // 알바는 콤보 배수 없음(보조 점수)
+    state.served += 1;
+    state.placed[i] = null;
+    state.customers = state.customers.filter((c) => c.id !== cust.id);
+    a.cooldown = ALBA_INTERVAL;
+    a.lastSlot = cust.slot;
+    a.serveCount += 1;
+    return { servedSlot: cust.slot, shelf: i };
+  }
+  return null;
 }
 
 export const BLANCH_TIME = 2.5;

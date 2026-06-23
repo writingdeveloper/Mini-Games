@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createFloor, createChef, createStation, createCustomer, createGauge, createKitchenStove, createBowl, createBackWall, createWarehouseFridge } from './models.js';
-import { STATIONS, CUSTOMER_SLOTS, slotProgress, patienceProgress, BLANCH_SLOTS, WAVES, PLACE_SLOTS } from './logic.js';
+import { STATIONS, CUSTOMER_SLOTS, slotProgress, patienceProgress, BLANCH_SLOTS, WAVES, PLACE_SLOTS, ALBA_IDLE } from './logic.js';
 import { buildStation, tickStation, makeStationLabel } from './station.js';
 
 // 가독성 상향(현 어두움 지적): hemi/lamp/fill 를 소폭 올려 막차에서도 조리대~카운터가 읽히게.
@@ -115,6 +115,25 @@ function makeDoor() {
   const knob = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), new THREE.MeshStandardMaterial({ color: 0xc8a84a, metalness: 0.6, roughness: 0.35 }));
   knob.position.set(0.09, 1.2, -1.45); hinge.add(knob);
   g.userData.hinge = hinge;
+  return g;
+}
+
+// 알바(자동 서빙 도우미) — 절차적 NPC(청록 앞치마로 셰프와 구분). 진열대 옆 대기, 서빙 시 손님 쪽으로 배달 hop.
+function makeAlba() {
+  const g = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({ color: 0xe8b98f, roughness: 0.7 });
+  const apron = new THREE.MeshStandardMaterial({ color: 0x2f8f7a, roughness: 0.8 }); // 청록 앞치마
+  const pants = new THREE.MeshStandardMaterial({ color: 0x33363d, roughness: 0.85 });
+  const cap = new THREE.MeshStandardMaterial({ color: 0xf2efe6, roughness: 0.7 });
+  for (const dx of [-0.12, 0.12]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.62, 8), pants); l.position.set(dx, 0.31, 0); l.castShadow = true; g.add(l); }
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.26, 0.5, 4, 10), apron); torso.position.set(0, 1.0, 0); torso.castShadow = true; g.add(torso);
+  for (const dx of [-0.32, 0.32]) { const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.42, 4, 8), apron); a.position.set(dx, 1.0, 0.05); a.rotation.z = dx > 0 ? -0.2 : 0.2; g.add(a); }
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.21, 16, 14), skin); head.position.set(0, 1.52, 0); head.castShadow = true; g.add(head);
+  const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.16, 14), cap); hat.position.set(0, 1.66, 0); g.add(hat);
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.03, 14), cap); brim.position.set(0, 1.585, 0.04); g.add(brim);
+  const tray = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.05, 12), new THREE.MeshStandardMaterial({ color: 0xcdd1d6, metalness: 0.3, roughness: 0.5 }));
+  tray.position.set(0, 1.18, 0.36); tray.visible = false; g.add(tray); // 배달 중 쟁반
+  g.userData.tray = tray;
   return g;
 }
 let curEra = null;
@@ -244,7 +263,9 @@ export function createScene(canvas) {
   // 창고(측면 +x) — 주방 우측 '옆에 이어서' 항상 보이는 저장 공간(AI 냉장고 + 절차적 선반).
   const sideStore = makeSideStorage(); scene.add(sideStore);
   const door = makeDoor(); scene.add(door);
-  if (typeof window !== 'undefined') { window.__walls = walls; window.__store = sideStore; window.__door = door; }
+  const alba = makeAlba(); alba.position.set(ALBA_IDLE.x, 0, ALBA_IDLE.z); scene.add(alba);
+  let albaSeen = 0, albaAnim = null, albaLastT = 0; // 알바 배달 애니메이션 상태
+  if (typeof window !== 'undefined') { window.__walls = walls; window.__store = sideStore; window.__door = door; window.__alba = alba; }
 
   const chef = createChef();
   scene.add(chef);
@@ -408,6 +429,24 @@ export function createScene(canvas) {
     tickStation(t);
     // 창고 문 여닫이 보간(닫힘0 ↔ 열림 -1.4rad, 창고쪽으로 swing).
     if (door.userData.hinge) door.userData.hinge.rotation.y += ((state.doorOpen ? -1.4 : 0) - door.userData.hinge.rotation.y) * 0.18;
+    // 알바: 대기 시 가벼운 idle, 자동 서빙 시(serveCount↑) 손님 쪽으로 배달 hop 후 복귀.
+    if (state.alba) {
+      const adt = Math.min(0.05, Math.max(0, (t || 0) - albaLastT)); albaLastT = t || 0;
+      alba.rotation.y = 0; // 손님(+z) 응시
+      if (state.alba.serveCount > albaSeen) { albaSeen = state.alba.serveCount; albaAnim = { t: 0, slot: state.alba.lastSlot }; }
+      if (albaAnim) {
+        albaAnim.t += adt;
+        const T = 1.1, f = Math.min(1, albaAnim.t / T), tri = f < 0.5 ? f * 2 : (1 - f) * 2; // 0→1→0 왕복
+        const slot = CUSTOMER_SLOTS[albaAnim.slot] || ALBA_IDLE;
+        alba.position.x = ALBA_IDLE.x + (slot.x - ALBA_IDLE.x) * tri;
+        alba.position.z = ALBA_IDLE.z + (Math.min(slot.z, 2.55) - ALBA_IDLE.z) * tri; // 카운터 앞까지만
+        alba.position.y = Math.sin(f * Math.PI) * 0.09;
+        if (alba.userData.tray) alba.userData.tray.visible = tri > 0.1;
+        if (f >= 1) { albaAnim = null; alba.position.set(ALBA_IDLE.x, 0, ALBA_IDLE.z); if (alba.userData.tray) alba.userData.tray.visible = false; }
+      } else if (!RM) {
+        alba.position.y = Math.sin((t || 0) * 1.8) * 0.02;
+      }
+    }
     // chef: gentle idle bob, stronger when moving
     const moving = Math.hypot(state.player.x - chef.position.x, state.player.z - chef.position.z) > 0.001;
     const bobY = RM ? 0 : moving ? Math.abs(Math.sin((t || 0) * 10)) * 0.08 : Math.sin((t || 0) * 2) * 0.03;

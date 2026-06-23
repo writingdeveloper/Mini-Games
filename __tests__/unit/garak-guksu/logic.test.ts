@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, slotProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress, WAVES, INTERMISSION, tickWave, comboMult, SPEED_MAX, grade, placeOrPickup, PLACE_SLOTS, toggleDoor } from '../../../public/garak-guksu/src/logic.js';
+import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, slotProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress, WAVES, INTERMISSION, tickWave, comboMult, SPEED_MAX, grade, placeOrPickup, PLACE_SLOTS, toggleDoor, albaTick, ALBA_INTERVAL, ALBA_RESCUE } from '../../../public/garak-guksu/src/logic.js';
 
 describe('createGame', () => {
   it('starts empty-handed, no customers, serving wave 0, 5 lives', () => {
@@ -78,6 +78,56 @@ describe('movePlayer', () => {
     movePlayer(g, { x: 1, z: 0 }, 100);
     expect(g.player.x).toBe(KITCHEN.maxX);
     expect(toggleDoor(g)).toBe(false); // 다시 닫힘
+  });
+});
+
+describe('albaTick (자동 서빙 알바)', () => {
+  function impatientGame() {
+    const g = createGame();
+    g.placed[0] = { stage: 'done', spice: 'extra', doneness: 50 };
+    g.customers.push({ id: 1, slot: 0, archetype: 'worker', order: { spice: 'extra' }, t: ARCHETYPES.worker.patience * 0.6 });
+    g.alba.cooldown = 0;
+    return g;
+  }
+  it('곧 이탈할 손님에게 진열대 그릇을 자동 서빙(점수·served↑, 그릇·손님 제거, 콤보 불변)', () => {
+    const g = impatientGame();
+    const r = albaTick(g, 0.1);
+    expect(r).toEqual({ servedSlot: 0, shelf: 0 });
+    expect(g.served).toBe(1);
+    expect(g.score).toBeGreaterThan(0);
+    expect(g.placed[0]).toBe(null);
+    expect(g.customers.length).toBe(0);
+    expect(g.combo).toBe(0);                 // 알바는 콤보 안 올림(플레이어 몫)
+    expect(g.alba.serveCount).toBe(1);
+    expect(g.alba.cooldown).toBe(ALBA_INTERVAL); // 서빙 후 쿨다운 재설정
+  });
+  it('아직 여유로운(인내심 낮은) 손님은 알바가 건드리지 않음', () => {
+    const g = impatientGame();
+    g.customers[0].t = 0;                    // patienceProgress 0 < ALBA_RESCUE
+    expect(albaTick(g, 0.1)).toBe(null);
+    expect(g.customers.length).toBe(1);
+    expect(g.placed[0]).not.toBe(null);
+  });
+  it('쿨다운 중에는 서빙하지 않음', () => {
+    const g = impatientGame();
+    g.alba.cooldown = ALBA_INTERVAL;
+    expect(albaTick(g, 0.1)).toBe(null);
+    expect(g.served).toBe(0);
+  });
+  it('주문이 안 맞으면 서빙하지 않음', () => {
+    const g = impatientGame();
+    g.placed[0].spice = 'none';              // 손님은 extra
+    expect(albaTick(g, 0.1)).toBe(null);
+    expect(g.served).toBe(0);
+  });
+  it('serving 페이즈가 아니면 동작하지 않음', () => {
+    const g = impatientGame();
+    g.phase = 'intermission';
+    expect(albaTick(g, 0.1)).toBe(null);
+  });
+  it('ALBA_RESCUE 임계값이 0~1 사이', () => {
+    expect(ALBA_RESCUE).toBeGreaterThan(0);
+    expect(ALBA_RESCUE).toBeLessThan(1);
   });
 });
 
