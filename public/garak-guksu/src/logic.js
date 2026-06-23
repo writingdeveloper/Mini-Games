@@ -2,7 +2,7 @@
 // Plan 2 = 4-station pipeline: 사리세팅 → 데치기(timed doneness) → 육수 → 마감(spice) → 배식.
 
 // The chef walks this floor plane (x = left/right, z = depth toward counter).
-export const KITCHEN = { minX: -4, maxX: 5.5, minZ: -2.5, maxZ: 2.5 }; // maxX 4→5.5: 우측 측면 창고로 다가갈 수 있게
+export const KITCHEN = { minX: -4, maxX: 6.9, minZ: -2.5, maxZ: 2.5 }; // maxX 6.9: 문 열면 창고(x4.7~7.4) 안으로 충분히 들어가게(좁아서 막히던 것 해소)
 
 // Customer slots along the counter (front, z = 3.2), spread across x.
 export const CUSTOMER_SLOTS = [
@@ -11,7 +11,8 @@ export const CUSTOMER_SLOTS = [
 
 export const REACH = 1.2;                            // how close counts as "at" a thing
 export const PLACE_SLOTS = [{ x: -2.5, z: 2.3 }, { x: 0, z: 2.3 }, { x: 2.5, z: 2.3 }]; // 완성 그릇 놓는 진열대(서빙 카운터)
-export const DOORWAY = { x: 4.7, z: 0 };             // 측면 창고 입구(문). 닫히면 통행 차단, 열면 통과.
+export const DOORWAY = { x: 4.7, z: 0 };             // 측면 창고 입구(문/칸막이 x). 닫히면 통행 차단, 열면 문간으로 통과.
+export const DOOR_HALF = 0.9;                        // 문간 반폭 — |z|<DOOR_HALF 이고 문 열림일 때만 칸막이(x=DOORWAY.x) 통과
 // 알바(자율 일꾼) — 손님을 맡아 조리(추상 타이머)→배달 서빙까지 전체 루프를 스스로 수행.
 export const ALBA_HOME = { x: 4.15, z: 0.7 };        // 대기 위치(조리·서빙 사이, 플레이어 동선 비켜)
 export const ALBA_COOK_SPOT = { x: 3.5, z: -0.45 };  // 조리 동작 위치(카운터 앞)
@@ -36,6 +37,10 @@ export const BLOCKERS = [
   ...Object.values(STATIONS).map((s) => ({ x: s.x, z: s.z, r: 0.8 })), // 조리대 4종(작업대 라인)
   { x: 4.0, z: -1.5, r: 0.6 },                                          // 주방 화덕(작업대 우측 끝)
   ...PLACE_SLOTS.map((s) => ({ x: s.x, z: s.z, r: 0.45 })),             // 진열대 3칸(서빙 카운터)
+  // 창고 가구(문 열고 들어갔을 때 관통 방지) — scene.js makeSideStorage 배치와 일치.
+  { x: 5.35, z: -2.95, r: 0.62 },                                       // 냉장고
+  { x: 6.6, z: -3.0, r: 0.62 },                                         // 선반
+  { x: 6.98, z: 1.9, r: 0.8 },                                          // 궤짝 더미
 ];
 
 // Deterministic RNG (mulberry32) so orders are reproducible in tests/QA.
@@ -147,10 +152,14 @@ export function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 // dir = {x, z} (roughly unit length), dt = seconds. Mutates + returns state.
 export function movePlayer(state, dir, dt, speedMul = 1) {
   const s = PLAYER_SPEED * speedMul * dt;
-  // 창고 문이 닫혀 있으면 우측 끝(x4.3)에서 막아 창고(x>4.7) 진입 차단 → 문을 열어야 들어감.
-  const maxX = state.doorOpen ? KITCHEN.maxX : 4.3;
-  let nx = clamp(state.player.x + dir.x * s, KITCHEN.minX, maxX);
+  const prevX = state.player.x;
+  let nx = clamp(prevX + dir.x * s, KITCHEN.minX, KITCHEN.maxX);
   let nz = clamp(state.player.z + dir.z * s, KITCHEN.minZ, KITCHEN.maxZ);
+  // 칸막이 벽(x=DOORWAY.x): 문간(|z|<DOOR_HALF) + 문 열림에서만 통과. 그 외엔 부드러운 벽(현재 있는 쪽으로 막아 스냅·끼임 방지).
+  if (!(Math.abs(nz) < DOOR_HALF && state.doorOpen)) {
+    if (prevX < DOORWAY.x && nx > DOORWAY.x - PLAYER_RADIUS) nx = DOORWAY.x - PLAYER_RADIUS;       // 주방 쪽 → 칸막이 못 넘음
+    else if (prevX > DOORWAY.x && nx < DOORWAY.x + PLAYER_RADIUS) nx = DOORWAY.x + PLAYER_RADIUS;  // 창고 쪽 → 칸막이 못 넘음(문 닫히면 안에 머묾)
+  }
   // 에셋 충돌: 각 blocker 원과 겹치면 표면 밖(법선 방향)으로 밀어냄 → 벽 따라 미끄러짐(slide).
   for (const b of BLOCKERS) {
     const dx = nx - b.x, dz = nz - b.z;
@@ -163,7 +172,7 @@ export function movePlayer(state, dir, dt, speedMul = 1) {
     }
   }
   // push 후 다시 경계 안으로(모서리에서 밖으로 밀리는 것 방지).
-  state.player.x = clamp(nx, KITCHEN.minX, maxX);
+  state.player.x = clamp(nx, KITCHEN.minX, KITCHEN.maxX);
   state.player.z = clamp(nz, KITCHEN.minZ, KITCHEN.maxZ);
   return state;
 }
