@@ -135,15 +135,23 @@ export function createChef() {
   bowl.position.set(0, 1.18, 0.42); bowl.scale.setScalar(1.7);
   bowl.name = 'heldBowl'; bowl.visible = false;
   g.add(bowl);
-  // 1인칭 손 — 그릇 양옆 둥근 손 + 흰 소매(평소 숨김, FP 에서만 표시).
+  // 1인칭 팔·손(평소 숨김, FP 에서만). 다른 1인칭 게임처럼 팔뚝이 화면 하단에서 올라와
+  // 앞쪽 그릇으로 뻗어 보이도록 — 팔꿈치(낮고 넓음) → 손목(높고 안쪽·앞)으로 향하는 긴 소매+손.
   const hands = new THREE.Group(); hands.name = 'fpHands'; hands.visible = false;
   const skin = new THREE.MeshStandardMaterial({ color: 0xffd9b0, roughness: 0.75 });
   const sleeve = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.6 });
-  for (const hx of [-0.4, 0.4]) {
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), skin);
-    hand.scale.set(1, 0.8, 1.25); hand.position.set(hx, 1.14, 0.48); hand.castShadow = true; hands.add(hand);
-    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.34, 10), sleeve);
-    cuff.position.set(hx * 1.18, 1.02, 0.28); cuff.rotation.x = 0.6; cuff.castShadow = true; hands.add(cuff);
+  const UP = new THREE.Vector3(0, 1, 0);
+  for (const side of [-1, 1]) {
+    const elbow = new THREE.Vector3(side * 0.36, 0.86, 0.16);  // 팔꿈치: 낮고 몸쪽(화면 하단서 진입)
+    const wrist = new THREE.Vector3(side * 0.19, 1.34, 0.66);  // 손목: 높고 앞쪽(그릇 옆)
+    const dir = wrist.clone().sub(elbow); const len = dir.length();
+    const arm = new THREE.Group(); arm.position.copy(elbow);
+    arm.quaternion.setFromUnitVectors(UP, dir.clone().normalize()); // +Y(소매 길이축)를 팔뚝 방향으로
+    const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.105, len, 14), sleeve); // 흰 셰프복 소매(팔뚝)
+    forearm.position.set(0, len / 2, 0); forearm.castShadow = true; arm.add(forearm);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.125, 16, 12), skin);                // 손(손목 끝)
+    hand.scale.set(1.15, 0.78, 1.08); hand.position.set(0, len + 0.04, 0.02); hand.castShadow = true; arm.add(hand);
+    hands.add(arm);
   }
   g.add(hands);
   return g;

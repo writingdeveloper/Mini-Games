@@ -308,8 +308,8 @@ export function createScene(canvas) {
     } else if (camMode === 'first') {
       // 1인칭: 주인장 눈높이에서 마우스로 고개 돌리기. 기본 시선 살짝 아래(손/그릇/작업대 보이게).
       const bob = (RM || !moving) ? 0 : Math.sin((t || 0) * 9) * 0.025; // 걷기 헤드밥(수직만, 멀미 방지)
-      const ex = state.player.x, ey = 1.5 + bob, ez = state.player.z;
-      const P = lookPitch - 0.13, cp = Math.cos(P);
+      const ex = state.player.x, ey = 1.66 + bob, ez = state.player.z;  // 눈높이 ↑(서있는 키 — 코 박는 느낌 해소)
+      const P = lookPitch - 0.08, cp = Math.cos(P);                      // 기본 시선 살짝만 아래(과한 부감 완화)
       camera.position.set(ex, ey, ez);
       _chaseLook.set(ex + Math.sin(lookYaw) * cp, ey + Math.sin(P), ez + Math.cos(lookYaw) * cp);
       camera.lookAt(_chaseLook);
@@ -339,8 +339,8 @@ export function createScene(canvas) {
         fpHands.position.set(mdx * cy + mdz * sy + swayX, mdy + bobH, -mdx * sy + mdz * cy);
         fpHands.rotation.set(mtX, lookYaw, mtZ);
       }
-      const fwd = 0.42 + mdz;
-      heldBowl.position.set(fwd * sy + mdx * cy, 1.18 + mdy + bobH, fwd * cy - mdx * sy);
+      const fwd = 0.6 + mdz;
+      heldBowl.position.set(fwd * sy + mdx * cy, 1.32 + mdy + bobH, fwd * cy - mdx * sy); // 손목 높이서 그릇을 든다
       heldBowl.rotation.set(mtX, lookYaw, mtZ);
     } else { // 3인칭/고정: 그릇은 가슴 정면 + 동작 모션.
       heldBowl.position.set(mdx, 1.18 + mdy, 0.42 + mdz); heldBowl.rotation.set(mtX, 0, mtZ);
