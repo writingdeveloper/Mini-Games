@@ -63,12 +63,38 @@ function makeStorageShelf() {
 }
 
 // 창고(측면 +x) — 주방 우측 옆에 보이는 저장 공간: 측면 바닥 + AI 냉장고 + 절차적 선반. 항상 표시(부감서도 보임).
+// 절차적 콘크리트 텍스처(창고 바닥용) — 얼룩·골재 알갱이·미세 균열. AI 생성기 없이 현실감.
+function makeConcreteTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const x = c.getContext('2d');
+  x.fillStyle = '#6b665d'; x.fillRect(0, 0, 256, 256);                       // 베이스 시멘트
+  for (let i = 0; i < 64; i++) {                                            // 얼룩/번짐
+    const r = 8 + Math.random() * 40, v = 88 + ((Math.random() * 64) | 0);
+    x.fillStyle = `rgba(${v},${v - 4},${v - 10},0.10)`;
+    x.beginPath(); x.arc(Math.random() * 256, Math.random() * 256, r, 0, Math.PI * 2); x.fill();
+  }
+  for (let i = 0; i < 1100; i++) {                                          // 골재 알갱이
+    const v = 55 + ((Math.random() * 130) | 0), s = Math.random() * 1.7;
+    x.fillStyle = `rgba(${v},${v},${v},0.5)`; x.fillRect(Math.random() * 256, Math.random() * 256, s, s);
+  }
+  x.strokeStyle = 'rgba(38,35,30,0.5)'; x.lineWidth = 1;                    // 미세 균열
+  for (let i = 0; i < 4; i++) {
+    let px = Math.random() * 256, py = Math.random() * 256; x.beginPath(); x.moveTo(px, py);
+    for (let j = 0; j < 6; j++) { px += (Math.random() - 0.5) * 64; py += (Math.random() - 0.5) * 64; x.lineTo(px, py); }
+    x.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(2, 3.2); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  return tex;
+}
+
 // 창고 = 칸막이 너머(x>4.7) 별도 공간. 가구를 뒷벽(z≈-3)에 나란히 정갈하게 배치.
 function makeSideStorage() {
   const g = new THREE.Group();
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.06, 6.4),
-    new THREE.MeshStandardMaterial({ color: 0x6e665c, roughness: 0.95 }));
-  floor.position.set(6.05, 0.03, -0.05); floor.receiveShadow = true; g.add(floor);
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x9a948a, roughness: 0.97 }); // 콘크리트
+  try { floorMat.map = makeConcreteTexture(); } catch { floorMat.color.setHex(0x6e665c); }
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.06, 6.5), floorMat); // 폭↑ 주방 바닥과 겹쳐 문턱 틈 제거
+  floor.position.set(5.9, -0.03, -0.05); floor.receiveShadow = true; g.add(floor); // top y0 = 주방 바닥과 동일 높이
   // 냉장고 · 선반 — 뒷벽에 나란히, 실내(+z) 향함.
   const fridge = createWarehouseFridge(); fridge.position.set(5.35, 0, -2.95); fridge.rotation.y = 0; g.add(fridge);
   const shelf = makeStorageShelf(); shelf.position.set(6.6, 0, -3.0); shelf.rotation.y = 0; g.add(shelf);
