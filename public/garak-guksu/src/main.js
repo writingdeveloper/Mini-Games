@@ -54,9 +54,23 @@ let departWarned = false;
 
 function seedNow() { return ((performance.now() | 0) ^ 0x9e3779b9) >>> 0; }
 
+// 현재 위치에서 E(action)가 무엇을 하는지 — 근접 프롬프트(#prompt)에 표시. 발견성↑.
+function actionHint() {
+  const p = state.player;
+  if (near(p.x, p.z, DOORWAY.x, DOORWAY.z, 1.8)) return state.doorOpen ? '🚪 E — 창고 문 닫기' : '🚪 E — 창고 문 열기';
+  if (near(p.x, p.z, STATIONS.setting.x, STATIONS.setting.z)) return '🍜 E — 면 집기';
+  if (near(p.x, p.z, STATIONS.blancher.x, STATIONS.blancher.z)) return '♨ E — 데치기 / 면 건지기';
+  if (near(p.x, p.z, STATIONS.broth.x, STATIONS.broth.z)) return '🍲 E — 멸치육수 붓기';
+  if (near(p.x, p.z, STATIONS.garnish.x, STATIONS.garnish.z)) return '🌶 E — 양념 (1·2·3)';
+  return '';
+}
+
 function action() {
   if (!running) return;
   const p = state.player;
+  if (near(p.x, p.z, DOORWAY.x, DOORWAY.z, 1.8)) { // 창고 문 여닫기(E)
+    const open = toggleDoor(state); audio.cue('cook'); popup(open ? '🚪 창고 문 열림 — 들어갈 수 있어요' : '🚪 창고 문 닫음'); renderHud(); return;
+  }
   if (near(p.x, p.z, STATIONS.setting.x, STATIONS.setting.z)) { const fresh = !p.holding; const ok = setNoodle(state); audio.cue('cook'); scene.cookMotion?.('noodle'); if (ok) { popup('① 면사리 집음 → ② 데치기로'); if (fresh) audio.playVoice('owner_take'); } else if (p.holding) popup('이미 그릇을 들고 있어요 (먼저 서빙/진열)'); }
   else if (near(p.x, p.z, STATIONS.blancher.x, STATIONS.blancher.z)) {
     if (p.holding && p.holding.stage === 'noodle') { putInBlancher(state); popup('🍜 채반에 넣음 — 게이지 차면 다시 눌러 건지기'); }
@@ -153,14 +167,9 @@ addEventListener('keydown', (e) => {
   if (near(p.x, p.z, STATIONS.garnish.x, STATIONS.garnish.z)) { garnish(state, spice); renderHud(); }
 });
 
-// F키(문맥형): 창고 입구 근처면 문 여닫기, 아니면 완성/진행중 그릇을 진열대에 놓기/집기.
+// F키: 완성/진행중 그릇을 진열대(서빙 카운터)에 놓기 / 집기 — 미리 만들어 쌓아둘 수 있음.
 addEventListener('keydown', (e) => {
   if (e.code !== 'KeyF' || e.repeat || !running) return;
-  const p = state.player;
-  if (near(p.x, p.z, DOORWAY.x, DOORWAY.z, 1.8)) { // 창고 문 토글
-    const open = toggleDoor(state); audio.cue('cook'); popup(open ? '🚪 창고 문 열림 — 들어갈 수 있어요' : '🚪 창고 문 닫음');
-    return;
-  }
   if (placeOrPickup(state)) { audio.cue('cook'); scene.cookMotion?.('place'); popup(state.player.holding ? '🥢 그릇 집기' : '🍜 진열대에 놓음'); renderHud(); }
 });
 
@@ -264,6 +273,9 @@ function loop(now) {
     }
   }
   prevPhase = state.phase;
+  // 상황별 액션 프롬프트(문/조리대 근접 시 E 안내).
+  const _hintEl = $('prompt');
+  if (_hintEl) { const h = state.phase === 'serving' ? actionHint() : ''; if (h) { if (_hintEl.textContent !== h) _hintEl.textContent = h; _hintEl.classList.add('show'); } else _hintEl.classList.remove('show'); }
   scene.sync(state, now / 1000);
   scene.render();
   renderHud();

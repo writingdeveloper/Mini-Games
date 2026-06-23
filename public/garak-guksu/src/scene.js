@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createFloor, createChef, createStation, createCustomer, createGauge, createKitchenStove, createBowl, createBackWall, createWarehouseFridge } from './models.js';
+import { createFloor, createChef, createStation, createCustomer, createGauge, createKitchenStove, createBowl, createWarehouseFridge } from './models.js';
 import { STATIONS, CUSTOMER_SLOTS, slotProgress, patienceProgress, BLANCH_SLOTS, WAVES, PLACE_SLOTS, ALBA_IDLE } from './logic.js';
 import { buildStation, tickStation, makeStationLabel } from './station.js';
 
@@ -63,35 +63,55 @@ function makeStorageShelf() {
 }
 
 // 창고(측면 +x) — 주방 우측 옆에 보이는 저장 공간: 측면 바닥 + AI 냉장고 + 절차적 선반. 항상 표시(부감서도 보임).
+// 창고 = 칸막이 너머(x>4.7) 별도 공간. 가구를 뒷벽(z≈-3)에 나란히 정갈하게 배치.
 function makeSideStorage() {
   const g = new THREE.Group();
-  g.position.set(5.7, 0, 0.2);
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.4, 7),
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.06, 6.4),
     new THREE.MeshStandardMaterial({ color: 0x6e665c, roughness: 0.95 }));
-  floor.position.set(0, -0.2, 0); floor.receiveShadow = true; g.add(floor);
-  const fridge = createWarehouseFridge(); fridge.position.set(0.4, 0, -1.8); fridge.rotation.y = -Math.PI / 2; g.add(fridge);
-  const shelf = makeStorageShelf(); shelf.position.set(0.4, 0, 1.6); shelf.rotation.y = -Math.PI / 2; g.add(shelf);
-  const lite = new THREE.PointLight(0xffd2a0, 1.6, 9, 1.4); lite.position.set(-0.3, 3, 0); g.add(lite); // 창고 백열등(어둠서 분리)
+  floor.position.set(6.05, 0.03, -0.05); floor.receiveShadow = true; g.add(floor);
+  // 냉장고 · 선반 — 뒷벽에 나란히, 실내(+z) 향함.
+  const fridge = createWarehouseFridge(); fridge.position.set(5.35, 0, -2.95); fridge.rotation.y = 0; g.add(fridge);
+  const shelf = makeStorageShelf(); shelf.position.set(6.6, 0, -3.0); shelf.rotation.y = 0; g.add(shelf);
+  // 우벽 옆 궤짝 더미(간단 = Three.js) — 가지런히.
+  const crateMat = new THREE.MeshStandardMaterial({ color: 0x8a6038, roughness: 0.85 });
+  const crate = (cx, cy, cz, s) => { const c = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), crateMat); c.position.set(cx, cy, cz); c.castShadow = true; c.receiveShadow = true; g.add(c); };
+  crate(7.0, 0.36, 1.7, 0.7); crate(7.0, 1.05, 1.68, 0.66); crate(6.95, 0.36, 2.45, 0.7);
+  const lite = new THREE.PointLight(0xffd2a0, 1.5, 8, 1.5); lite.position.set(6.0, 3.3, -0.4); g.add(lite); // 창고 백열등
   return g;
 }
 
-// 벽(enclosure) — 조리부 뒤(-z)+양 측면(±x)을 포장마차 천막 벽으로 감싼다(1인칭서 빈 공간/거꾸로 천막 해소).
-// 높이 4 → 고정 부감 카메라(y7.5) 시선은 위로 넘어감. 정면(+z, 손님 서빙창)은 열어 둠. 상세 천막은 AI 백월을 accent로.
+// 건물 내부 — 포장마차가 아니라 실내(나무 징두리 + 회벽 + 천장 + 칸막이 문간).
+// 천장은 FrontSide 평면(법선 -y) → 1인칭(아래)에선 보이고 고정 부감(위)에선 컬링되어 투과.
+// 칸막이 벽(x4.7)에 문간(z[-0.95,0.95])을 내어 창고 문이 벽과 정렬되게 한다. 정면(+z) 서빙창은 열어 둠.
+const WALL_H = 3.9, WAINS_H = 1.1, PARTITION_X = 4.7;
 function makeWalls() {
   const g = new THREE.Group();
-  const canvasMat = new THREE.MeshStandardMaterial({ color: 0x6e1a12, roughness: 0.88, side: THREE.DoubleSide }); // 적색 천막
+  const plaster = new THREE.MeshStandardMaterial({ color: 0xab8c66, roughness: 0.96, side: THREE.DoubleSide }); // 따뜻한 회벽(상부)
+  const wains = new THREE.MeshStandardMaterial({ color: 0x6b4a30, roughness: 0.85, side: THREE.DoubleSide });   // 나무 징두리(하부)
   const wood = new THREE.MeshStandardMaterial({ color: 0x4a3324, roughness: 0.85 });
-  const mk = (w, h, d, x, y, z, mat, shadow) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-    m.position.set(x, y, z); m.receiveShadow = true; if (shadow) m.castShadow = true; g.add(m); return m;
-  };
-  mk(12.6, 4, 0.15, 1.2, 2, -3.5, canvasMat);   // 뒷벽(-z, 조리대 뒤)
-  mk(0.15, 4, 7.2, -4.8, 2, 0, canvasMat);       // 좌벽(-x)
-  mk(0.15, 4, 7.2, 7.4, 2, 0, canvasMat);        // 우벽(+x, 창고 바깥)
-  for (const [px, pz] of [[-4.8, -3.5], [7.4, -3.5], [-4.8, 3.4], [7.4, 3.4]]) mk(0.26, 4.3, 0.26, px, 2.15, pz, wood, true); // 모서리 나무 기둥
-  mk(12.8, 0.3, 0.45, 1.2, 4.0, -3.5, wood, true); // 상단 처마
-  // AI 포장마차 천막 백월(상세 accent: 선반·솥·메뉴) — 뒷벽 앞 중앙.
-  const tarp = createBackWall(); tarp.position.set(0.4, 0, -3.0); tarp.rotation.y = Math.PI; g.add(tarp);
+  // 벽 한 장 = 하부 징두리 + 상부 회벽. axis: 'x'(가로벽) | 'z'(세로벽).
+  function wall(cx, cz, len, axis) {
+    const w = axis === 'x' ? len : 0.16, d = axis === 'z' ? len : 0.16;
+    const lo = new THREE.Mesh(new THREE.BoxGeometry(w, WAINS_H, d), wains); lo.position.set(cx, WAINS_H / 2, cz); lo.receiveShadow = true; g.add(lo);
+    const hi = new THREE.Mesh(new THREE.BoxGeometry(w, WALL_H - WAINS_H, d), plaster); hi.position.set(cx, WAINS_H + (WALL_H - WAINS_H) / 2, cz); hi.receiveShadow = true; g.add(hi);
+  }
+  wall(1.3, -3.5, 12.6, 'x');    // 뒷벽
+  wall(-4.8, -0.05, 7.1, 'z');   // 좌벽
+  wall(7.4, -0.05, 7.1, 'z');    // 우벽(창고 바깥)
+  // 칸막이(주방 x<4.7 ↔ 창고): 문간 z[-0.95,0.95] 비우고 양옆 + 문 위.
+  wall(PARTITION_X, -2.225, 2.55, 'z'); // -z 구간 z[-3.5,-0.95]
+  wall(PARTITION_X, 2.175, 2.45, 'z');  // +z 구간 z[0.95,3.4]
+  const above = new THREE.Mesh(new THREE.BoxGeometry(0.16, WALL_H - 2.5, 1.94), plaster); above.position.set(PARTITION_X, 2.5 + (WALL_H - 2.5) / 2, 0); above.receiveShadow = true; g.add(above); // 문 위 인방벽
+  // 모서리/문 기둥
+  for (const [px, pz] of [[-4.8, -3.5], [7.4, -3.5], [-4.8, 3.4], [7.4, 3.4], [PARTITION_X, -3.5], [PARTITION_X, 3.4]]) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(0.22, WALL_H + 0.15, 0.22), wood); p.position.set(px, (WALL_H + 0.15) / 2, pz); p.castShadow = true; g.add(p);
+  }
+  // 천장 — FrontSide 평면(아래만 보임) + 나무 보. 정면(z>2.7) 서빙창은 열어 둠.
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(12.7, 6.35),
+    new THREE.MeshStandardMaterial({ color: 0x5a4230, roughness: 0.94 })); // FrontSide 기본
+  ceil.rotation.x = Math.PI / 2; ceil.position.set(1.3, WALL_H, -0.45); g.add(ceil);
+  const beamMat = new THREE.MeshStandardMaterial({ color: 0x3a281b, roughness: 0.9 });
+  for (const bz of [-2.7, -1.0, 0.7, 2.4]) { const beam = new THREE.Mesh(new THREE.BoxGeometry(12.6, 0.16, 0.16), beamMat); beam.position.set(1.3, WALL_H - 0.11, bz); g.add(beam); }
   return g;
 }
 
@@ -100,7 +120,7 @@ function makeDoor() {
   const g = new THREE.Group();
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x4a3324, roughness: 0.82 });
   const panelMat = new THREE.MeshStandardMaterial({ color: 0x6a4a30, roughness: 0.72 });
-  const X = 4.7;
+  const X = PARTITION_X; // 칸막이 문간과 정렬
   for (const dz of [-0.85, 0.85]) { // 좌우 문기둥
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.7, 0.2), frameMat);
     post.position.set(X, 1.35, dz); post.castShadow = true; g.add(post);
@@ -216,10 +236,14 @@ export function createScene(canvas) {
 
   const hemi = new THREE.HemisphereLight(0x7889b0, 0x241e2c, 0.95); // brighter ambient
   scene.add(hemi);
-  // warm incandescent lamp over the counter (fill, no shadow)
-  const lamp = new THREE.PointLight(0xffcf6a, 2.6, 30, 1.3);
-  lamp.position.set(0, 6, 0.5);
+  // warm incandescent lamp over the counter (fill, no shadow) — 천장 아래로 낮춤(건물 실내 매다는 등)
+  const lamp = new THREE.PointLight(0xffcf6a, 2.6, 26, 1.3);
+  lamp.position.set(0.5, 3.5, 0.4);
   scene.add(lamp);
+  // 조리부(z-1.5) 위 보조 백열등 — 천장이 생겨 어두워지지 않게.
+  const lamp2 = new THREE.PointLight(0xffc878, 1.7, 16, 1.5);
+  lamp2.position.set(0, 3.45, -1.5);
+  scene.add(lamp2);
   // a single directional sun as the cheap shadow caster (ppopgi pattern — 1 pass vs point light's 6)
   const sun = new THREE.DirectionalLight(0xfff0e0, 0.85);
   sun.position.set(5, 13, -3);
