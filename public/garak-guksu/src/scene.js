@@ -339,8 +339,8 @@ export function createScene(canvas) {
         fpHands.position.set(mdx * cy + mdz * sy + swayX, mdy + bobH, -mdx * sy + mdz * cy);
         fpHands.rotation.set(mtX, lookYaw, mtZ);
       }
-      const fwd = 0.6 + mdz;
-      heldBowl.position.set(fwd * sy + mdx * cy, 1.32 + mdy + bobH, fwd * cy - mdx * sy); // 손목 높이서 그릇을 든다
+      const fwd = 0.62 + mdz;
+      heldBowl.position.set(fwd * sy + mdx * cy, 1.20 + mdy + bobH, fwd * cy - mdx * sy); // 손목 아래서 그릇을 든다(시야 확보)
       heldBowl.rotation.set(mtX, lookYaw, mtZ);
     } else { // 3인칭/고정: 그릇은 가슴 정면 + 동작 모션.
       heldBowl.position.set(mdx, 1.18 + mdy, 0.42 + mdz); heldBowl.rotation.set(mtX, 0, mtZ);

@@ -117,7 +117,7 @@ export function createKitchenStove() {
 
 // AI 사람 손(garak_hand.glb)을 양 손목에 배치 — 오른손 생성, 왼쪽은 X미러(노멀 DoubleSide 보정).
 // 절차적 손은 숨김(폴백). 방향/크기/오프셋은 HAND_FIT 한 곳에서 튜닝(실화면 보고 조정).
-const HAND_FIT = { scale: 0.9, rotX: 1.0, rotY: 0.28, rotZ: 0, ox: 0, oy: 0.0, oz: 0.0 }; // 실화면 튜닝값
+const HAND_FIT = { scale: 0.9, rotX: 1.7, rotY: 0.22, rotZ: 0, ox: 0, oy: -0.05, oz: 0.0 }; // 실화면 튜닝값(손가락이 그릇 감싸 쥠)
 function placeHand(h, side, wrist) {
   const s = (h.userData.base || 1) * HAND_FIT.scale; // base=프리로드 정규화 스케일 → 덮어쓰지 말고 배수만
   h.position.set(wrist.x + HAND_FIT.ox * side, wrist.y + HAND_FIT.oy, wrist.z + HAND_FIT.oz);
@@ -163,7 +163,7 @@ export function createChef() {
   attachModel('chef', chefBody, proc); // garak_chef.glb 있으면 절차적 셰프를 대체(chefBody 안)
   g.add(chefBody);
   const bowl = createBowl();
-  bowl.position.set(0, 1.18, 0.42); bowl.scale.setScalar(1.7);
+  bowl.position.set(0, 1.18, 0.42); bowl.scale.setScalar(1.2); // 1인칭서 시야 안 가리게 축소
   bowl.name = 'heldBowl'; bowl.visible = false;
   g.add(bowl);
   // 1인칭 팔·손(평소 숨김, FP 에서만). 다른 1인칭 게임처럼 팔뚝이 화면 하단에서 올라와

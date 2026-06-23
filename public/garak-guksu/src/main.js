@@ -56,19 +56,26 @@ function seedNow() { return ((performance.now() | 0) ^ 0x9e3779b9) >>> 0; }
 function action() {
   if (!running) return;
   const p = state.player;
-  if (near(p.x, p.z, STATIONS.setting.x, STATIONS.setting.z)) { const fresh = !p.holding; setNoodle(state); audio.cue('cook'); scene.cookMotion?.('noodle'); if (fresh) audio.playVoice('owner_take'); }
+  if (near(p.x, p.z, STATIONS.setting.x, STATIONS.setting.z)) { const fresh = !p.holding; const ok = setNoodle(state); audio.cue('cook'); scene.cookMotion?.('noodle'); if (ok) { popup('① 면사리 집음 → ② 데치기로'); if (fresh) audio.playVoice('owner_take'); } else if (p.holding) popup('이미 그릇을 들고 있어요 (먼저 서빙/진열)'); }
   else if (near(p.x, p.z, STATIONS.blancher.x, STATIONS.blancher.z)) {
-    if (p.holding && p.holding.stage === 'noodle') { putInBlancher(state); popup('🍜 데치는 중! 다시 눌러 면 건지기'); }
-    else { const lifted = liftFromBlancher(state); if (!lifted && !p.holding) popup('데칠 면이 없어요 (① 면부터)'); }
+    if (p.holding && p.holding.stage === 'noodle') { putInBlancher(state); popup('🍜 채반에 넣음 — 게이지 차면 다시 눌러 건지기'); }
+    else {
+      const lifted = liftFromBlancher(state);
+      if (lifted) { const d = p.holding.doneness; popup(d >= 50 ? '🍜 완벽한 면발! 건졌어요 → ③ 멸치육수로' : d >= 20 ? '🍜 면 건짐(적당) → ③ 멸치육수로' : '🍜 면 건짐(덜·과익음) → ③ 멸치육수로'); }
+      else if (!p.holding) popup('데칠 면이 없어요 (① 면부터)');
+    }
     audio.cue('cook'); scene.cookMotion?.('blanch');
   } else if (near(p.x, p.z, STATIONS.broth.x, STATIONS.broth.z)) {
     const okBroth = pourBroth(state); audio.cue('cook'); scene.cookMotion?.('pour');
-    if (!okBroth && (!p.holding || p.holding.stage !== 'blanched')) popup('③ 육수는 데친 면에! ② 데치기 → 다시 눌러 건지기');
+    if (okBroth) popup('🍲 멸치육수 부음 → ④ 양념(고명)으로');
+    else if (!p.holding || p.holding.stage !== 'blanched') popup('③ 육수는 데친 면에! ② 데치기 → 다시 눌러 건지기');
   }
   else if (near(p.x, p.z, STATIONS.garnish.x, STATIONS.garnish.z)) {
     // ④ 고명/양념: action 키 = 기본 양념으로 빠른 마무리, 1·2·3(또는 버튼) = 손님 주문에 맞춰 선택.
     if (p.holding && p.holding.stage === 'brothed') {
-      garnish(state, 'normal'); audio.cue('cook'); scene.cookMotion?.('spice'); popup('🌶️ 기본 양념 완성! (1·2·3 으로 손님 맞춤)');
+      garnish(state, 'normal'); audio.cue('cook'); scene.cookMotion?.('spice');
+      const want = nearestCustomer();
+      popup(want ? `🌶️ 기본 양념! 손님 주문=「${SPICE_KO[want.order.spice]}」 (1 안맵게·2 기본·3 매움)` : '🌶️ 기본 양념 완성! (1 안맵게·2 기본·3 매움)');
     } else if (!p.holding) { popup('① 면부터! 면→데치기→육수→양념'); }
     else { popup('③ 육수까지 받아오세요'); }
   }
@@ -190,7 +197,8 @@ function renderHud() {
   $('dwell').textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
   const nearby = nearestCustomer();
   $('order').textContent = nearby ? SPICE_KO[nearby.order.spice] : '-';
-  $('held').textContent = state.player.holding ? STAGE_KO[state.player.holding.stage] : '빈손';
+  const heldB = state.player.holding;
+  $('held').textContent = heldB ? (STAGE_KO[heldB.stage] + (heldB.stage === 'done' ? ' · ' + SPICE_KO[heldB.spice] : '')) : '빈손';
 }
 
 function loop(now) {
