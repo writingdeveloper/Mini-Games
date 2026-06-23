@@ -85,6 +85,8 @@ preloadModel('kit_stove', '/garak-guksu/models/garak_kit_stove.glb', 1.1, { grou
 preloadModel('hand', '/garak-guksu/models/garak_hand.glb', 0.26);
 // 등 뒤 포장마차 백월(AI, garak_backwall.glb) — -z 배경 구조물(천막·선반·솥·메뉴). 없으면 비표시.
 preloadModel('backwall', '/garak-guksu/models/garak_backwall.glb', 4.3, { ground: true });
+// 창고 냉장고(AI, garak_wh_fridge.glb) — -z 저장공간 분위기. 없으면 비표시.
+preloadModel('wh_fridge', '/garak-guksu/models/garak_wh_fridge.glb', 2.1, { ground: true, byHeight: true });
 
 export function createFloor() {
   const g = new THREE.Group();
@@ -131,6 +133,9 @@ export function createBackWall() {
   attachInto('backwall', g);
   return g;
 }
+
+// 창고 냉장고 — 로드되면 클론 주입, 없으면 빈 그룹(폴백).
+export function createWarehouseFridge() { const g = new THREE.Group(); attachInto('wh_fridge', g); return g; }
 
 // AI 사람 손(garak_hand.glb)을 양 손목에 배치 — 오른손 생성, 왼쪽은 X미러(노멀 DoubleSide 보정).
 // 절차적 손은 숨김(폴백). 방향/크기/오프셋은 HAND_FIT 한 곳에서 튜닝(실화면 보고 조정).
