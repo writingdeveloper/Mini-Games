@@ -75,9 +75,10 @@ preloadModel('chef', '/garak-guksu/models/garak_chef.glb', 1.5, { ground: true, 
 for (const key of CUSTOMER_ARCHES) {
   preloadModel(`cust_${key}`, `/garak-guksu/models/garak_cust_${key}.glb`, 1.7, { ground: true, byHeight: true, rotateY: Math.PI });
 }
-// 조리대 4종 장비: 카운터 위 → 발(min.y)을 바닥에 정렬.
+// 조리대 4종 장비: 카운터 위 → 발(min.y)을 바닥에 정렬. setting(면사리 더미)는 과대해 축소.
+const ST_SIZE = { setting: 0.95, blancher: 1.2, broth: 1.2, garnish: 1.1 };
 for (const kind of ['setting', 'blancher', 'broth', 'garnish']) {
-  preloadModel(`station_${kind}`, `/garak-guksu/models/garak_st_${kind}.glb`, 1.2, { ground: true });
+  preloadModel(`station_${kind}`, `/garak-guksu/models/garak_st_${kind}.glb`, ST_SIZE[kind], { ground: true });
 }
 // 주방 화덕(AI 복잡 객체) — 작업대 위 끓는 육수솥. 없으면 절차적 폴백.
 preloadModel('kit_stove', '/garak-guksu/models/garak_kit_stove.glb', 1.1, { ground: true });
