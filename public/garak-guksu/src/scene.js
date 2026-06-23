@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createFloor, createChef, createStation, createCustomer, createGauge, createKitchenStove, createBowl } from './models.js';
+import { createFloor, createChef, createStation, createCustomer, createGauge, createKitchenStove, createBowl, createBackWall } from './models.js';
 import { STATIONS, CUSTOMER_SLOTS, slotProgress, patienceProgress, BLANCH_SLOTS, WAVES, PLACE_SLOTS } from './logic.js';
 import { buildStation, tickStation, makeStationLabel } from './station.js';
 
@@ -161,6 +161,12 @@ export function createScene(canvas) {
   const station = buildStation(scene, { reducedMotion: RM });
   if (typeof window !== 'undefined') window.__station = station; // QA 디버그 훅(__garak 관례)
 
+  // 등 뒤 포장마차 백월(AI) — -z 배경. 고정/궤도 부감에선 가림 방지로 숨김(1인칭/추격에서만).
+  const backWall = createBackWall();
+  backWall.position.set(0, 0, -5.3); backWall.rotation.y = Math.PI;
+  scene.add(backWall);
+  if (typeof window !== 'undefined') window.__backwall = backWall; // 위치/회전 라이브 튜닝
+
   const chef = createChef();
   scene.add(chef);
   const chefBody = chef.getObjectByName('chefBody'); // 1인칭에서 숨길 본체
@@ -208,6 +214,7 @@ export function createScene(canvas) {
     orbit.enabled = (mode === 'orbit');
     if (chefBody) chefBody.visible = (mode !== 'first'); // 1인칭에선 본체 숨김
     if (fpHands) fpHands.visible = (mode === 'first');    // 1인칭에선 손 표시
+    if (backWall) backWall.visible = (mode === 'first' || mode === 'chase'); // -z 백월은 1인칭/추격에서만(부감 가림 방지)
     camera.up.set(0, 1, 0);
     if (mode === 'fixed') { camera.position.copy(CAM_FIXED_POS); camera.lookAt(CAM_FIXED_LOOK); }
     else if (mode === 'orbit') { camera.position.copy(CAM_FIXED_POS); orbit.target.copy(CAM_FIXED_LOOK); orbit.update(); }

@@ -83,6 +83,8 @@ for (const kind of ['setting', 'blancher', 'broth', 'garnish']) {
 preloadModel('kit_stove', '/garak-guksu/models/garak_kit_stove.glb', 1.1, { ground: true });
 // 1인칭 손(AI 실제 사람 손, garak_hand.glb) — 없으면 절차적 손 폴백. 오른손 생성→왼쪽은 미러.
 preloadModel('hand', '/garak-guksu/models/garak_hand.glb', 0.26);
+// 등 뒤 포장마차 백월(AI, garak_backwall.glb) — -z 배경 구조물(천막·선반·솥·메뉴). 없으면 비표시.
+preloadModel('backwall', '/garak-guksu/models/garak_backwall.glb', 4.3, { ground: true });
 
 export function createFloor() {
   const g = new THREE.Group();
@@ -120,6 +122,13 @@ export function createKitchenStove() {
   pot.position.y = 0.45; pot.castShadow = true; proc.add(pot);
   g.add(proc);
   attachModel('kit_stove', g, proc);
+  return g;
+}
+
+// 등 뒤 포장마차 백월(garak_backwall.glb) — -z 배경. 로드되면 클론 주입, 없으면 빈 그룹(폴백).
+export function createBackWall() {
+  const g = new THREE.Group();
+  attachInto('backwall', g);
   return g;
 }
 
