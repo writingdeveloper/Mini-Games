@@ -17,9 +17,6 @@ export function createSfx() {
   let master = null;    // master GainNode — 뮤트 = gain 0
   let noiseBuf = null;  // 재사용 화이트 노이즈 버퍼
 
-  // 현재 진행 중인 ambience 노드들(stopAmbience에서 정리)
-  let amb = null;
-
   // AudioContext 미지원 가드 + 지연 생성
   function ensureCtx() {
     if (ctx) return ctx;
@@ -216,77 +213,12 @@ export function createSfx() {
   }
 
   // --- ambience ----------------------------------------------------------
-
-  // era별 베드 파라미터(스팀 히스 볼륨/필터, 기적 빈도).
-  // '증기' 진한 증기, '디젤' 중간, '막차' 옅고 한적.
-  const ERA = {
-    '증기': { hiss: 0.060, freq: 950, whistleEvery: 9000, whistleGain: 0.05 },
-    '디젤': { hiss: 0.045, freq: 800, whistleEvery: 13000, whistleGain: 0.04 },
-    '막차': { hiss: 0.030, freq: 700, whistleEvery: 17000, whistleGain: 0.035 },
-  };
-
-  function ambience(era) {
-    const c = ensureCtx();
-    if (!c) return;
-    stopAmbience();
-    const cfg = ERA[era] || ERA['증기'];
-
-    // 깔리는 필터드 노이즈 = 증기 히스 베드(루프, 살짝 흔들리는 게인).
-    const src = c.createBufferSource();
-    src.buffer = getNoise();
-    src.loop = true;
-    const f = c.createBiquadFilter();
-    f.type = 'lowpass';
-    f.frequency.value = cfg.freq;
-    f.Q.value = 0.4;
-    const g = c.createGain();
-    const t = c.currentTime;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(cfg.hiss, t + 1.5); // 부드럽게 페이드 인
-    src.connect(f);
-    f.connect(g);
-    g.connect(master);
-    src.start(t);
-
-    // 느린 LFO로 히스 게인을 흔들어 '살아있는' 증기 느낌.
-    const lfo = c.createOscillator();
-    const lfoGain = c.createGain();
-    lfo.type = 'sine';
-    lfo.frequency.value = 0.13;
-    lfoGain.gain.value = cfg.hiss * 0.4;
-    lfo.connect(lfoGain);
-    lfoGain.connect(g.gain);
-    lfo.start(t);
-
-    // 가끔 먼 기적(setInterval). 뮤트면 건너뜀.
-    const timer = setInterval(() => {
-      if (muted || !ctx) return;
-      whistle(ctx.currentTime + 0.05, 1.4, 330, 392, cfg.whistleGain);
-    }, cfg.whistleEvery);
-
-    amb = { src, f, g, lfo, lfoGain, timer };
-  }
-
-  function stopAmbience() {
-    if (!amb) return;
-    const { src, lfo, timer } = amb;
-    const a = amb;
-    amb = null;
-    clearInterval(timer);
-    if (ctx) {
-      const t = ctx.currentTime;
-      try {
-        a.g.gain.cancelScheduledValues(t);
-        a.g.gain.setValueAtTime(Math.max(0.0001, a.g.gain.value), t);
-        a.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4); // 부드러운 페이드 아웃
-      } catch { /* node may already be stopped */ }
-      try { src.stop(t + 0.45); } catch { /* already stopped */ }
-      try { lfo.stop(t + 0.45); } catch { /* already stopped */ }
-    } else {
-      try { src.stop(); } catch { /* no ctx */ }
-      try { lfo.stop(); } catch { /* no ctx */ }
-    }
-  }
+  // (제거됨) 초기 WebAudio 분위기 베드 — 증기 히스 루프 + 0.13Hz LFO 가 게인을 흔드는
+  // "우웅우웅" 지속 드론 + 먼 기적. 계속 깔리는 기계음으로 거슬려 제거.
+  // 이제 분위기는 단발 큐(cue)와 실제 음성 에셋(playVoice)으로만 표현.
+  // API 호환(main.js·테스트가 호출)을 위해 no-op 으로 유지.
+  function ambience() { /* no-op: 분위기 드론 제거됨 */ }
+  function stopAmbience() { /* no-op */ }
 
   // --- mute / lifecycle --------------------------------------------------
 

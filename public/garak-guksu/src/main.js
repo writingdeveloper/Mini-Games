@@ -298,11 +298,11 @@ function start() {
   $('result').classList.add('off');
   if (!coached) { coached = true; coach('① 왼쪽부터 순서대로 — 면 → 데치기(게이지!) → 멸치육수 → 고춧가루 → 🚂 손님께! · E로 조리·서빙'); }
   renderHud();
-  // 첫 사용자 제스처 → AudioContext 재개 + 시작 큐 + 현재 에라 분위기 베드.
+  // 첫 사용자 제스처 → AudioContext 재개 + 시작 큐 + 주인장 인사.
+  // (분위기 ambience 드론은 제거됨 — 거슬리는 지속 기계음. 큐·음성만 사용.)
   audio.resume();
   audio.cue('start');
   audio.playVoice('owner_greet'); // 주인장 인사(영업 시작)
-  audio.ambience(WAVES[Math.min(state.wave, WAVES.length - 1)].era);
   last = performance.now();
   rafId = requestAnimationFrame(loop);
 }
