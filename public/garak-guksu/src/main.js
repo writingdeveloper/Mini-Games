@@ -56,19 +56,19 @@ function seedNow() { return ((performance.now() | 0) ^ 0x9e3779b9) >>> 0; }
 function action() {
   if (!running) return;
   const p = state.player;
-  if (near(p.x, p.z, STATIONS.setting.x, STATIONS.setting.z)) { const fresh = !p.holding; setNoodle(state); audio.cue('cook'); scene.cookMotion?.(); if (fresh) audio.playVoice('owner_take'); }
+  if (near(p.x, p.z, STATIONS.setting.x, STATIONS.setting.z)) { const fresh = !p.holding; setNoodle(state); audio.cue('cook'); scene.cookMotion?.('noodle'); if (fresh) audio.playVoice('owner_take'); }
   else if (near(p.x, p.z, STATIONS.blancher.x, STATIONS.blancher.z)) {
     if (p.holding && p.holding.stage === 'noodle') { putInBlancher(state); popup('🍜 데치는 중! 다시 눌러 면 건지기'); }
     else { const lifted = liftFromBlancher(state); if (!lifted && !p.holding) popup('데칠 면이 없어요 (① 면부터)'); }
-    audio.cue('cook'); scene.cookMotion?.();
+    audio.cue('cook'); scene.cookMotion?.('blanch');
   } else if (near(p.x, p.z, STATIONS.broth.x, STATIONS.broth.z)) {
-    const okBroth = pourBroth(state); audio.cue('cook'); scene.cookMotion?.();
+    const okBroth = pourBroth(state); audio.cue('cook'); scene.cookMotion?.('pour');
     if (!okBroth && (!p.holding || p.holding.stage !== 'blanched')) popup('③ 육수는 데친 면에! ② 데치기 → 다시 눌러 건지기');
   }
   else if (near(p.x, p.z, STATIONS.garnish.x, STATIONS.garnish.z)) {
     // ④ 고명/양념: action 키 = 기본 양념으로 빠른 마무리, 1·2·3(또는 버튼) = 손님 주문에 맞춰 선택.
     if (p.holding && p.holding.stage === 'brothed') {
-      garnish(state, 'normal'); audio.cue('cook'); scene.cookMotion?.(); popup('🌶️ 기본 양념 완성! (1·2·3 으로 손님 맞춤)');
+      garnish(state, 'normal'); audio.cue('cook'); scene.cookMotion?.('spice'); popup('🌶️ 기본 양념 완성! (1·2·3 으로 손님 맞춤)');
     } else if (!p.holding) { popup('① 면부터! 면→데치기→육수→양념'); }
     else { popup('③ 육수까지 받아오세요'); }
   }
@@ -76,7 +76,8 @@ function action() {
     const before = state.combo;
     const scoreBefore = state.score;
     const served = nearestCustomer(); // 만족 음성용(서빙 대상 손님)
-    serve(state); // serve picks the nearest in-range customer (no-op if none)
+    const did = serve(state); // 손 또는 가까운 진열대의 완성 그릇으로 서빙(없으면 no-op)
+    if (did) scene.cookMotion?.('serve'); // 손님께 내미는 제스처
     if (state.combo > before) {
       const cheers = ['좋았어!', '척척!', '신들렸다!', '오늘 장사 대박!'];
       if (state.combo >= 3) {
@@ -88,6 +89,8 @@ function action() {
       }
       audio.playVoice('owner_serve');
       if (served && Math.random() < 0.6) setTimeout(() => audio.playVoice(`${served.archetype}_happy`), 600);
+    } else if (did) {
+      popup('😖 주문과 달라요…'); audio.cue('serve'); // mis-serve(양념 불일치 → 콤보 리셋)
     } else if (p.holding && p.holding.stage !== 'done') {
       popup('아직 완성 전! ④ 양념까지 마무리하세요');
     }
@@ -145,7 +148,7 @@ addEventListener('keydown', (e) => {
 // F키: 완성/진행중 그릇을 진열대(서빙 카운터)에 놓기 / 집기 — 미리 만들어 쌓아둘 수 있음.
 addEventListener('keydown', (e) => {
   if (e.code !== 'KeyF' || e.repeat || !running) return;
-  if (placeOrPickup(state)) { audio.cue('cook'); popup(state.player.holding ? '🥢 그릇 집기' : '🍜 진열대에 놓음'); renderHud(); }
+  if (placeOrPickup(state)) { audio.cue('cook'); scene.cookMotion?.('place'); popup(state.player.holding ? '🥢 그릇 집기' : '🍜 진열대에 놓음'); renderHud(); }
 });
 
 // V키: 카메라 시점 순환(고정 → 자유 궤도 → 1인칭). 게임 상태와 무관하게 동작.

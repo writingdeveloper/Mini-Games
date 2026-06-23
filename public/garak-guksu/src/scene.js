@@ -163,12 +163,15 @@ export function createScene(canvas) {
   const _chasePos = new THREE.Vector3();  // 추격 3인칭 보간용
   const _chaseLook = new THREE.Vector3();
   let lookYaw = 0, lookPitch = 0;          // 추격/1인칭 마우스 둘러보기 오프셋(rad)
-  let cookBump = 0;                        // 조리 시 1인칭 손 까딱 모션(1→0 감쇠)
+  let cookAnim = null;                      // 동작 모션 토큰 { kind, t0, dur } — 조리/서빙/놓기별 손·그릇 궤적
   const CAM_MODES = ['fixed', 'orbit', 'chase', 'first'];
+  // 모드별 시야각(수직 fov). 1인칭은 넓게(46°→64°, 모바일 70°) 잡아 "확대된 느낌" 해소, 부감/궤도는 차분히.
+  const MODE_FOV = { fixed: 46, orbit: 46, chase: 52, first: LOW ? 70 : 64 };
   let camMode = 'fixed';
   function applyCamMode(mode) {
     if (!CAM_MODES.includes(mode)) return camMode;
     camMode = mode;
+    camera.fov = MODE_FOV[mode] ?? 46; camera.updateProjectionMatrix(); // 모드별 시야각 적용
     if (mode === 'chase' || mode === 'first') { lookYaw = 0; lookPitch = 0; } // 진입 시 기본 시점
     else if (document.pointerLockElement) document.exitPointerLock(); // 고정/궤도로 가면 포인터락 해제
     orbit.enabled = (mode === 'orbit');
@@ -304,20 +307,43 @@ export function createScene(canvas) {
       camera.lookAt(_chaseLook);
     } else if (camMode === 'first') {
       // 1인칭: 주인장 눈높이에서 마우스로 고개 돌리기. 기본 시선 살짝 아래(손/그릇/작업대 보이게).
-      const ex = state.player.x, ey = 1.5, ez = state.player.z;
+      const bob = (RM || !moving) ? 0 : Math.sin((t || 0) * 9) * 0.025; // 걷기 헤드밥(수직만, 멀미 방지)
+      const ex = state.player.x, ey = 1.5 + bob, ez = state.player.z;
       const P = lookPitch - 0.13, cp = Math.cos(P);
       camera.position.set(ex, ey, ez);
       _chaseLook.set(ex + Math.sin(lookYaw) * cp, ey + Math.sin(P), ez + Math.cos(lookYaw) * cp);
       camera.lookAt(_chaseLook);
     }
-    if (cookBump > 0) cookBump = Math.max(0, cookBump - 0.06);
+    // 동작 모션(조리/서빙/놓기) — 시간 기반 sin, 1인칭+3인칭 공용. RM이면 0(스냅).
+    let mdx = 0, mdy = 0, mdz = 0, mtX = 0, mtZ = 0;
+    if (cookAnim && !RM) {
+      const a = ((t || 0) - cookAnim.t0) / cookAnim.dur;
+      if (a >= 1) cookAnim = null;
+      else {
+        const PI = Math.PI, k = cookAnim.kind;
+        if (k === 'blanch') { mdx = Math.sin(a * PI * 4) * 0.12; mdy = -Math.sin(a * PI) * 0.05; }                  // 면 털기(좌우)
+        else if (k === 'pour') { mdy = -Math.sin(a * PI) * 0.05; mtZ = -Math.sin(a * PI) * 0.7; }                  // 육수 붓기(손목 기울임)
+        else if (k === 'spice') { mdy = Math.abs(Math.sin(a * PI * 3)) * 0.08; mtX = Math.sin(a * PI * 3) * 0.22; } // 양념 톡톡
+        else if (k === 'serve') { mdz = Math.sin(a * PI) * 0.45; mtX = Math.sin(a * PI) * 0.3; }                   // 손님께 내밀기(전방)
+        else if (k === 'place') { mdy = -Math.sin(a * PI) * 0.3; }                                                 // 진열대에 내려놓기
+        else { mdy = -Math.sin(a * PI) * 0.18; }                                                                   // noodle: 면 담그기
+      }
+    }
+    // 1인칭 손 idle 호흡 / 걷기 bob(moving 재사용). RM이면 0.
+    const bobH = RM ? 0 : moving ? Math.abs(Math.sin((t || 0) * 9)) * 0.03 : Math.sin((t || 0) * 2) * 0.012;
+    const swayX = (RM || !moving) ? 0 : Math.sin((t || 0) * 4.5) * 0.02;
     if (camMode === 'first') {
-      // 1인칭: 손·그릇이 보는 방향(yaw)을 따라가고, 조리 시 손 까딱.
-      if (fpHands) { fpHands.rotation.y = lookYaw; fpHands.position.y = -Math.sin(cookBump * Math.PI) * 0.14; }
-      heldBowl.position.set(0.42 * Math.sin(lookYaw), 1.18, 0.42 * Math.cos(lookYaw));
-      heldBowl.rotation.y = lookYaw;
-    } else { // 3인칭/고정: 그릇은 가슴 정면.
-      heldBowl.position.set(0, 1.18, 0.42); heldBowl.rotation.y = 0;
+      // 1인칭: 손·그릇이 보는 방향(yaw)을 따라가고, 동작/걷기 모션은 시야 프레임으로 적용.
+      const sy = Math.sin(lookYaw), cy = Math.cos(lookYaw);
+      if (fpHands) {
+        fpHands.position.set(mdx * cy + mdz * sy + swayX, mdy + bobH, -mdx * sy + mdz * cy);
+        fpHands.rotation.set(mtX, lookYaw, mtZ);
+      }
+      const fwd = 0.42 + mdz;
+      heldBowl.position.set(fwd * sy + mdx * cy, 1.18 + mdy + bobH, fwd * cy - mdx * sy);
+      heldBowl.rotation.set(mtX, lookYaw, mtZ);
+    } else { // 3인칭/고정: 그릇은 가슴 정면 + 동작 모션.
+      heldBowl.position.set(mdx, 1.18 + mdy, 0.42 + mdz); heldBowl.rotation.set(mtX, 0, mtZ);
     }
     const holding = state.player.holding;
     heldBowl.visible = holding !== null;
@@ -388,5 +414,8 @@ export function createScene(canvas) {
 
   // 이동을 시점 기준으로 회전시키기 위한 현재 시점 yaw(1인칭/추격에서만, 그 외 0).
   function getViewYaw() { return (camMode === 'first' || camMode === 'chase') ? lookYaw : 0; }
-  return { sync, render, dispose, cycleCamMode, getCamMode: () => camMode, requestLook, isLooking: () => pointerLocked, cookMotion: () => { cookBump = 1; }, getViewYaw };
+  const _now = () => (typeof performance !== 'undefined' ? performance.now() : 0) / 1000;
+  // 동작 모션 트리거 — kind: 'noodle'|'blanch'|'pour'|'spice'|'serve'|'place'. 기본 0.5s, 서빙/놓기는 0.45s.
+  function cookMotion(kind = 'noodle') { cookAnim = { kind, t0: _now(), dur: (kind === 'serve' || kind === 'place') ? 0.45 : 0.5 }; }
+  return { sync, render, dispose, cycleCamMode, getCamMode: () => camMode, requestLook, isLooking: () => pointerLocked, cookMotion, getViewYaw };
 }

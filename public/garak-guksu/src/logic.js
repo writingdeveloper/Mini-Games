@@ -20,6 +20,16 @@ export const STATIONS = {
   garnish:  { x:  3, z: -1.5 },
 };
 
+// 충돌 blocker(원형) — 플레이어가 작업대/화덕/진열대를 관통하지 않게(garak은 물리엔진 없음 → 수동 push).
+// 외곽(기차·기둥·손님·카운터)은 KITCHEN 박스가 이미 차단 → 막을 내부 에셋은 8개뿐.
+// 반경은 REACH(1.2) 보존이 핵심: 조리대 r 0.8 + PLAYER_RADIUS 0.32 = 1.12 < 1.2 → 조리 판정 유지.
+export const PLAYER_RADIUS = 0.32;
+export const BLOCKERS = [
+  ...Object.values(STATIONS).map((s) => ({ x: s.x, z: s.z, r: 0.8 })), // 조리대 4종(작업대 라인)
+  { x: 4.0, z: -1.5, r: 0.6 },                                          // 주방 화덕(작업대 우측 끝)
+  ...PLACE_SLOTS.map((s) => ({ x: s.x, z: s.z, r: 0.45 })),             // 진열대 3칸(서빙 카운터)
+];
+
 // Deterministic RNG (mulberry32) so orders are reproducible in tests/QA.
 export function mulberry32(seed) {
   let a = seed >>> 0;
@@ -127,8 +137,22 @@ export function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 // dir = {x, z} (roughly unit length), dt = seconds. Mutates + returns state.
 export function movePlayer(state, dir, dt, speedMul = 1) {
   const s = PLAYER_SPEED * speedMul * dt;
-  state.player.x = clamp(state.player.x + dir.x * s, KITCHEN.minX, KITCHEN.maxX);
-  state.player.z = clamp(state.player.z + dir.z * s, KITCHEN.minZ, KITCHEN.maxZ);
+  let nx = clamp(state.player.x + dir.x * s, KITCHEN.minX, KITCHEN.maxX);
+  let nz = clamp(state.player.z + dir.z * s, KITCHEN.minZ, KITCHEN.maxZ);
+  // 에셋 충돌: 각 blocker 원과 겹치면 표면 밖(법선 방향)으로 밀어냄 → 벽 따라 미끄러짐(slide).
+  for (const b of BLOCKERS) {
+    const dx = nx - b.x, dz = nz - b.z;
+    const rr = b.r + PLAYER_RADIUS;
+    const d2 = dx * dx + dz * dz;
+    if (d2 < rr * rr) {
+      const d = Math.sqrt(d2) || 1e-4;
+      nx = b.x + (dx / d) * rr;
+      nz = b.z + (dz / d) * rr;
+    }
+  }
+  // push 후 다시 경계 안으로(모서리에서 밖으로 밀리는 것 방지).
+  state.player.x = clamp(nx, KITCHEN.minX, KITCHEN.maxX);
+  state.player.z = clamp(nz, KITCHEN.minZ, KITCHEN.maxZ);
   return state;
 }
 
@@ -154,12 +178,27 @@ export function grade(state) {
   return '오늘도 한 그릇';
 }
 
-// Serve the nearest in-range customer holding a DONE bowl.
+// Serve the nearest in-range customer a DONE bowl — from hand, or (미리만들기 보상)
+// from a nearby 진열대 done bowl if hands aren't holding a finished one.
 // Correct: combo++, speed bonus, score = (base+doneness+speed+accuracy)×comboMult.
 // Wrong spice: half base, no bonus, combo resets.
 export function serve(state) {
   const p = state.player;
-  if (!p.holding || p.holding.stage !== 'done') return false;
+  // 1) 어떤 완성 그릇으로 낼지 결정 — 손이 우선, 없으면 가까운 진열대의 완성 그릇(버퍼).
+  let bowl = (p.holding && p.holding.stage === 'done') ? p.holding : null;
+  let fromShelf = -1;
+  if (!bowl) {
+    let bd = REACH * REACH;
+    PLACE_SLOTS.forEach((s, i) => {
+      const b = state.placed[i];
+      if (b && b.stage === 'done') {
+        const d = dist2(p.x, p.z, s.x, s.z);
+        if (d <= bd) { bd = d; fromShelf = i; bowl = b; }
+      }
+    });
+  }
+  if (!bowl) return false;
+  // 2) 가까운 손님 선택.
   let best = null, bestD = REACH * REACH;
   for (const c of state.customers) {
     const slot = CUSTOMER_SLOTS[c.slot];
@@ -167,19 +206,19 @@ export function serve(state) {
     if (d <= bestD) { best = c; bestD = d; }
   }
   if (!best) return false;
-  const correct = p.holding.spice === best.order.spice;
+  const correct = bowl.spice === best.order.spice;
   if (correct) {
     state.combo += 1;
     state.bestCombo = Math.max(state.bestCombo, state.combo);
     const speed = Math.round((1 - patienceProgress(best)) * SPEED_MAX);
-    const raw = SERVE_BASE + p.holding.doneness + speed + ACCURACY_BONUS;
+    const raw = SERVE_BASE + bowl.doneness + speed + ACCURACY_BONUS;
     state.score += Math.round(raw * comboMult(state.combo));
     state.served += 1;
   } else {
     state.score += Math.round(SERVE_BASE / 2); // mis-serve: half base, no bonus
     state.combo = 0;
   }
-  p.holding = null;
+  if (fromShelf >= 0) state.placed[fromShelf] = null; else p.holding = null;
   state.customers = state.customers.filter((c) => c.id !== best.id);
   return true;
 }

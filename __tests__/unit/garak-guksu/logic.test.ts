@@ -73,6 +73,22 @@ describe('movePlayer', () => {
   });
 });
 
+describe('충돌 (BLOCKERS — 에셋 관통 방지)', () => {
+  it('조리대로 걸어 들어가도 관통하지 않고 표면 밖에 멈춘다', () => {
+    const g = createGame();
+    g.player.x = STATIONS.broth.x; g.player.z = 0.6;                 // 육수 조리대(1,-1.5) 앞
+    for (let i = 0; i < 80; i++) movePlayer(g, { x: 0, z: -1 }, 0.05); // -z 로 계속 밀어붙임
+    const d = Math.hypot(g.player.x - STATIONS.broth.x, g.player.z - STATIONS.broth.z);
+    expect(d).toBeGreaterThan(0.9);   // 0.8 + 0.32 = 1.12 근처 — 절대 0(관통)이 아님
+  });
+  it('충돌로 멈춰도 조리 거리(REACH)는 유지된다', () => {
+    const g = createGame();
+    g.player.x = STATIONS.broth.x; g.player.z = 0.6;
+    for (let i = 0; i < 80; i++) movePlayer(g, { x: 0, z: -1 }, 0.05);
+    expect(near(g.player.x, g.player.z, STATIONS.broth.x, STATIONS.broth.z)).toBe(true);
+  });
+});
+
 describe('clamp', () => {
   it('bounds a value', () => {
     expect(clamp(5, 0, 3)).toBe(3);
@@ -173,6 +189,32 @@ describe('serve (콤보 · 속도 · 정확)', () => {
     expect(serve(g)).toBe(true);
     expect(g.customers.find((c) => c.id === nearer.id)).toBeUndefined();
     expect(g.customers.length).toBe(1);   // the farther one remains
+  });
+});
+
+describe('미리만들기 서빙 (진열대 버퍼 보상)', () => {
+  it('빈손이어도 가까운 진열대의 완성 그릇으로 서빙한다', () => {
+    const g = createGame(1);
+    g.placed[0] = { stage: 'done', doneness: 50, spice: 'extra' };  // 미리 만들어 둠
+    const shelf = PLACE_SLOTS[0];                                    // (-2.5, 2.3)
+    g.player.x = shelf.x; g.player.z = shelf.z;
+    g.customers.push({ id: g._nextId++, slot: 0, archetype: 'student', order: { spice: 'extra' }, t: 0 }); // slot0(-3,3.2) 사정권
+    expect(g.player.holding).toBe(null);
+    expect(serve(g)).toBe(true);
+    expect(g.placed[0]).toBe(null);   // 진열대에서 나감
+    expect(g.served).toBe(1);
+    expect(g.combo).toBe(1);
+  });
+  it('손에 완성 그릇이 있으면 손 그릇을 먼저 쓰고 진열대는 남긴다', () => {
+    const g = createGame(1);
+    g.placed[0] = { stage: 'done', doneness: 50, spice: 'extra' };
+    const shelf = PLACE_SLOTS[0];
+    g.player.x = shelf.x; g.player.z = shelf.z;
+    g.player.holding = { stage: 'done', doneness: 50, spice: 'extra' };
+    g.customers.push({ id: g._nextId++, slot: 0, archetype: 'student', order: { spice: 'extra' }, t: 0 });
+    expect(serve(g)).toBe(true);
+    expect(g.player.holding).toBe(null);     // 손 그릇 소진
+    expect(g.placed[0]).not.toBe(null);      // 진열대는 그대로
   });
 });
 
