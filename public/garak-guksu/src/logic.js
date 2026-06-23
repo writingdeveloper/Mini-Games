@@ -12,12 +12,13 @@ export const CUSTOMER_SLOTS = [
 export const REACH = 1.2;                            // how close counts as "at" a thing
 export const PLACE_SLOTS = [{ x: -2.5, z: 2.3 }, { x: 0, z: 2.3 }, { x: 2.5, z: 2.3 }]; // 완성 그릇 놓는 진열대(서빙 카운터)
 
-// The four cook stations, left→right across the back of the kitchen.
+// The four cook stations. 화면 왼쪽=월드 +x(카메라가 +z 응시)이므로, 신규 플레이어가
+// 왼쪽부터 ①→④ 순서로 읽도록 x를 +3→-3 로 배치(setting=면이 화면 맨 왼쪽). — 게이머 QA
 export const STATIONS = {
-  setting:  { x: -3, z: -1.5 },
-  blancher: { x: -1, z: -1.5 },
-  broth:    { x:  1, z: -1.5 },
-  garnish:  { x:  3, z: -1.5 },
+  setting:  { x:  3, z: -1.5 },
+  blancher: { x:  1, z: -1.5 },
+  broth:    { x: -1, z: -1.5 },
+  garnish:  { x: -3, z: -1.5 },
 };
 
 // 충돌 blocker(원형) — 플레이어가 작업대/화덕/진열대를 관통하지 않게(garak은 물리엔진 없음 → 수동 push).

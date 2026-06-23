@@ -22,7 +22,7 @@ const STATION_MOOD = {
 let curEra = '증기';
 
 // 굴뚝(증기 발생 원점) 월드 좌표 — 기관차 그룹 z=6.6 + 증기기관차 굴뚝 로컬(-2.2, ~3.0).
-const CHIMNEY = { x: -2.2, z: 6.6 };
+const CHIMNEY = { x: -2.2, z: 8.4 };
 
 // 매달린 백열등 위치(소수 — 성능). x는 화면 양옆, z는 카운터 근처.
 const BULB_SPOTS = [
@@ -282,10 +282,10 @@ function buildKoreanPlatform(group) {
   // 선로 자갈(ballast) — 기관차 아래.
   const ballast = new THREE.Mesh(new THREE.BoxGeometry(46, 0.12, 3.6),
     new THREE.MeshStandardMaterial({ color: 0x1b1920, roughness: 1.0 }));
-  ballast.position.set(0, 0.05, 6.6); ballast.receiveShadow = true; group.add(ballast);
+  ballast.position.set(0, 0.05, 8.4); ballast.receiveShadow = true; group.add(ballast); // 손님 가림 해소 위해 뒤로(6.6→8.4 — QA)
   // 레일 2줄.
   const railMat = new THREE.MeshStandardMaterial({ color: 0x6b6b74, metalness: 0.6, roughness: 0.4 });
-  for (const rz of [5.9, 7.3]) {
+  for (const rz of [7.7, 9.1]) {
     const rail = new THREE.Mesh(new THREE.BoxGeometry(46, 0.08, 0.1), railMat);
     rail.position.set(0, 0.14, rz); group.add(rail);
   }
@@ -318,7 +318,7 @@ function buildKoreanPlatform(group) {
 
   // 기관차/선로를 비추는 따뜻한 키라이트(그림자 없음 — 성능). 주인공이 어둠에 묻히지 않게.
   const trainKey = new THREE.PointLight(0xffd2a0, 1.4, 18, 1.4); // 카운터/우측 과노출 완화(2.2→1.4 — QA)
-  trainKey.position.set(0, 4.6, 7.5); group.add(trainKey);       // 손님 뒤로 후퇴(6.0→7.5)
+  trainKey.position.set(0, 4.6, 8.4); group.add(trainKey);       // 기관차와 함께 후퇴
 }
 
 // ---- 기관차 -----------------------------------------------------------------
@@ -332,7 +332,7 @@ function wheel(r, x, y) {
 
 function makeLocomotive() {
   const group = new THREE.Group();
-  group.position.set(0, 0, 6.6); // 플랫폼 가장자리 바로 앞에 정차(크고 또렷하게).
+  group.position.set(0, 0, 8.4); // 정차 위치 — 손님(z3.2)과 간격 확보(6.6→8.4, 가림 해소 — QA).
   group.scale.setScalar(1.12);
   const steam = makeSteamLoco();
   const diesel = makeDieselLoco(false);
