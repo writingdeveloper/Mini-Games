@@ -28,7 +28,7 @@ const CHIMNEY = { x: -2.2, z: 6.6 };
 const BULB_SPOTS = [
   { x: -3.4, z: 1.4 },
   { x: 3.4, z: 1.4 },
-  { x: 0, z: -0.4 },
+  // 중앙 {x:0,z:-0.4} 제거 — 시야 중앙(손님/간판) 가림(QA). 양옆 2개로 프레이밍.
 ];
 
 // 근경 기둥 위치(양옆 — 화면 좌우 프레이밍).
@@ -317,8 +317,8 @@ function buildKoreanPlatform(group) {
   }
 
   // 기관차/선로를 비추는 따뜻한 키라이트(그림자 없음 — 성능). 주인공이 어둠에 묻히지 않게.
-  const trainKey = new THREE.PointLight(0xffd2a0, 2.2, 22, 1.4);
-  trainKey.position.set(0, 4.6, 6.0); group.add(trainKey);
+  const trainKey = new THREE.PointLight(0xffd2a0, 1.4, 18, 1.4); // 카운터/우측 과노출 완화(2.2→1.4 — QA)
+  trainKey.position.set(0, 4.6, 7.5); group.add(trainKey);       // 손님 뒤로 후퇴(6.0→7.5)
 }
 
 // ---- 기관차 -----------------------------------------------------------------
@@ -363,7 +363,7 @@ function loadLocoModel(url, container) {
       wrap.position.y -= b2.min.y; // 바닥(차륜)을 선로 y0 에
       container.clear();
       container.add(wrap);
-      const fire = new THREE.PointLight(0xff8a3a, 1.3, 9, 1.6);
+      const fire = new THREE.PointLight(0xff8a3a, 0.7, 7, 1.6);
       fire.position.set(1.8, 1.3, 0); container.add(fire);
     }, undefined, () => { /* 로드 실패 → 절차적 기관차 유지 */ });
   } catch { /* GLTFLoader 미가용 → 절차적 유지 */ }
@@ -386,13 +386,13 @@ function makeSteamLoco() {
   cab.position.set(2.4, 1.95, 0); cab.castShadow = true; g.add(cab);
   // 운전실 점등창(어둠 속에서도 기차가 읽히는 따뜻한 등불).
   const cabWin = new THREE.Mesh(new THREE.BoxGeometry(1.74, 0.62, 1.5),
-    new THREE.MeshBasicMaterial({ color: 0xffb24a, fog: true }));
+    new THREE.MeshBasicMaterial({ color: 0xb0742c, fog: true })); // 톤다운(우측 흰 번아웃 해소 — QA)
   cabWin.position.set(2.4, 2.24, 0); g.add(cabWin);
   // 화실(firebox) 불빛.
-  const glow = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 1.5),
-    new THREE.MeshBasicMaterial({ color: 0xff8a2a, fog: true }));
+  const glow = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 1.1),
+    new THREE.MeshBasicMaterial({ color: 0xb35a18, fog: true })); // 면적·밝기 축소(과노출 — QA)
   glow.position.set(1.55, 0.95, 0); g.add(glow);
-  const fireLight = new THREE.PointLight(0xff7a30, 0.8, 8, 1.8);
+  const fireLight = new THREE.PointLight(0xff7a30, 0.5, 7, 1.8);
   fireLight.position.set(1.6, 1.0, 0); g.add(fireLight);
   const frame = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.3, 1.6), iron);
   frame.position.set(0, 0.95, 0); g.add(frame);
@@ -428,8 +428,8 @@ function makeDieselLoco(isLast) {
     const w = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 1.72), winMat);
     w.position.set(x, 2.05, 0); g.add(w);
   }
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(isLast ? 0.26 : 0.18, 12, 10),
-    new THREE.MeshBasicMaterial({ color: isLast ? 0xffffff : 0xfff2c0, fog: false }));
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(isLast ? 0.2 : 0.18, 12, 10),
+    new THREE.MeshBasicMaterial({ color: isLast ? 0xd8c69e : 0xfff2c0, fog: false })); // 풀화이트 번아웃 완화(QA)
   lamp.position.set(-3.45, 1.5, 0); g.add(lamp);
   if (isLast) { const hl = new THREE.PointLight(0xfff0d0, 1.2, 16, 1.6); hl.position.set(-4.4, 1.5, 0); g.add(hl); }
   const frame = new THREE.Mesh(new THREE.BoxGeometry(6.0, 0.4, 1.6),
