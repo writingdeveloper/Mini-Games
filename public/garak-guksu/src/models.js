@@ -86,11 +86,19 @@ preloadModel('hand', '/garak-guksu/models/garak_hand.glb', 0.26);
 
 export function createFloor() {
   const g = new THREE.Group();
-  const floor = new THREE.Mesh(
-    new THREE.BoxGeometry(9, 0.4, 7),
-    new THREE.MeshStandardMaterial({ color: 0x2a2030, roughness: 0.9 })
-  );
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x2a2030, roughness: 0.92 });
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(9, 0.4, 7), floorMat);
   floor.position.y = -0.2; floor.receiveShadow = true; g.add(floor);
+  // AI 바닥 텍스처(1970s 역사 타일, garak_floor.jpg) — 로드되면 map 적용, 실패 시 단색 폴백.
+  try {
+    new THREE.TextureLoader().load('/garak-guksu/img/garak_floor.jpg', (tex) => {
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(2.2, 1.7);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 8;
+      floorMat.map = tex; floorMat.color.setHex(0x9a958e); floorMat.needsUpdate = true; // 야간 톤으로 살짝 틴트
+    }, undefined, () => { /* 로드 실패 → 단색 유지 */ });
+  } catch { /* TextureLoader 미가용 → 폴백 */ }
   const counter = new THREE.Mesh(
     new THREE.BoxGeometry(9, 1.0, 0.5),
     new THREE.MeshStandardMaterial({ color: 0x5a3a22, roughness: 0.7 })
