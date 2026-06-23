@@ -21,15 +21,15 @@ function makeSkyDome() {
   const dome = new THREE.Mesh(new THREE.SphereGeometry(80, 24, 14), mat);
   dome.renderOrder = -10; group.add(dome);
   // 별 — 상반구(천정쪽)에 흩뿌린 점.
-  const N = 340; const pos = new Float32Array(N * 3);
+  const N = 210; const pos = new Float32Array(N * 3); // 과밀(340)→210, 천정쪽에 더 모아 그라데가 읽히게(QA)
   for (let i = 0; i < N; i++) {
-    const th = Math.random() * Math.PI * 2, ph = Math.acos(1 - Math.random() * 0.75), r = 72;
+    const th = Math.random() * Math.PI * 2, ph = Math.acos(1 - Math.random() * 0.55), r = 72;
     pos[i * 3] = r * Math.sin(ph) * Math.cos(th);
     pos[i * 3 + 1] = r * Math.cos(ph) + 5;
     pos[i * 3 + 2] = r * Math.sin(ph) * Math.sin(th);
   }
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const stars = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xcfd8ff, size: 0.55, sizeAttenuation: true, fog: false, transparent: true, opacity: 0.85, depthWrite: false }));
+  const stars = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xcfd8ff, size: 0.5, sizeAttenuation: true, fog: false, transparent: true, opacity: 0.6, depthWrite: false }));
   stars.renderOrder = -9; group.add(stars);
   const hx = (c) => '#' + c.toString(16).padStart(6, '0');
   function setColors(topHex, botHex) {
@@ -93,7 +93,7 @@ function makeKitchen() {
   // 작업대 끝 소품 — 그릇 스택 + 주전자.
   const bowlMat = new THREE.MeshStandardMaterial({ color: 0xcdd1d6, metalness: 0.3, roughness: 0.5 });
   const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.28, 0.42, 16), bowlMat);
-  stack.position.set(-4.1, 0.78, Z); stack.castShadow = true; g.add(stack);
+  stack.position.set(-4.1, 0.83, Z); stack.castShadow = true; g.add(stack); // 상판 윗면(0.62)+높이반(0.21)=0.83(묻힘 해소 — QA)
   // 주방 화덕(AI 복잡 객체, garak_kit_stove.glb) — 작업대 우측 끝. 없으면 절차적 폴백.
   const stove = createKitchenStove();
   stove.position.set(4.0, 0.62, Z);
@@ -150,7 +150,7 @@ export function createScene(canvas) {
   const STATION_LABEL = { setting: '① 면', blancher: '② 데치기', broth: '③ 멸치육수', garnish: '④ 고명 1·2·3' };
   for (const [kind, pos] of Object.entries(STATIONS)) {
     const s = createStation(kind);
-    s.position.set(pos.x, 0.55, pos.z); // 작업대 상판 위
+    s.position.set(pos.x, 0.62, pos.z); // 작업대 상판 윗면(y0.62)에 정확히 얹힘(0.55=상판 중심이라 묻혔음 — QA)
     scene.add(s);
     const label = makeStationLabel(STATION_LABEL[kind]);
     label.position.set(pos.x, 2.0, pos.z);
@@ -342,11 +342,11 @@ export function createScene(canvas) {
     else if (camMode === 'chase') {
       // 추격 3인칭: 주인공 주위를 돌며 따라감 — 드래그로 yaw(둘레)·pitch(상하). 기본=뒤(-z)·위.
       const A = Math.PI + lookYaw;
-      const E = Math.max(0.12, Math.min(1.2, 0.55 + lookPitch));
-      const R = 7.5, cx = state.player.x, cz = state.player.z;
+      const E = Math.max(0.25, Math.min(1.2, 0.6 + lookPitch)); // 하한↑(셰프 모델 관통/near-clip 방지 — QA)
+      const R = 9.0, cx = state.player.x, cz = state.player.z;   // 반경↑(전경 적색 덩어리 해소)
       _chasePos.set(cx + R * Math.cos(E) * Math.sin(A), R * Math.sin(E) + 0.5, cz + R * Math.cos(E) * Math.cos(A));
-      camera.position.lerp(_chasePos, 0.15);
-      _chaseLook.set(cx, 1.1, cz);
+      camera.position.lerp(_chasePos, 0.25);                      // 진입 시 더 빨리 정착(관통 프레임 단축)
+      _chaseLook.set(cx, 1.4, cz);                                // 시선을 카운터/그릇 높이로(바닥 과점유 완화)
       camera.lookAt(_chaseLook);
     } else if (camMode === 'first') {
       // 1인칭: 주인장 눈높이에서 마우스로 고개 돌리기. 기본 시선 살짝 아래(손/그릇/작업대 보이게).
@@ -382,8 +382,8 @@ export function createScene(canvas) {
         fpHands.position.set(mdx * cy + mdz * sy + swayX, mdy + bobH, -mdx * sy + mdz * cy);
         fpHands.rotation.set(mtX, lookYaw, mtZ);
       }
-      const fwd = 0.62 + mdz;
-      heldBowl.position.set(fwd * sy + mdx * cy, 1.20 + mdy + bobH, fwd * cy - mdx * sy); // 손목 아래서 그릇을 든다(시야 확보)
+      const fwd = 0.56 + mdz;
+      heldBowl.position.set(fwd * sy + mdx * cy, 1.26 + mdy + bobH, fwd * cy - mdx * sy); // 손목(±0.20,1.28,0.60) 높이에 맞춰 양손이 테두리 그립(QA)
       heldBowl.rotation.set(mtX, lookYaw, mtZ);
     } else { // 3인칭/고정: 그릇은 가슴 정면 + 동작 모션.
       heldBowl.position.set(mdx, 1.18 + mdy, 0.42 + mdz); heldBowl.rotation.set(mtX, 0, mtZ);

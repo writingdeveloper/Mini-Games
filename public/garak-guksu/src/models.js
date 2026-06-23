@@ -185,7 +185,7 @@ export function createChef() {
   attachModel('chef', chefBody, proc); // garak_chef.glb 있으면 절차적 셰프를 대체(chefBody 안)
   g.add(chefBody);
   const bowl = createBowl();
-  bowl.position.set(0, 1.18, 0.42); bowl.scale.setScalar(1.2); // 1인칭서 시야 안 가리게 축소
+  bowl.position.set(0, 1.18, 0.42); bowl.scale.setScalar(1.0); // 1인칭서 시야 안 가리게 + 손이 테두리 그립(QA)
   bowl.name = 'heldBowl'; bowl.visible = false;
   g.add(bowl);
   // 1인칭 팔·손(평소 숨김, FP 에서만). 다른 1인칭 게임처럼 팔뚝이 화면 하단에서 올라와
