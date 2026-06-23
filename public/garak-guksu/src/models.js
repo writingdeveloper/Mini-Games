@@ -142,16 +142,25 @@ export function createChef() {
   const sleeve = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.6 });
   const UP = new THREE.Vector3(0, 1, 0);
   for (const side of [-1, 1]) {
-    const elbow = new THREE.Vector3(side * 0.36, 0.86, 0.16);  // 팔꿈치: 낮고 몸쪽(화면 하단서 진입)
-    const wrist = new THREE.Vector3(side * 0.19, 1.34, 0.66);  // 손목: 높고 앞쪽(그릇 옆)
+    const elbow = new THREE.Vector3(side * 0.34, 0.82, 0.12);  // 팔꿈치: 낮고 몸쪽(화면 하단서 진입)
+    const wrist = new THREE.Vector3(side * 0.20, 1.28, 0.60);  // 손목: 높고 앞쪽(그릇 옆)
     const dir = wrist.clone().sub(elbow); const len = dir.length();
     const arm = new THREE.Group(); arm.position.copy(elbow);
     arm.quaternion.setFromUnitVectors(UP, dir.clone().normalize()); // +Y(소매 길이축)를 팔뚝 방향으로
-    const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.105, len, 14), sleeve); // 흰 셰프복 소매(팔뚝)
+    const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.095, len, 16), sleeve); // 흰 셰프복 소매(팔뚝)
     forearm.position.set(0, len / 2, 0); forearm.castShadow = true; arm.add(forearm);
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.125, 16, 12), skin);                // 손(손목 끝)
-    hand.scale.set(1.15, 0.78, 1.08); hand.position.set(0, len + 0.04, 0.02); hand.castShadow = true; arm.add(hand);
     hands.add(arm);
+    // 손 — 손바닥 + 손가락4 + 엄지(그릇을 받쳐 쥔 형태). 둥근 공 대신 손 실루엣으로 사실감.
+    const hand = new THREE.Group(); hand.position.copy(wrist); hand.rotation.set(-0.6, side * 0.2, 0);
+    const palm = new THREE.Mesh(new THREE.BoxGeometry(0.115, 0.05, 0.12), skin); hand.add(palm);
+    for (let i = 0; i < 4; i++) {
+      const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.0145, 0.055, 4, 8), skin);
+      f.position.set((i - 1.5) * 0.03, 0.006, 0.095); f.rotation.x = Math.PI / 2 - 0.35; hand.add(f); // 앞으로 살짝 굽힘
+    }
+    const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.017, 0.045, 4, 8), skin);
+    thumb.position.set(-side * 0.066, 0.0, 0.035); thumb.rotation.set(Math.PI / 2 - 0.2, 0, side * 0.7); hand.add(thumb);
+    hand.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    hands.add(hand);
   }
   g.add(hands);
   return g;

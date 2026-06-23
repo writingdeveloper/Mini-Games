@@ -166,7 +166,7 @@ export function createScene(canvas) {
   let cookAnim = null;                      // 동작 모션 토큰 { kind, t0, dur } — 조리/서빙/놓기별 손·그릇 궤적
   const CAM_MODES = ['fixed', 'orbit', 'chase', 'first'];
   // 모드별 시야각(수직 fov). 1인칭은 넓게(46°→64°, 모바일 70°) 잡아 "확대된 느낌" 해소, 부감/궤도는 차분히.
-  const MODE_FOV = { fixed: 46, orbit: 46, chase: 52, first: LOW ? 70 : 64 };
+  const MODE_FOV = { fixed: 46, orbit: 46, chase: 54, first: LOW ? 80 : 72 };
   let camMode = 'fixed';
   function applyCamMode(mode) {
     if (!CAM_MODES.includes(mode)) return camMode;
