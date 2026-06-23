@@ -535,12 +535,13 @@ function makeSteam(reducedMotion, origin) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   const mat = new THREE.PointsMaterial({
-    map: makeSteamSprite(), color: 0xeef0ea, size: 3.8, sizeAttenuation: true,
-    transparent: true, opacity: 0.0, depthWrite: false, blending: THREE.AdditiveBlending, fog: true });
+    map: makeSteamSprite(), color: 0xdfe3e0, size: 3.4, sizeAttenuation: true,
+    // NormalBlending: 증기는 광원이 아니므로 가산혼합 금지(우측 흰 글로우 번아웃의 원인) → 부드러운 반투명 수증기.
+    transparent: true, opacity: 0.0, depthWrite: false, blending: THREE.NormalBlending, fog: true });
   const points = new THREE.Points(geo, mat);
   points.name = 'steam'; points.frustumCulled = false;
 
-  let density = 1.0; const baseOpacity = 0.56;
+  let density = 1.0; const baseOpacity = 0.36; // NormalBlending 전환에 맞춰 하향(반투명 수증기 농도)
   function setDensity(d) {
     density = Math.max(0, Math.min(1, d));
     mat.opacity = reducedMotion ? baseOpacity * density * 0.5 : baseOpacity * density;
