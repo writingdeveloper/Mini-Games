@@ -81,6 +81,8 @@ for (const kind of ['setting', 'blancher', 'broth', 'garnish']) {
 }
 // 주방 화덕(AI 복잡 객체) — 작업대 위 끓는 육수솥. 없으면 절차적 폴백.
 preloadModel('kit_stove', '/garak-guksu/models/garak_kit_stove.glb', 1.1, { ground: true });
+// 1인칭 손(AI 실제 사람 손, garak_hand.glb) — 없으면 절차적 손 폴백. 오른손 생성→왼쪽은 미러.
+preloadModel('hand', '/garak-guksu/models/garak_hand.glb', 0.26);
 
 export function createFloor() {
   const g = new THREE.Group();
@@ -113,6 +115,35 @@ export function createKitchenStove() {
   return g;
 }
 
+// AI 사람 손(garak_hand.glb)을 양 손목에 배치 — 오른손 생성, 왼쪽은 X미러(노멀 DoubleSide 보정).
+// 절차적 손은 숨김(폴백). 방향/크기/오프셋은 HAND_FIT 한 곳에서 튜닝(실화면 보고 조정).
+const HAND_FIT = { scale: 0.9, rotX: 1.0, rotY: 0.28, rotZ: 0, ox: 0, oy: 0.0, oz: 0.0 }; // 실화면 튜닝값
+function placeHand(h, side, wrist) {
+  const s = (h.userData.base || 1) * HAND_FIT.scale; // base=프리로드 정규화 스케일 → 덮어쓰지 말고 배수만
+  h.position.set(wrist.x + HAND_FIT.ox * side, wrist.y + HAND_FIT.oy, wrist.z + HAND_FIT.oz);
+  h.rotation.set(HAND_FIT.rotX, side * HAND_FIT.rotY, side * HAND_FIT.rotZ);
+  h.scale.set(side < 0 ? -s : s, s, s); // 왼손=X미러
+}
+function attachHands(hands, slots) {
+  const apply = () => {
+    const tpl = _loadedModels['hand'];
+    if (!tpl) return;
+    const built = [];
+    for (const { side, wrist, proc } of slots) {
+      const h = tpl.clone(true);
+      h.userData.side = side; h.userData.wrist = wrist; h.userData.base = tpl.scale.x;
+      if (side < 0) h.traverse((o) => { if (o.isMesh && o.material) { o.material = o.material.clone(); o.material.side = THREE.DoubleSide; } });
+      h.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+      placeHand(h, side, wrist);
+      hands.add(h); built.push(h); proc.visible = false;
+    }
+    // 라이브 튜닝: window.__hands({scale, rotX, rotY, rotZ, ox, oy, oz}) 로 즉시 재배치(값 찾으면 HAND_FIT 기본값에 반영).
+    if (typeof window !== 'undefined') window.__hands = (o = {}) => { Object.assign(HAND_FIT, o); built.forEach((h) => placeHand(h, h.userData.side, h.userData.wrist)); return HAND_FIT; };
+  };
+  if (_loadedModels['hand']) apply();
+  else (_modelWaiters['hand'] = _modelWaiters['hand'] || []).push(apply);
+}
+
 export function createChef() {
   const g = new THREE.Group();
   const body = new THREE.Mesh(
@@ -141,6 +172,7 @@ export function createChef() {
   const skin = new THREE.MeshStandardMaterial({ color: 0xffd9b0, roughness: 0.75 });
   const sleeve = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.6 });
   const UP = new THREE.Vector3(0, 1, 0);
+  const handSlots = [];
   for (const side of [-1, 1]) {
     const elbow = new THREE.Vector3(side * 0.34, 0.82, 0.12);  // 팔꿈치: 낮고 몸쪽(화면 하단서 진입)
     const wrist = new THREE.Vector3(side * 0.20, 1.28, 0.60);  // 손목: 높고 앞쪽(그릇 옆)
@@ -151,7 +183,7 @@ export function createChef() {
     forearm.position.set(0, len / 2, 0); forearm.castShadow = true; arm.add(forearm);
     hands.add(arm);
     // 손 — 손바닥 + 손가락4 + 엄지(그릇을 받쳐 쥔 형태). 둥근 공 대신 손 실루엣으로 사실감.
-    const hand = new THREE.Group(); hand.position.copy(wrist); hand.rotation.set(-0.6, side * 0.2, 0);
+    const hand = new THREE.Group(); hand.name = 'procHand'; hand.position.copy(wrist); hand.rotation.set(-0.6, side * 0.2, 0);
     const palm = new THREE.Mesh(new THREE.BoxGeometry(0.115, 0.05, 0.12), skin); hand.add(palm);
     for (let i = 0; i < 4; i++) {
       const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.0145, 0.055, 4, 8), skin);
@@ -161,7 +193,9 @@ export function createChef() {
     thumb.position.set(-side * 0.066, 0.0, 0.035); thumb.rotation.set(Math.PI / 2 - 0.2, 0, side * 0.7); hand.add(thumb);
     hand.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     hands.add(hand);
+    handSlots.push({ side, wrist, proc: hand });
   }
+  attachHands(hands, handSlots); // AI 손 있으면 절차적 손 대체(좌우 미러)
   g.add(hands);
   return g;
 }
