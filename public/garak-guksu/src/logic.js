@@ -2,7 +2,7 @@
 // Plan 2 = 4-station pipeline: 사리세팅 → 데치기(timed doneness) → 육수 → 마감(spice) → 배식.
 
 // The chef walks this floor plane (x = left/right, z = depth toward counter).
-export const KITCHEN = { minX: -4, maxX: 6.9, minZ: -2.5, maxZ: 2.5 }; // maxX 6.9: 문 열면 창고(x4.7~7.4) 안으로 충분히 들어가게(좁아서 막히던 것 해소)
+export const KITCHEN = { minX: -4, maxX: 12, minZ: -2.5, maxZ: 2.5 }; // maxX 12: 창고 뒷길(우벽 출구 너머 어두운 도로)까지 나갈 수 있게
 
 // Customer slots along the counter (front, z = 3.2), spread across x.
 export const CUSTOMER_SLOTS = [
@@ -13,6 +13,8 @@ export const REACH = 1.2;                            // how close counts as "at"
 export const PLACE_SLOTS = [{ x: -2.5, z: 2.3 }, { x: 0, z: 2.3 }, { x: 2.5, z: 2.3 }]; // 완성 그릇 놓는 진열대(서빙 카운터)
 export const DOORWAY = { x: 4.7, z: 0 };             // 측면 창고 입구(문/칸막이 x). 닫히면 통행 차단, 열면 문간으로 통과.
 export const DOOR_HALF = 0.9;                        // 문간 반폭 — |z|<DOOR_HALF 이고 문 열림일 때만 칸막이(x=DOORWAY.x) 통과
+export const RIGHT_WALL = 7.4;                       // 건물 우벽(창고 바깥) — 창고 뒷길로 나가는 출구
+export const RIGHT_GAP_HALF = 1.2;                   // 우벽 뒷길 출구 반폭 — |z|<RIGHT_GAP_HALF 에서만 통과(문 없음, 항상 열림)
 // 알바(자율 일꾼) — 손님을 맡아 조리(추상 타이머)→배달 서빙까지 전체 루프를 스스로 수행.
 export const ALBA_HOME = { x: 4.15, z: 0.7 };        // 1번 알바 대기 위치(조리·서빙 사이, 플레이어 동선 비켜)
 export const ALBA_HOME2 = { x: 4.55, z: 1.5 };       // 2번 알바 대기 위치(겹침 방지)
@@ -164,6 +166,11 @@ export function movePlayer(state, dir, dt, speedMul = 1) {
   if (!(Math.abs(nz) < DOOR_HALF && state.doorOpen)) {
     if (prevX < DOORWAY.x && nx > DOORWAY.x - PLAYER_RADIUS) nx = DOORWAY.x - PLAYER_RADIUS;       // 주방 쪽 → 칸막이 못 넘음
     else if (prevX > DOORWAY.x && nx < DOORWAY.x + PLAYER_RADIUS) nx = DOORWAY.x + PLAYER_RADIUS;  // 창고 쪽 → 칸막이 못 넘음(문 닫히면 안에 머묾)
+  }
+  // 우벽(x=RIGHT_WALL): 창고 뒷길 출구(|z|<RIGHT_GAP_HALF)에서만 통과. 그 외엔 부드러운 벽(스냅·끼임 방지).
+  if (Math.abs(nz) >= RIGHT_GAP_HALF) {
+    if (prevX < RIGHT_WALL && nx > RIGHT_WALL - PLAYER_RADIUS) nx = RIGHT_WALL - PLAYER_RADIUS;       // 창고 쪽 → 우벽 못 넘음
+    else if (prevX > RIGHT_WALL && nx < RIGHT_WALL + PLAYER_RADIUS) nx = RIGHT_WALL + PLAYER_RADIUS;  // 뒷길 쪽 → 우벽 못 넘음
   }
   // 에셋 충돌: 각 blocker 원과 겹치면 표면 밖(법선 방향)으로 밀어냄 → 벽 따라 미끄러짐(slide).
   for (const b of BLOCKERS) {

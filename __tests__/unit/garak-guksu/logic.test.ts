@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, slotProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress, WAVES, INTERMISSION, tickWave, comboMult, SPEED_MAX, grade, placeOrPickup, PLACE_SLOTS, toggleDoor, albaTick, ALBA_RESCUE, throwBowl, DOORWAY, PLAYER_RADIUS } from '../../../public/garak-guksu/src/logic.js';
+import { createGame, KITCHEN, movePlayer, clamp, CUSTOMER_SLOTS, serve, SERVE_BASE, near, REACH, STATIONS, setNoodle, putInBlancher, tickBlancher, slotProgress, liftFromBlancher, donenessScore, BLANCH_TIME, pourBroth, garnish, SPICES, ARCHETYPES, ARCHETYPE_KEYS, tickSpawns, SPAWN_INTERVAL, tickCustomers, patienceProgress, WAVES, INTERMISSION, tickWave, comboMult, SPEED_MAX, grade, placeOrPickup, PLACE_SLOTS, toggleDoor, albaTick, ALBA_RESCUE, throwBowl, DOORWAY, PLAYER_RADIUS, RIGHT_WALL } from '../../../public/garak-guksu/src/logic.js';
 
 describe('createGame', () => {
   it('starts empty-handed, no customers, serving wave 0, 5 lives', () => {
@@ -90,6 +90,16 @@ describe('movePlayer', () => {
     g.player.x = 6.0; g.player.z = 0; // 창고 안(문 닫힘 상태)
     movePlayer(g, { x: -1, z: 0 }, 100); // 주방으로 나가려 함
     expect(g.player.x).toBeCloseTo(DOORWAY.x + PLAYER_RADIUS, 5); // 칸막이 안쪽서 멈춤(문 열어야 나감)
+  });
+  it('창고 뒷길 출구: 출구 밖(z≈2)은 우벽서 막힘, 출구(z≈0)로만 뒷길 도로까지 나감', () => {
+    const g = createGame();
+    g.player.x = 7.0; g.player.z = -2.0;      // 창고 안, 출구 밖(|z|>1.2) — 가구 blocker 없는 위치
+    movePlayer(g, { x: 1, z: 0 }, 100);
+    expect(g.player.x).toBeCloseTo(RIGHT_WALL - PLAYER_RADIUS, 5); // 우벽서 막힘
+    const g2 = createGame();
+    g2.player.x = 7.0; g2.player.z = 0;        // 출구(|z|<1.2)
+    movePlayer(g2, { x: 1, z: 0 }, 100);
+    expect(g2.player.x).toBe(KITCHEN.maxX);    // 뒷길 도로(maxX)까지 통과
   });
 });
 

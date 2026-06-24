@@ -99,6 +99,8 @@ preloadModel('bowls', '/garak-guksu/models/garak_bowls.glb', 0.4, { ground: true
 // 알바 2명(AI, garak_alba/alba2.glb — 4080 PonyXL 생성 특이·웃긴 만화 마스코트). 서있는 캐릭터=세로형이라 슬래브 없음.
 preloadModel('alba', '/garak-guksu/models/garak_alba.glb', 1.62, { ground: true, byHeight: true, rotateY: Math.PI });
 preloadModel('alba2', '/garak-guksu/models/garak_alba2.glb', 1.62, { ground: true, byHeight: true, rotateY: Math.PI });
+// 창고 뒷길 공포 캐릭터 7종(AI 언캐니 마스코트) — 도로에 일렬. byHeight 정규화(키 1.55), 배치 시 -x 로 플레이어 응시.
+for (let ci = 1; ci <= 7; ci++) preloadModel('creepy' + ci, '/garak-guksu/models/garak_creepy' + ci + '.glb', 1.55, { ground: true, byHeight: true });
 
 export function createFloor() {
   const g = new THREE.Group();
@@ -157,6 +159,13 @@ export function createThermos() {
 export function createBowlStack() {
   const g = new THREE.Group();
   attachInto('bowls', g);
+  return g;
+}
+
+// 창고 뒷길 공포 캐릭터(garak_creepy*.glb, AI 언캐니 마스코트) — 일렬 배치용. 로드되면 클론 주입, 없으면 빈(절차적 폴백 없음, 안 보임).
+export function createCreepy(key) {
+  const g = new THREE.Group();
+  attachInto(key, g);
   return g;
 }
 

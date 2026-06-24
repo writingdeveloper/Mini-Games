@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createFloor, createChef, createStation, createCustomer, createGauge, createKitchenStove, createBowl, createWarehouseFridge, createWarehouseCan, createKettle, createThermos, createBowlStack, createAlba } from './models.js';
+import { createFloor, createChef, createStation, createCustomer, createGauge, createKitchenStove, createBowl, createWarehouseFridge, createWarehouseCan, createKettle, createThermos, createBowlStack, createAlba, createCreepy } from './models.js';
 import { STATIONS, CUSTOMER_SLOTS, slotProgress, patienceProgress, BLANCH_SLOTS, WAVES, PLACE_SLOTS, ALBA_HOME, ALBA_HOME2 } from './logic.js';
 import { buildStation, tickStation, makeStationLabel } from './station.js';
 
@@ -126,7 +126,10 @@ function makeWalls() {
   }
   wall(1.3, -3.5, 12.6, 'x');    // 뒷벽
   wall(-4.8, -0.05, 7.1, 'z');   // 좌벽
-  wall(7.4, -0.05, 7.1, 'z');    // 우벽(창고 바깥)
+  // 우벽(창고 바깥) — 창고 뒷길 출구(z[-1.25,1.25]) 비우고 양옆 + 출구 위 인방.
+  wall(7.4, -2.425, 2.35, 'z');  // -z 구간 z[-3.6,-1.25]
+  wall(7.4, 2.375, 2.25, 'z');   // +z 구간 z[1.25,3.5]
+  const rabove = new THREE.Mesh(new THREE.BoxGeometry(0.16, WALL_H - 2.5, 2.5), plaster); rabove.position.set(7.4, 2.5 + (WALL_H - 2.5) / 2, 0); rabove.receiveShadow = true; g.add(rabove); // 뒷길 출구 위 인방벽
   // 칸막이(주방 x<4.7 ↔ 창고): 문간 z[-0.95,0.95] 비우고 양옆 + 문 위.
   wall(PARTITION_X, -2.225, 2.55, 'z'); // -z 구간 z[-3.5,-0.95]
   wall(PARTITION_X, 2.175, 2.45, 'z');  // +z 구간 z[0.95,3.4]
@@ -144,6 +147,33 @@ function makeWalls() {
   // 차림표(메뉴판) — 뒷벽에 걸어 건물 분위기 + 휑한 벽 보완. 조리(−z) 시 보임.
   const menu = makeMenuBoard('menu'); menu.position.set(-1.6, 2.35, -3.42); g.add(menu);
   const menu2 = makeMenuBoard('notice'); menu2.position.set(3.4, 2.35, -3.42); g.add(menu2); // 안내판(변화)
+  return g;
+}
+
+// 창고 뒷길 — 우벽 출구(x=7.4) 너머 어두운 도로 구역. 공포 캐릭터들이 일렬로 서 있는 음산한 밤길(안개로 더 섬뜩).
+function makeBackRoad() {
+  const g = new THREE.Group();
+  const road = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.06, 7.6),
+    new THREE.MeshStandardMaterial({ color: 0x14141a, roughness: 0.96 }));
+  road.position.set(10.7, 0.0, -0.05); road.receiveShadow = true; g.add(road); // x[7.0,14.4]
+  const line = new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.062, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0x32322a, roughness: 0.9 }));
+  line.position.set(10.8, 0.001, -0.05); g.add(line); // 희미한 중앙선
+  const lamp = new THREE.PointLight(0x8fb0d8, 0.6, 17, 1.5); lamp.position.set(9.6, 3.4, 0); g.add(lamp); // 차가운 희미한 가로등(정적)
+  return g;
+}
+
+// 창고 뒷길 공포 캐릭터 8체 일렬 배치 — 도로(x≈9.5)에 줄지어 플레이어(-x)를 응시하며 미동 없이 서 있음(언캐니 정적).
+function makeCreepyLine() {
+  const g = new THREE.Group();
+  const N = 7, x0 = 9.5, z0 = -3.0, dz = 1.0;
+  for (let i = 0; i < N; i++) {
+    const fig = createCreepy('creepy' + (i + 1));
+    const jx = (i % 2 ? 0.22 : -0.12), jr = ((i % 3) - 1) * 0.09; // 약간 어긋난 정적(부자연스러움)
+    fig.position.set(x0 + jx, 0, z0 + i * dz);
+    fig.rotation.y = -Math.PI / 2 + jr; // 정면(+z)을 -x(플레이어)로 — 응시
+    g.add(fig);
+  }
   return g;
 }
 
@@ -341,6 +371,8 @@ export function createScene(canvas) {
   const walls = makeWalls(); scene.add(walls);
   // 창고(측면 +x) — 주방 우측 '옆에 이어서' 항상 보이는 저장 공간(AI 냉장고 + 절차적 선반).
   const sideStore = makeSideStorage(); scene.add(sideStore);
+  const backRoad = makeBackRoad(); scene.add(backRoad); // 창고 뒷길(어두운 도로 + 가로등) — 공포 캐릭터 일렬 배치
+  const creepyLine = makeCreepyLine(); scene.add(creepyLine); // 공포 캐릭터 8체(garak_creepy*.glb, 없으면 안 보임)
   const door = makeDoor(); scene.add(door);
   const albas = [createAlba('alba', 0x2f8f7a), createAlba('alba2', 0xc26a2f)]; // AI 캐릭터(없으면 청록/주황 절차적 폴백)
   albas[0].position.set(ALBA_HOME.x, 0, ALBA_HOME.z);
