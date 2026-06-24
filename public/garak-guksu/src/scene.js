@@ -142,23 +142,34 @@ function makeWalls() {
   const beamMat = new THREE.MeshStandardMaterial({ color: 0x3a281b, roughness: 0.9 });
   for (const bz of [-2.7, -1.0, 0.7, 2.4]) { const beam = new THREE.Mesh(new THREE.BoxGeometry(12.6, 0.16, 0.16), beamMat); beam.position.set(1.3, WALL_H - 0.11, bz); g.add(beam); }
   // 차림표(메뉴판) — 뒷벽에 걸어 건물 분위기 + 휑한 벽 보완. 조리(−z) 시 보임.
-  const menu = makeMenuBoard(); menu.position.set(-1.6, 2.35, -3.42); g.add(menu);
-  const menu2 = makeMenuBoard(); menu2.position.set(3.4, 2.35, -3.42); g.add(menu2);
+  const menu = makeMenuBoard('menu'); menu.position.set(-1.6, 2.35, -3.42); g.add(menu);
+  const menu2 = makeMenuBoard('notice'); menu2.position.set(3.4, 2.35, -3.42); g.add(menu2); // 안내판(변화)
   return g;
 }
 
-// 벽에 거는 차림표(CanvasTexture). 1980년대 역전 국수집 가격표.
-function makeMenuBoard() {
+// 벽에 거는 차림표/안내판(CanvasTexture). 1980년대 역전 국수집. kind='menu'(가격표) | 'notice'(안내).
+function makeMenuBoard(kind = 'menu') {
   const c = document.createElement('canvas'); c.width = 256; c.height = 160;
   const x = c.getContext('2d');
   x.fillStyle = '#241a12'; x.fillRect(0, 0, 256, 160);
-  x.fillStyle = '#f2d89e'; x.font = '800 30px "Malgun Gothic", system-ui, sans-serif'; x.textAlign = 'center';
-  x.fillText('차 림 표', 128, 38);
-  x.strokeStyle = '#7a5a30'; x.lineWidth = 2; x.beginPath(); x.moveTo(24, 52); x.lineTo(232, 52); x.stroke();
-  x.font = '600 23px "Malgun Gothic", system-ui, sans-serif'; x.textAlign = 'left'; x.fillStyle = '#e7d29a';
-  x.fillText('가락국수', 30, 88); x.textAlign = 'right'; x.fillText('200원', 226, 88);
-  x.textAlign = 'left'; x.fillText('비빔국수', 30, 120); x.textAlign = 'right'; x.fillText('250원', 226, 120);
-  x.textAlign = 'left'; x.fillText('곱빼기', 30, 150); x.textAlign = 'right'; x.fillText('300원', 226, 150);
+  if (kind === 'notice') {
+    x.fillStyle = '#f2d89e'; x.font = '800 27px "Malgun Gothic", system-ui, sans-serif'; x.textAlign = 'center';
+    x.fillText('오늘도 한 그릇', 128, 40);
+    x.strokeStyle = '#7a5a30'; x.lineWidth = 2; x.beginPath(); x.moveTo(24, 54); x.lineTo(232, 54); x.stroke();
+    x.font = '600 21px "Malgun Gothic", system-ui, sans-serif'; x.fillStyle = '#e7d29a';
+    x.fillText('막차 0시 50분', 128, 90);
+    x.fillText('서서 드시고 가세요', 128, 122);
+    x.font = '600 17px "Malgun Gothic", system-ui, sans-serif'; x.fillStyle = '#caa86a';
+    x.fillText('— 대전역 —', 128, 150);
+  } else {
+    x.fillStyle = '#f2d89e'; x.font = '800 30px "Malgun Gothic", system-ui, sans-serif'; x.textAlign = 'center';
+    x.fillText('차 림 표', 128, 38);
+    x.strokeStyle = '#7a5a30'; x.lineWidth = 2; x.beginPath(); x.moveTo(24, 52); x.lineTo(232, 52); x.stroke();
+    x.font = '600 23px "Malgun Gothic", system-ui, sans-serif'; x.textAlign = 'left'; x.fillStyle = '#e7d29a';
+    x.fillText('가락국수', 30, 88); x.textAlign = 'right'; x.fillText('200원', 226, 88);
+    x.textAlign = 'left'; x.fillText('비빔국수', 30, 120); x.textAlign = 'right'; x.fillText('250원', 226, 120);
+    x.textAlign = 'left'; x.fillText('곱빼기', 30, 150); x.textAlign = 'right'; x.fillText('300원', 226, 150);
+  }
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
   const g = new THREE.Group();
   const frame = new THREE.Mesh(new THREE.BoxGeometry(2.05, 1.32, 0.06), new THREE.MeshStandardMaterial({ color: 0x4a3324, roughness: 0.8 }));
