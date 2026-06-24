@@ -154,11 +154,12 @@ function makeWalls() {
 function makeBackRoad() {
   const g = new THREE.Group();
   const road = new THREE.Mesh(new THREE.BoxGeometry(9.0, 0.06, 10.4),
-    new THREE.MeshStandardMaterial({ color: 0x14141a, roughness: 0.96 }));
-  road.position.set(11.0, 0.0, 0); road.receiveShadow = true; g.add(road); // x[6.5,15.5] z[-5.2,5.2]
-  const lamp1 = new THREE.PointLight(0xa8c4e8, 1.3, 20, 1.2); lamp1.position.set(9.4, 3.4, 0); g.add(lamp1);  // 앞줄 가로등(어두운 호러 보이게 보강)
-  const lamp2 = new THREE.PointLight(0x96b2da, 1.0, 20, 1.2); lamp2.position.set(12.5, 3.4, 0); g.add(lamp2); // 뒷줄 가로등(차가운 정적)
-  const lampF = new THREE.PointLight(0x9ab0d0, 0.7, 16, 1.4); lampF.position.set(8.0, 2.2, 0); g.add(lampF); // 출구쪽 낮은 채움광(정면 보강)
+    new THREE.MeshStandardMaterial({ color: 0x2a2a32, roughness: 0.95 }));
+  road.position.set(11.0, 0.0, 0); road.receiveShadow = true; g.add(road); // x[6.5,15.5] z[-5.2,5.2] (관람 위해 바닥 톤↑)
+  // 관람용 조명 — 어두운 캐릭터/바닥이 보이게 보강.
+  const lamp1 = new THREE.PointLight(0xbcd2f0, 2.2, 26, 1.0); lamp1.position.set(9.4, 3.8, 0); g.add(lamp1);   // 인형줄(앞)
+  const lamp2 = new THREE.PointLight(0xbcd2f0, 2.2, 26, 1.0); lamp2.position.set(12.5, 3.8, 0); g.add(lamp2);  // 갤러리(뒤)
+  const lampF = new THREE.PointLight(0xc8d6ee, 1.5, 22, 1.1); lampF.position.set(8.5, 2.8, 0); g.add(lampF);   // 출구쪽 채움
   return g;
 }
 
@@ -166,14 +167,36 @@ function makeBackRoad() {
 // (이전 실험분 makeCreepyLine[우스꽝 마스코트 7]·makeHorrorLine[추상 호러 10]은 제거 — garak_creepy/horror*.glb 파일은 보존.)
 function makeDollLine() {
   const g = new THREE.Group();
-  const N = 10, x0 = 9.5, z0 = -4.5, dz = 1.0;
-  for (let i = 0; i < N; i++) {
-    const fig = createCreepy('doll' + (i + 1));
+  const KEEP = [1, 3, 5, 6, 8, 9], x0 = 9.5, dz = 1.1;       // 사용자 선택 6종
+  const z0 = -((KEEP.length - 1) * dz) / 2;                   // 중앙 정렬
+  KEEP.forEach((dn, i) => {
+    const fig = createCreepy('doll' + dn);
     const jx = (i % 2 ? 0.2 : -0.1), jr = ((i % 3) - 1) * 0.07;
     fig.position.set(x0 + jx, 0, z0 + i * dz);
     fig.rotation.y = -Math.PI / 2 + jr; // 정면(+z)을 -x(플레이어)로 — 응시
     g.add(fig);
-  }
+  });
+  return g;
+}
+
+// 전체 만든 캐릭터 관람 갤러리 — 원래 구현 캐릭터(주인장·손님5·알바2)를 뒷줄(x≈12.5)에 쭉 세워 관람. -x 응시.
+// createCreepy(key)=attachInto 재사용으로 임의 glb 정적 인스턴스. baked=preload rotateY:π(손님·알바) 보정.
+function makeReviewGallery() {
+  const g = new THREE.Group();
+  const CHARS = [
+    { key: 'chef', baked: false },
+    { key: 'cust_soldier', baked: true }, { key: 'cust_worker', baked: true }, { key: 'cust_student', baked: true },
+    { key: 'cust_granny', baked: true }, { key: 'cust_couple', baked: true },
+    { key: 'alba', baked: true }, { key: 'alba2', baked: true },
+  ];
+  const x0 = 12.5, dz = 1.15;
+  const z0 = -((CHARS.length - 1) * dz) / 2; // 중앙 정렬
+  CHARS.forEach((c, i) => {
+    const fig = createCreepy(c.key);
+    fig.position.set(x0, 0, z0 + i * dz);
+    fig.rotation.y = c.baked ? Math.PI / 2 : -Math.PI / 2; // -x(관람자) 응시
+    g.add(fig);
+  });
   return g;
 }
 
@@ -372,7 +395,8 @@ export function createScene(canvas) {
   // 창고(측면 +x) — 주방 우측 '옆에 이어서' 항상 보이는 저장 공간(AI 냉장고 + 절차적 선반).
   const sideStore = makeSideStorage(); scene.add(sideStore);
   const backRoad = makeBackRoad(); scene.add(backRoad); // 창고 뒷길(어두운 도로 + 가로등) — 공포 캐릭터 일렬 배치
-  const dollLine = makeDollLine(); scene.add(dollLine); // 채택: 일본 인형 귀신 10체(창고 뒷길 일렬 응시; garak_doll*.glb)
+  const dollLine = makeDollLine(); scene.add(dollLine); // 채택: 일본 인형 귀신 6종(창고 뒷길 앞줄 응시; garak_doll*.glb)
+  const reviewGallery = makeReviewGallery(); scene.add(reviewGallery); // 전체 만든 캐릭터 관람(주인장·손님5·알바2, 뒷줄)
   const door = makeDoor(); scene.add(door);
   const albas = [createAlba('alba', 0x2f8f7a), createAlba('alba2', 0xc26a2f)]; // AI 캐릭터(없으면 청록/주황 절차적 폴백)
   albas[0].position.set(ALBA_HOME.x, 0, ALBA_HOME.z);
