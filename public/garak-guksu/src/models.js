@@ -101,6 +101,8 @@ preloadModel('alba', '/garak-guksu/models/garak_alba.glb', 1.62, { ground: true,
 preloadModel('alba2', '/garak-guksu/models/garak_alba2.glb', 1.62, { ground: true, byHeight: true, rotateY: Math.PI });
 // 창고 뒷길 공포 캐릭터 7종(AI 언캐니 마스코트) — 도로에 일렬. byHeight 정규화(키 1.55), 배치 시 -x 로 플레이어 응시.
 for (let ci = 1; ci <= 7; ci++) preloadModel('creepy' + ci, '/garak-guksu/models/garak_creepy' + ci + '.glb', 1.55, { ground: true, byHeight: true });
+// 신규 사실적 공포 10종(garak_horror*.glb) — 앞줄 관람 라인업(덜 우스꽝, 더 불쾌). byHeight 1.6(키 통일), -x 응시.
+for (let hi = 1; hi <= 10; hi++) preloadModel('horror' + hi, '/garak-guksu/models/garak_horror' + hi + '.glb', 1.6, { ground: true, byHeight: true });
 
 export function createFloor() {
   const g = new THREE.Group();

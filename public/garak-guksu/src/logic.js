@@ -2,7 +2,7 @@
 // Plan 2 = 4-station pipeline: 사리세팅 → 데치기(timed doneness) → 육수 → 마감(spice) → 배식.
 
 // The chef walks this floor plane (x = left/right, z = depth toward counter).
-export const KITCHEN = { minX: -4, maxX: 12, minZ: -2.5, maxZ: 2.5 }; // maxX 12: 창고 뒷길(우벽 출구 너머 어두운 도로)까지 나갈 수 있게
+export const KITCHEN = { minX: -4, maxX: 13.5, minZ: -2.5, maxZ: 2.5 }; // maxX 13.5: 창고 뒷길 도로(공포 캐릭터 2열: 신규 10 앞 + 기존 7 뒤)까지 나갈 수 있게
 
 // Customer slots along the counter (front, z = 3.2), spread across x.
 export const CUSTOMER_SLOTS = [

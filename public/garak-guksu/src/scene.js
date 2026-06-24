@@ -153,25 +153,38 @@ function makeWalls() {
 // 창고 뒷길 — 우벽 출구(x=7.4) 너머 어두운 도로 구역. 공포 캐릭터들이 일렬로 서 있는 음산한 밤길(안개로 더 섬뜩).
 function makeBackRoad() {
   const g = new THREE.Group();
-  const road = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.06, 7.6),
+  const road = new THREE.Mesh(new THREE.BoxGeometry(9.0, 0.06, 10.4),
     new THREE.MeshStandardMaterial({ color: 0x14141a, roughness: 0.96 }));
-  road.position.set(10.7, 0.0, -0.05); road.receiveShadow = true; g.add(road); // x[7.0,14.4]
-  const line = new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.062, 0.1),
-    new THREE.MeshStandardMaterial({ color: 0x32322a, roughness: 0.9 }));
-  line.position.set(10.8, 0.001, -0.05); g.add(line); // 희미한 중앙선
-  const lamp = new THREE.PointLight(0x8fb0d8, 0.6, 17, 1.5); lamp.position.set(9.6, 3.4, 0); g.add(lamp); // 차가운 희미한 가로등(정적)
+  road.position.set(11.0, 0.0, 0); road.receiveShadow = true; g.add(road); // x[6.5,15.5] z[-5.2,5.2]
+  const lamp1 = new THREE.PointLight(0xa8c4e8, 1.3, 20, 1.2); lamp1.position.set(9.4, 3.4, 0); g.add(lamp1);  // 앞줄 가로등(어두운 호러 보이게 보강)
+  const lamp2 = new THREE.PointLight(0x96b2da, 1.0, 20, 1.2); lamp2.position.set(12.5, 3.4, 0); g.add(lamp2); // 뒷줄 가로등(차가운 정적)
+  const lampF = new THREE.PointLight(0x9ab0d0, 0.7, 16, 1.4); lampF.position.set(8.0, 2.2, 0); g.add(lampF); // 출구쪽 낮은 채움광(정면 보강)
   return g;
 }
 
 // 창고 뒷길 공포 캐릭터 8체 일렬 배치 — 도로(x≈9.5)에 줄지어 플레이어(-x)를 응시하며 미동 없이 서 있음(언캐니 정적).
 function makeCreepyLine() {
   const g = new THREE.Group();
-  const N = 7, x0 = 9.5, z0 = -3.0, dz = 1.0;
+  const N = 7, x0 = 12.5, z0 = -3.0, dz = 1.0; // 기존 7종은 뒷줄로(신규 10종 앞줄에 자리)
   for (let i = 0; i < N; i++) {
     const fig = createCreepy('creepy' + (i + 1));
     const jx = (i % 2 ? 0.22 : -0.12), jr = ((i % 3) - 1) * 0.09; // 약간 어긋난 정적(부자연스러움)
     fig.position.set(x0 + jx, 0, z0 + i * dz);
     fig.rotation.y = -Math.PI / 2 + jr; // 정면(+z)을 -x(플레이어)로 — 응시
+    g.add(fig);
+  }
+  return g;
+}
+
+// 신규 사실적 공포 캐릭터 10체 — 앞줄(x≈9.5) 일렬, 플레이어(-x) 응시. 관람용 라인업(덜 우스꽝, 더 불쾌).
+function makeHorrorLine() {
+  const g = new THREE.Group();
+  const N = 10, x0 = 9.5, z0 = -4.5, dz = 1.0;
+  for (let i = 0; i < N; i++) {
+    const fig = createCreepy('horror' + (i + 1)); // createCreepy 재사용(키만 다름)
+    const jx = (i % 2 ? 0.2 : -0.1);
+    fig.position.set(x0 + jx, 0, z0 + i * dz);
+    fig.rotation.y = -Math.PI / 2 + ((i % 3) - 1) * 0.07; // -x(플레이어) 응시
     g.add(fig);
   }
   return g;
@@ -372,7 +385,8 @@ export function createScene(canvas) {
   // 창고(측면 +x) — 주방 우측 '옆에 이어서' 항상 보이는 저장 공간(AI 냉장고 + 절차적 선반).
   const sideStore = makeSideStorage(); scene.add(sideStore);
   const backRoad = makeBackRoad(); scene.add(backRoad); // 창고 뒷길(어두운 도로 + 가로등) — 공포 캐릭터 일렬 배치
-  const creepyLine = makeCreepyLine(); scene.add(creepyLine); // 공포 캐릭터 8체(garak_creepy*.glb, 없으면 안 보임)
+  const creepyLine = makeCreepyLine(); scene.add(creepyLine); // 기존 공포 캐릭터 7체(뒷줄)
+  const horrorLine = makeHorrorLine(); scene.add(horrorLine); // 신규 사실적 공포 10체(앞줄 관람 라인업; garak_horror*.glb, 없으면 안 보임)
   const door = makeDoor(); scene.add(door);
   const albas = [createAlba('alba', 0x2f8f7a), createAlba('alba2', 0xc26a2f)]; // AI 캐릭터(없으면 청록/주황 절차적 폴백)
   albas[0].position.set(ALBA_HOME.x, 0, ALBA_HOME.z);
