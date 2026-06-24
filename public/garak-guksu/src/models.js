@@ -96,10 +96,9 @@ preloadModel('kettle', '/garak-guksu/models/garak_kettle.glb', 0.5, { ground: tr
 preloadModel('thermos', '/garak-guksu/models/garak_thermos.glb', 0.55, { ground: true });
 // 주방 그릇 스택(AI, garak_bowls.glb — 4080 ComfyUI-3D 스테인리스 그릇 4단, slab_clean 박스크롭). 작업대 보급 소품.
 preloadModel('bowls', '/garak-guksu/models/garak_bowls.glb', 0.4, { ground: true });
-// 알바 2명(AI, garak_alba/alba2.glb — 4080 생성 특이·웃긴 캐릭터). 서있는 캐릭터=세로형이라 슬래브 없음.
-// ⚠ 4080 GPU 여유(VRAM) 확보 후 생성 예정 — glb 저장하면 아래 2줄 주석 해제(현재는 절차적 알바 폴백, 404 방지).
-// preloadModel('alba', '/garak-guksu/models/garak_alba.glb', 1.62, { ground: true, byHeight: true, rotateY: Math.PI });
-// preloadModel('alba2', '/garak-guksu/models/garak_alba2.glb', 1.62, { ground: true, byHeight: true, rotateY: Math.PI });
+// 알바 2명(AI, garak_alba/alba2.glb — 4080 PonyXL 생성 특이·웃긴 만화 마스코트). 서있는 캐릭터=세로형이라 슬래브 없음.
+preloadModel('alba', '/garak-guksu/models/garak_alba.glb', 1.62, { ground: true, byHeight: true, rotateY: Math.PI });
+preloadModel('alba2', '/garak-guksu/models/garak_alba2.glb', 1.62, { ground: true, byHeight: true, rotateY: Math.PI });
 
 export function createFloor() {
   const g = new THREE.Group();
