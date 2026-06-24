@@ -162,29 +162,16 @@ function makeBackRoad() {
   return g;
 }
 
-// 창고 뒷길 공포 캐릭터 8체 일렬 배치 — 도로(x≈9.5)에 줄지어 플레이어(-x)를 응시하며 미동 없이 서 있음(언캐니 정적).
-function makeCreepyLine() {
-  const g = new THREE.Group();
-  const N = 7, x0 = 12.5, z0 = -3.0, dz = 1.0; // 기존 7종은 뒷줄로(신규 10종 앞줄에 자리)
-  for (let i = 0; i < N; i++) {
-    const fig = createCreepy('creepy' + (i + 1));
-    const jx = (i % 2 ? 0.22 : -0.12), jr = ((i % 3) - 1) * 0.09; // 약간 어긋난 정적(부자연스러움)
-    fig.position.set(x0 + jx, 0, z0 + i * dz);
-    fig.rotation.y = -Math.PI / 2 + jr; // 정면(+z)을 -x(플레이어)로 — 응시
-    g.add(fig);
-  }
-  return g;
-}
-
-// 신규 사실적 공포 캐릭터 10체 — 앞줄(x≈9.5) 일렬, 플레이어(-x) 응시. 관람용 라인업(덜 우스꽝, 더 불쾌).
-function makeHorrorLine() {
+// 채택: 일본 인형 귀신 10체 — 창고 뒷길 도로(x≈9.5)에 일렬, 플레이어(-x)를 응시하며 미동 없이(언캐니 정적). 관람 라인업.
+// (이전 실험분 makeCreepyLine[우스꽝 마스코트 7]·makeHorrorLine[추상 호러 10]은 제거 — garak_creepy/horror*.glb 파일은 보존.)
+function makeDollLine() {
   const g = new THREE.Group();
   const N = 10, x0 = 9.5, z0 = -4.5, dz = 1.0;
   for (let i = 0; i < N; i++) {
-    const fig = createCreepy('horror' + (i + 1)); // createCreepy 재사용(키만 다름)
-    const jx = (i % 2 ? 0.2 : -0.1);
+    const fig = createCreepy('doll' + (i + 1));
+    const jx = (i % 2 ? 0.2 : -0.1), jr = ((i % 3) - 1) * 0.07;
     fig.position.set(x0 + jx, 0, z0 + i * dz);
-    fig.rotation.y = -Math.PI / 2 + ((i % 3) - 1) * 0.07; // -x(플레이어) 응시
+    fig.rotation.y = -Math.PI / 2 + jr; // 정면(+z)을 -x(플레이어)로 — 응시
     g.add(fig);
   }
   return g;
@@ -385,8 +372,7 @@ export function createScene(canvas) {
   // 창고(측면 +x) — 주방 우측 '옆에 이어서' 항상 보이는 저장 공간(AI 냉장고 + 절차적 선반).
   const sideStore = makeSideStorage(); scene.add(sideStore);
   const backRoad = makeBackRoad(); scene.add(backRoad); // 창고 뒷길(어두운 도로 + 가로등) — 공포 캐릭터 일렬 배치
-  const creepyLine = makeCreepyLine(); scene.add(creepyLine); // 기존 공포 캐릭터 7체(뒷줄)
-  const horrorLine = makeHorrorLine(); scene.add(horrorLine); // 신규 사실적 공포 10체(앞줄 관람 라인업; garak_horror*.glb, 없으면 안 보임)
+  const dollLine = makeDollLine(); scene.add(dollLine); // 채택: 일본 인형 귀신 10체(창고 뒷길 일렬 응시; garak_doll*.glb)
   const door = makeDoor(); scene.add(door);
   const albas = [createAlba('alba', 0x2f8f7a), createAlba('alba2', 0xc26a2f)]; // AI 캐릭터(없으면 청록/주황 절차적 폴백)
   albas[0].position.set(ALBA_HOME.x, 0, ALBA_HOME.z);

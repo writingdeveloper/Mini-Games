@@ -99,10 +99,9 @@ preloadModel('bowls', '/garak-guksu/models/garak_bowls.glb', 0.4, { ground: true
 // 알바 2명(AI, garak_alba/alba2.glb — 4080 PonyXL 생성 특이·웃긴 만화 마스코트). 서있는 캐릭터=세로형이라 슬래브 없음.
 preloadModel('alba', '/garak-guksu/models/garak_alba.glb', 1.62, { ground: true, byHeight: true, rotateY: Math.PI });
 preloadModel('alba2', '/garak-guksu/models/garak_alba2.glb', 1.62, { ground: true, byHeight: true, rotateY: Math.PI });
-// 창고 뒷길 공포 캐릭터 7종(AI 언캐니 마스코트) — 도로에 일렬. byHeight 정규화(키 1.55), 배치 시 -x 로 플레이어 응시.
-for (let ci = 1; ci <= 7; ci++) preloadModel('creepy' + ci, '/garak-guksu/models/garak_creepy' + ci + '.glb', 1.55, { ground: true, byHeight: true });
-// 신규 사실적 공포 10종(garak_horror*.glb) — 앞줄 관람 라인업(덜 우스꽝, 더 불쾌). byHeight 1.6(키 통일), -x 응시.
-for (let hi = 1; hi <= 10; hi++) preloadModel('horror' + hi, '/garak-guksu/models/garak_horror' + hi + '.glb', 1.6, { ground: true, byHeight: true });
+// 창고 뒷길 공포 캐릭터 — 채택: 일본 인형 귀신 10종(garak_doll*.glb, 언캐니 — 사람형태+텅빈 죽은눈·긴머리·기모노). 도로 일렬, byHeight 1.7, -x 응시.
+for (let di = 1; di <= 10; di++) preloadModel('doll' + di, '/garak-guksu/models/garak_doll' + di + '.glb', 1.7, { ground: true, byHeight: true });
+// (이전 실험분 — 에셋 파일은 보존하되 씬 미표시: 우스꽝 마스코트 garak_creepy1-7, 추상 호러 garak_horror1-10.)
 
 export function createFloor() {
   const g = new THREE.Group();
