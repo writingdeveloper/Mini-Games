@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createFloor, createChef, createStation, createCustomer, createGauge, createKitchenStove, createBowl, createWarehouseFridge } from './models.js';
+import { createFloor, createChef, createStation, createCustomer, createGauge, createKitchenStove, createBowl, createWarehouseFridge, createWarehouseCan } from './models.js';
 import { STATIONS, CUSTOMER_SLOTS, slotProgress, patienceProgress, BLANCH_SLOTS, WAVES, PLACE_SLOTS, ALBA_HOME } from './logic.js';
 import { buildStation, tickStation, makeStationLabel } from './station.js';
 
@@ -98,11 +98,14 @@ function makeSideStorage() {
   // 냉장고 · 선반 — 뒷벽에 나란히, 실내(+z) 향함.
   const fridge = createWarehouseFridge(); fridge.position.set(5.35, 0, -2.95); fridge.rotation.y = 0; g.add(fridge);
   const shelf = makeStorageShelf(); shelf.position.set(6.6, 0, -3.0); shelf.rotation.y = 0; g.add(shelf);
-  // 우벽 옆 궤짝 더미(간단 = Three.js) — 가지런히.
+  // 우측 구역: AI(ComfyUI-3D, 4080 생성) 금속 보관통 2 + 궤짝 1 — 기존 궤짝 blocker(6.98,1.9)가 커버해 관통 방지.
   const crateMat = new THREE.MeshStandardMaterial({ color: 0x8a6038, roughness: 0.85 });
-  const crate = (cx, cy, cz, s) => { const c = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), crateMat); c.position.set(cx, cy, cz); c.castShadow = true; c.receiveShadow = true; g.add(c); };
-  crate(7.0, 0.36, 1.7, 0.7); crate(7.0, 1.05, 1.68, 0.66); crate(6.95, 0.36, 2.45, 0.7);
-  const lite = new THREE.PointLight(0xffd2a0, 1.5, 8, 1.5); lite.position.set(6.0, 3.3, -0.4); g.add(lite); // 창고 백열등
+  const crate = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.68, 0.68), crateMat);
+  crate.position.set(6.4, 0.34, 1.5); crate.rotation.y = 0.2; crate.castShadow = true; crate.receiveShadow = true; g.add(crate);
+  const can1 = createWarehouseCan(); can1.position.set(7.0, 0, 1.75); can1.rotation.y = 0.35; g.add(can1);
+  const can2 = createWarehouseCan(); can2.position.set(6.95, 0, 2.4); can2.rotation.y = -0.55; g.add(can2);
+  const lite = new THREE.PointLight(0xffd2a0, 2.4, 10, 1.4); lite.position.set(6.0, 3.2, -0.3); g.add(lite); // 창고 백열등(보관통 가시성↑)
+  const lite2 = new THREE.PointLight(0xffcf9a, 1.1, 7, 1.6); lite2.position.set(6.7, 2.4, 1.8); g.add(lite2); // 보관통 구역 보조등
   return g;
 }
 
