@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createFloor, createChef, createStation, createCustomer, createGauge, createKitchenStove, createBowl, createWarehouseFridge, createWarehouseCan } from './models.js';
+import { createFloor, createChef, createStation, createCustomer, createGauge, createKitchenStove, createBowl, createWarehouseFridge, createWarehouseCan, createKettle, createThermos, createBowlStack } from './models.js';
 import { STATIONS, CUSTOMER_SLOTS, slotProgress, patienceProgress, BLANCH_SLOTS, WAVES, PLACE_SLOTS, ALBA_HOME } from './logic.js';
 import { buildStation, tickStation, makeStationLabel } from './station.js';
 
@@ -268,14 +268,22 @@ function makeKitchen() {
     const sc = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), tool);
     sc.position.set(tx, 2.5, Z + 0.25); sc.rotation.x = Math.PI; g.add(sc);
   }
-  // 작업대 끝 소품 — 그릇 스택 + 주전자.
-  const bowlMat = new THREE.MeshStandardMaterial({ color: 0xcdd1d6, metalness: 0.3, roughness: 0.5 });
-  const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.28, 0.42, 16), bowlMat);
-  stack.position.set(-4.1, 0.83, Z); stack.castShadow = true; g.add(stack); // 상판 윗면(0.62)+높이반(0.21)=0.83(묻힘 해소 — QA)
+  // 작업대 좌측 끝 소품 — 보온병(AI, garak_thermos.glb). 기존 어색한 그릇스택 테이퍼 실린더 대체.
+  const thermos = createThermos();
+  thermos.position.set(-4.1, 0.62, Z);
+  g.add(thermos);
   // 주방 화덕(AI 복잡 객체, garak_kit_stove.glb) — 작업대 우측 끝. 없으면 절차적 폴백.
   const stove = createKitchenStove();
   stove.position.set(4.0, 0.62, Z);
   g.add(stove);
+  // 주전자(AI, garak_kettle.glb) — 작업대 앞쪽 우측(조리대 z=-1.5 앞, 화덕 옆 빈자리). 조리대와 겹치지 않도록 z 를 당김.
+  const kettle = createKettle();
+  kettle.position.set(3.6, 0.62, -0.8);
+  g.add(kettle);
+  // 그릇 스택(AI, garak_bowls.glb) — 작업대 앞쪽 좌중앙, 조리대 앞 빈자리. 깨끗한 그릇 보급용 소품.
+  const bowls = createBowlStack();
+  bowls.position.set(-2.4, 0.62, -0.85);
+  g.add(bowls);
   return g;
 }
 
@@ -709,5 +717,17 @@ export function createScene(canvas) {
     }
   }
 
+  // QA 디버그 훅: 임의 각도에서 배치/사이즈 점검(멀티앵글 스크린샷). orbit 모드로 전환 후 카메라/타깃 지정.
+  if (typeof window !== 'undefined') {
+    window.__cam = {
+      view(px, py, pz, tx, ty, tz) {
+        applyCamMode('orbit');
+        camera.position.set(px, py, pz);
+        orbit.target.set(tx ?? 0, ty ?? 0.6, tz ?? 0);
+        orbit.update();
+      },
+      camera, scene, renderer, orbit, setMode: applyCamMode,
+    };
+  }
   return { sync, render, dispose, cycleCamMode, getCamMode: () => camMode, requestLook, isLooking: () => pointerLocked, cookMotion, getViewYaw, throwBowl };
 }

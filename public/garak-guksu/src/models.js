@@ -90,6 +90,12 @@ preloadModel('backwall', '/garak-guksu/models/garak_backwall.glb', 4.3, { ground
 preloadModel('wh_fridge', '/garak-guksu/models/garak_wh_fridge.glb', 2.1, { ground: true, byHeight: true });
 // 창고 보관통(AI, garak_wh_can.glb — 4080 ComfyUI-3D 생성 금속 우유통형, 육수/물 보관). 없으면 비표시.
 preloadModel('wh_can', '/garak-guksu/models/garak_wh_can.glb', 0.95, { ground: true, byHeight: true });
+// 주방 주전자(AI, garak_kettle.glb — 4080 ComfyUI-3D 황동 주전자, slab_clean 박스크롭으로 받침판 제거). 작업대 소품.
+preloadModel('kettle', '/garak-guksu/models/garak_kettle.glb', 0.5, { ground: true });
+// 주방 보온병(AI, garak_thermos.glb — 4080 ComfyUI-3D 보온병. 세로형이라 슬래브 없이 깨끗). 그릇스택 실린더 대체.
+preloadModel('thermos', '/garak-guksu/models/garak_thermos.glb', 0.55, { ground: true });
+// 주방 그릇 스택(AI, garak_bowls.glb — 4080 ComfyUI-3D 스테인리스 그릇 4단, slab_clean 박스크롭). 작업대 보급 소품.
+preloadModel('bowls', '/garak-guksu/models/garak_bowls.glb', 0.4, { ground: true });
 
 export function createFloor() {
   const g = new THREE.Group();
@@ -127,6 +133,27 @@ export function createKitchenStove() {
   pot.position.y = 0.45; pot.castShadow = true; proc.add(pot);
   g.add(proc);
   attachModel('kit_stove', g, proc);
+  return g;
+}
+
+// 주방 주전자(garak_kettle.glb, AI) — 작업대 소품. 로드되면 클론 주입, 없으면 빈 그룹(절차적 폴백은 scene.js 가 제공).
+export function createKettle() {
+  const g = new THREE.Group();
+  attachInto('kettle', g);
+  return g;
+}
+
+// 주방 보온병(garak_thermos.glb, AI) — 작업대 소품(어색한 그릇스택 실린더 대체).
+export function createThermos() {
+  const g = new THREE.Group();
+  attachInto('thermos', g);
+  return g;
+}
+
+// 주방 그릇 스택(garak_bowls.glb, AI) — 작업대 보급 소품(깨끗한 그릇 4단).
+export function createBowlStack() {
+  const g = new THREE.Group();
+  attachInto('bowls', g);
   return g;
 }
 

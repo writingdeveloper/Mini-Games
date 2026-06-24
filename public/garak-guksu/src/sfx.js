@@ -1,9 +1,10 @@
-// SFX for /garak-guksu: pure WebAudio synthesis — no external files.
+// SFX for /garak-guksu: WebAudio 합성 + AI 효과음 샘플(4080 TangoFlux, /garak-guksu/sfx/*.wav).
 // 1980년대 한국 기차역 가락국수 분위기. 인물 음성 없음(분위기 사운드만).
 // cue(name)으로 짧은 효과음, ambience(era)로 깔리는 베드(스팀 히스 + 먼 기적).
-// 합성만: OscillatorNode / AudioBufferSourceNode(노이즈) / BiquadFilter / GainNode 엔벨로프.
+// 합성: OscillatorNode / AudioBufferSourceNode(노이즈) / BiquadFilter / GainNode 엔벨로프.
 //
 // 구현 큐: order · serve · combo · leave · pa · start · cook · tick · tickHard · depart (알 수 없는 이름 무시).
+//   ↳ order·serve·combo·pa·cook·depart 는 AI 샘플 우선(디코드 전/404 면 합성 폴백), 나머지는 합성.
 // main.js 가 createSfx() 를 직접 사용(구 audio.js/playVoice 는 제거됨).
 
 const MUTE_KEY = 'garak-guksu-muted';
@@ -26,6 +27,7 @@ export function createSfx() {
     master = ctx.createGain();
     master.gain.value = muted ? 0 : 1;
     master.connect(ctx.destination);
+    decodePending(); // ctx 준비됨 → 대기 중인 AI 샘플 디코드
     return ctx;
   }
 
@@ -177,9 +179,60 @@ export function createSfx() {
     },
   };
 
+  // --- AI 효과음 샘플(4080 TangoFlux 생성, /garak-guksu/sfx/*.wav) ----------
+  // 합성 큐보다 우선 재생. master gain 경유 → 뮤트 자동 적용. 디코드는 ctx 준비 후.
+  const SAMPLE_BASE = '/garak-guksu/sfx/';
+  const SAMPLE_CFG = {
+    serve:  { gain: 0.75 },                           // 그릇 내려놓기(클링)
+    order:  { gain: 0.70 },                           // 주문벨
+    combo:  { gain: 0.70 },                           // 계산 카칭
+    pa:     { gain: 0.60 },                           // 역 안내방송 차임
+    depart: { gain: 0.80 },                           // 기차 발차
+    cook:   { gain: 0.50, maxDur: 1.2, minGap: 0.5 }, // 면 삶기(길이 캡+연타 가드)
+  };
+  const sampleBufs = {};    // name -> AudioBuffer(디코드 완료)
+  const samplePending = {}; // name -> ArrayBuffer(디코드 대기)
+  const sampleLast = {};    // name -> 마지막 재생 시각(연타 가드)
+
+  if (typeof fetch !== 'undefined') {
+    for (const n of Object.keys(SAMPLE_CFG)) {
+      fetch(SAMPLE_BASE + n + '.wav')
+        .then((r) => (r.ok ? r.arrayBuffer() : null))
+        .then((b) => { if (b) { samplePending[n] = b; decodePending(); } })
+        .catch(() => { /* 404/오프라인 → 합성 폴백 */ });
+    }
+  }
+  function decodePending() {
+    if (!ctx) return; // ctx 준비 전 — ensureCtx 가 다시 호출
+    for (const n in samplePending) {
+      const ab = samplePending[n];
+      delete samplePending[n];
+      try { ctx.decodeAudioData(ab, (buf) => { sampleBufs[n] = buf; }, () => { /* 디코드 실패 → 합성 폴백 */ }); } catch { /* */ }
+    }
+  }
+  function playSample(name) {
+    const cfg = SAMPLE_CFG[name];
+    if (!cfg) return false;         // 샘플 대상 아님 → 합성으로
+    const buf = sampleBufs[name];
+    if (!buf) return false;         // 아직 디코드 안 됨 → 합성 폴백
+    const t = ctx.currentTime;
+    if (cfg.minGap && sampleLast[name] && t - sampleLast[name] < cfg.minGap) return true; // 연타 무시(처리됨 취급)
+    sampleLast[name] = t;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.value = cfg.gain ?? 0.8;
+    src.connect(g);
+    g.connect(master);
+    src.start(t);
+    if (cfg.maxDur) src.stop(t + cfg.maxDur);
+    return true;
+  }
+
   function cue(name) {
     const c = ensureCtx();
     if (!c || muted) return;
+    if (playSample(name)) return; // AI 샘플 우선(있으면)
     const fn = CUES[name];
     if (!fn) return; // 알 수 없는 name 무시
     fn(c, c.currentTime);
