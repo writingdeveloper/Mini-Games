@@ -102,9 +102,9 @@ describe('albaTick (자율 일꾼 — 조리→배달)', () => {
   it('급한 손님을 맡아 조리 단계로 전환(targetId·bowlSpice 설정)', () => {
     const g = gameWithCustomer(9, 'extra'); // worker patience 15 → progress 0.6 > ALBA_RESCUE
     albaTick(g, 0.1);
-    expect(g.alba.phase).toBe('cook');
-    expect(g.alba.targetId).toBe(1);
-    expect(g.alba.bowlSpice).toBe('extra');
+    expect(g.albas[0].phase).toBe('cook');
+    expect(g.albas[0].targetId).toBe(1);
+    expect(g.albas[0].bowlSpice).toBe('extra');
   });
   it('조리→배달 전체 루프로 서빙(점수·served↑, 손님 제거, 콤보 불변, serveCount↑)', () => {
     const g = gameWithCustomer(7, 'extra');
@@ -113,30 +113,38 @@ describe('albaTick (자율 일꾼 — 조리→배달)', () => {
     expect(served).toBe(true);
     expect(g.customers.length).toBe(0);
     expect(g.combo).toBe(0);                 // 알바는 콤보 안 올림(플레이어 몫)
-    expect(g.alba.serveCount).toBe(1);
-    expect(g.alba.phase).toBe('idle');
+    expect(g.albas[0].serveCount).toBe(1);
+    expect(g.albas[0].phase).toBe('idle');
     expect(g.score).toBeGreaterThan(0);
   });
   it('여유로운 손님만 있으면 맡지 않음(idle 유지)', () => {
     const g = gameWithCustomer(0, 'none'); // progress 0 < ALBA_RESCUE
     albaTick(g, 0.1);
-    expect(g.alba.phase).toBe('idle');
-    expect(g.alba.targetId).toBe(-1);
+    expect(g.albas[0].phase).toBe('idle');
+    expect(g.albas[0].targetId).toBe(-1);
   });
   it('맡은 손님이 사라지면(플레이어가 먼저 서빙/이탈) 작업 취소', () => {
     const g = gameWithCustomer(9, 'extra');
     albaTick(g, 0.1);
-    expect(g.alba.phase).toBe('cook');
+    expect(g.albas[0].phase).toBe('cook');
     g.customers = [];
     albaTick(g, 0.1);
-    expect(g.alba.phase).toBe('idle');
-    expect(g.alba.targetId).toBe(-1);
+    expect(g.albas[0].phase).toBe('idle');
+    expect(g.albas[0].targetId).toBe(-1);
   });
   it('serving 페이즈가 아니면 동작하지 않음', () => {
     const g = gameWithCustomer(9, 'extra');
     g.phase = 'intermission';
     expect(albaTick(g, 0.1)).toBe(null);
-    expect(g.alba.phase).toBe('idle');
+    expect(g.albas[0].phase).toBe('idle');
+  });
+  it('알바 2명이 서로 다른 손님을 맡음(중복 방지)', () => {
+    const g = createGame();
+    g.customers.push({ id: 1, slot: 0, archetype: 'worker', order: { spice: 'none' }, t: 9 });
+    g.customers.push({ id: 2, slot: 1, archetype: 'worker', order: { spice: 'none' }, t: 9 });
+    albaTick(g, 0.1);
+    expect(g.albas[0].targetId).toBe(1);
+    expect(g.albas[1].targetId).toBe(2);
   });
   it('ALBA_RESCUE 임계값이 0~1 사이', () => {
     expect(ALBA_RESCUE).toBeGreaterThan(0);

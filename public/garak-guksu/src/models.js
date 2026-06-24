@@ -96,6 +96,10 @@ preloadModel('kettle', '/garak-guksu/models/garak_kettle.glb', 0.5, { ground: tr
 preloadModel('thermos', '/garak-guksu/models/garak_thermos.glb', 0.55, { ground: true });
 // 주방 그릇 스택(AI, garak_bowls.glb — 4080 ComfyUI-3D 스테인리스 그릇 4단, slab_clean 박스크롭). 작업대 보급 소품.
 preloadModel('bowls', '/garak-guksu/models/garak_bowls.glb', 0.4, { ground: true });
+// 알바 2명(AI, garak_alba/alba2.glb — 4080 생성 특이·웃긴 캐릭터). 서있는 캐릭터=세로형이라 슬래브 없음.
+// ⚠ 4080 GPU 여유(VRAM) 확보 후 생성 예정 — glb 저장하면 아래 2줄 주석 해제(현재는 절차적 알바 폴백, 404 방지).
+// preloadModel('alba', '/garak-guksu/models/garak_alba.glb', 1.62, { ground: true, byHeight: true, rotateY: Math.PI });
+// preloadModel('alba2', '/garak-guksu/models/garak_alba2.glb', 1.62, { ground: true, byHeight: true, rotateY: Math.PI });
 
 export function createFloor() {
   const g = new THREE.Group();
@@ -154,6 +158,29 @@ export function createThermos() {
 export function createBowlStack() {
   const g = new THREE.Group();
   attachInto('bowls', g);
+  return g;
+}
+
+// 알바(자율 일꾼) — 절차적 폴백 + AI glb(garak_alba*.glb, 특이·웃긴 캐릭터). modelKey 로 1번/2번 다른 캐릭터.
+// 절차적 몸체는 proc 그룹(AI 로드 시 숨김), 쟁반은 별개(배달 표시 — AI 로 대체돼도 유지).
+export function createAlba(modelKey, apronColor = 0x2f8f7a) {
+  const g = new THREE.Group();
+  const proc = new THREE.Group(); proc.name = 'procAlba';
+  const skin = new THREE.MeshStandardMaterial({ color: 0xe8b98f, roughness: 0.7 });
+  const apron = new THREE.MeshStandardMaterial({ color: apronColor, roughness: 0.8 });
+  const pants = new THREE.MeshStandardMaterial({ color: 0x33363d, roughness: 0.85 });
+  const cap = new THREE.MeshStandardMaterial({ color: 0xf2efe6, roughness: 0.7 });
+  for (const dx of [-0.12, 0.12]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.62, 8), pants); l.position.set(dx, 0.31, 0); l.castShadow = true; proc.add(l); }
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.26, 0.5, 4, 10), apron); torso.position.set(0, 1.0, 0); torso.castShadow = true; proc.add(torso);
+  for (const dx of [-0.32, 0.32]) { const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.42, 4, 8), apron); a.position.set(dx, 1.0, 0.05); a.rotation.z = dx > 0 ? -0.2 : 0.2; proc.add(a); }
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.21, 16, 14), skin); head.position.set(0, 1.52, 0); head.castShadow = true; proc.add(head);
+  const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.16, 14), cap); hat.position.set(0, 1.66, 0); proc.add(hat);
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.03, 14), cap); brim.position.set(0, 1.585, 0.04); proc.add(brim);
+  g.add(proc);
+  const tray = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.05, 12), new THREE.MeshStandardMaterial({ color: 0xcdd1d6, metalness: 0.3, roughness: 0.5 }));
+  tray.position.set(0, 1.18, 0.36); tray.visible = false; g.add(tray); // 배달 중 쟁반
+  g.userData.tray = tray;
+  attachModel(modelKey, g, proc); // garak_alba*.glb 있으면 절차적 알바 대체
   return g;
 }
 

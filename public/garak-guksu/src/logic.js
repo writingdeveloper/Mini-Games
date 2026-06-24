@@ -14,11 +14,13 @@ export const PLACE_SLOTS = [{ x: -2.5, z: 2.3 }, { x: 0, z: 2.3 }, { x: 2.5, z: 
 export const DOORWAY = { x: 4.7, z: 0 };             // 측면 창고 입구(문/칸막이 x). 닫히면 통행 차단, 열면 문간으로 통과.
 export const DOOR_HALF = 0.9;                        // 문간 반폭 — |z|<DOOR_HALF 이고 문 열림일 때만 칸막이(x=DOORWAY.x) 통과
 // 알바(자율 일꾼) — 손님을 맡아 조리(추상 타이머)→배달 서빙까지 전체 루프를 스스로 수행.
-export const ALBA_HOME = { x: 4.15, z: 0.7 };        // 대기 위치(조리·서빙 사이, 플레이어 동선 비켜)
-export const ALBA_COOK_SPOT = { x: 3.5, z: -0.45 };  // 조리 동작 위치(카운터 앞)
-export const ALBA_COOK_TIME = 5.0;                   // 한 그릇 조리 시간(초)
-export const ALBA_SPEED = 3.0;                       // 이동 속도(units/s)
-export const ALBA_RESCUE = 0.35;                     // 이 인내심% 넘긴 손님부터 알바가 맡음(일 분담 + 곧 이탈 구제)
+export const ALBA_HOME = { x: 4.15, z: 0.7 };        // 1번 알바 대기 위치(조리·서빙 사이, 플레이어 동선 비켜)
+export const ALBA_HOME2 = { x: 4.55, z: 1.5 };       // 2번 알바 대기 위치(겹침 방지)
+export const ALBA_COOK_SPOT = { x: 3.5, z: -0.45 };  // 1번 조리 위치(카운터 앞)
+export const ALBA_COOK_SPOT2 = { x: 2.7, z: -0.45 }; // 2번 조리 위치(겹침 방지)
+export const ALBA_COOK_TIME = 3.0;                   // 한 그릇 조리 시간(초) — 더 빨리(5→3)
+export const ALBA_SPEED = 4.0;                       // 이동 속도(units/s) — 더 빨리(3→4)
+export const ALBA_RESCUE = 0.22;                     // 이 인내심% 넘긴 손님부터 맡음 — 더 열심히/일찍(0.35→0.22)
 
 // The four cook stations. 화면 왼쪽=월드 +x(카메라가 +z 응시)이므로, 신규 플레이어가
 // 왼쪽부터 ①→④ 순서로 읽도록 x를 +3→-3 로 배치(setting=면이 화면 맨 왼쪽). — 게이머 QA
@@ -85,7 +87,10 @@ export function createGame(seed = 1) {
     blancher: { slots: new Array(BLANCH_SLOTS).fill(null) },
     placed: new Array(PLACE_SLOTS.length).fill(null), // 진열대에 놓인 그릇들
     doorOpen: false,                  // 측면 창고 문(닫힘=창고 진입 차단)
-    alba: { phase: 'idle', t: 0, x: ALBA_HOME.x, z: ALBA_HOME.z, targetId: -1, bowlSpice: null, lastSlot: -1, serveCount: 0 }, // 자율 일꾼(조리→배달)
+    albas: [ // 자율 일꾼 2명(조리→배달). 각자 home/cook 좌표를 가져 겹치지 않음.
+      { phase: 'idle', t: 0, x: ALBA_HOME.x, z: ALBA_HOME.z, home: ALBA_HOME, cook: ALBA_COOK_SPOT, targetId: -1, bowlSpice: null, lastSlot: -1, serveCount: 0 },
+      { phase: 'idle', t: 0, x: ALBA_HOME2.x, z: ALBA_HOME2.z, home: ALBA_HOME2, cook: ALBA_COOK_SPOT2, targetId: -1, bowlSpice: null, lastSlot: -1, serveCount: 0 },
+    ],
 
     customers: [],
     spawnTimer: 0,
@@ -263,42 +268,56 @@ function albaMoveTo(a, gx, gz, dt) {
   a.x += (dx / d) * step; a.z += (dz / d) * step; return false;
 }
 
-// 알바(자율 일꾼): 손님을 맡아 ① 조리대로 이동→조리(ALBA_COOK_TIME) ② 손님께 이동→서빙 의 전체 루프를 스스로 돈다.
-// 가장 급한(인내심 ALBA_RESCUE 초과 중 최고) 손님부터 맡아 일을 분담 + 이탈 구제. 콤보는 안 올림(플레이어 몫).
-// 플레이어가 먼저 처리/손님 이탈 시 작업 취소. scene.js 는 alba.{x,z,phase} 로 렌더, serveCount 로 서빙 알림.
-export function albaTick(state, dt) {
-  if (state.phase !== 'serving') return null;
-  const a = state.alba;
+// 알바(자율 일꾼) 2명: 각자 손님을 맡아 ① 조리대로 이동→조리(ALBA_COOK_TIME) ② 손님께 이동→서빙 루프를 돈다.
+// 가장 급한(인내심 ALBA_RESCUE 초과 중 최고) 손님부터 맡되, 다른 알바가 맡은 손님은 건너뜀(중복 방지).
+// 콤보는 안 올림(플레이어 몫). scene.js 는 albas[i].{x,z,phase} 로 렌더, serveCount 로 서빙 알림.
+function resetAlba(a) { a.phase = 'idle'; a.targetId = -1; a.bowlSpice = null; }
+
+function albaStep(state, a, dt, taken) {
   // 타겟이 사라졌으면(플레이어가 먼저 서빙/이탈) 작업 취소.
-  if (a.targetId >= 0 && !state.customers.some((c) => c.id === a.targetId)) { a.phase = 'idle'; a.targetId = -1; a.bowlSpice = null; }
+  if (a.targetId >= 0 && !state.customers.some((c) => c.id === a.targetId)) resetAlba(a);
 
   if (a.phase === 'idle') {
-    albaMoveTo(a, ALBA_HOME.x, ALBA_HOME.z, dt);
+    albaMoveTo(a, a.home.x, a.home.z, dt);
     let pick = null, best = ALBA_RESCUE;
-    for (const c of state.customers) { const pr = patienceProgress(c); if (pr > best) { best = pr; pick = c; } }
-    if (pick) { a.targetId = pick.id; a.bowlSpice = pick.order.spice; a.phase = 'cook'; a.t = 0; }
+    for (const c of state.customers) {
+      if (taken.has(c.id)) continue;                 // 다른 알바가 이미 맡음
+      const pr = patienceProgress(c);
+      if (pr > best) { best = pr; pick = c; }
+    }
+    if (pick) { a.targetId = pick.id; taken.add(pick.id); a.bowlSpice = pick.order.spice; a.phase = 'cook'; a.t = 0; }
     return null;
   }
   if (a.phase === 'cook') {
-    if (albaMoveTo(a, ALBA_COOK_SPOT.x, ALBA_COOK_SPOT.z, dt)) a.t += dt; // 조리대 도착 후부터 조리
+    if (albaMoveTo(a, a.cook.x, a.cook.z, dt)) a.t += dt; // 조리대 도착 후부터 조리
     if (a.t >= ALBA_COOK_TIME) { a.phase = 'deliver'; a.t = 0; }
     return null;
   }
   if (a.phase === 'deliver') {
     const cust = state.customers.find((c) => c.id === a.targetId);
-    if (!cust) { a.phase = 'idle'; a.targetId = -1; a.bowlSpice = null; return null; }
+    if (!cust) { resetAlba(a); return null; }
     const slot = CUSTOMER_SLOTS[cust.slot];
     if (albaMoveTo(a, slot.x, Math.min(slot.z, 2.6), dt)) {
       const speed = Math.round((1 - patienceProgress(cust)) * SPEED_MAX); // 알바는 주문대로 조리 → 정확
       state.score += SERVE_BASE + ACCURACY_BONUS + speed; // 콤보 배수 없음(보조 점수)
       state.served += 1;
       state.customers = state.customers.filter((c) => c.id !== cust.id);
-      a.phase = 'idle'; a.targetId = -1; a.bowlSpice = null; a.lastSlot = cust.slot; a.serveCount += 1;
+      a.lastSlot = cust.slot; a.serveCount += 1;
+      resetAlba(a);
       return { servedSlot: cust.slot };
     }
     return null;
   }
   return null;
+}
+
+export function albaTick(state, dt) {
+  if (state.phase !== 'serving') return null;
+  // 이미 맡은 손님 집합(중복 처리 방지) — 루프 중 각 알바의 신규 픽도 추가됨.
+  const taken = new Set(state.albas.filter((a) => a.targetId >= 0).map((a) => a.targetId));
+  let served = null;
+  for (const a of state.albas) { const ev = albaStep(state, a, dt, taken); if (ev) served = ev; }
+  return served;
 }
 
 export const BLANCH_TIME = 2.5;
