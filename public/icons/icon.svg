@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Mini Games">
+  <rect width="512" height="512" rx="112" fill="#e11d48"/>
+  <!-- One die, drawn large: a favicon lives at 16px, where a second die turns to mush. -->
+  <g transform="rotate(-8 256 256)">
+    <rect x="116" y="116" width="280" height="280" rx="54" fill="#ffffff"/>
+    <circle cx="182" cy="182" r="26" fill="#e11d48"/>
+    <circle cx="330" cy="182" r="26" fill="#e11d48"/>
+    <circle cx="256" cy="256" r="26" fill="#e11d48"/>
+    <circle cx="182" cy="330" r="26" fill="#e11d48"/>
+    <circle cx="330" cy="330" r="26" fill="#e11d48"/>
+  </g>
+</svg>
