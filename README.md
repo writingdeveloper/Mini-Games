@@ -1,6 +1,6 @@
 # 🎮 Mini Games Hub
 
-여러 브라우저 게임을 한곳에서 즐기는 게임 허브입니다. **Next.js 프론트엔드 + 독립 Socket.io 멀티플레이어 서버**로 구성된 풀스택 프로젝트로, 서로 다른 4개의 렌더링 엔진(2D Canvas / Babylon.js / CesiumJS / Three.js)으로 만든 5개의 게임을 제공합니다.
+여러 브라우저 게임을 한곳에서 즐기는 게임 허브입니다. **Next.js 프론트엔드 + 독립 Socket.io 멀티플레이어 서버**로 구성된 풀스택 프로젝트로, 서로 다른 4개의 렌더링 엔진(2D Canvas / Babylon.js / CesiumJS / Three.js + cannon-es)으로 만든 7개의 게임을 제공합니다.
 
 [![CI](https://github.com/writingdeveloper/Mini-Games/actions/workflows/ci.yml/badge.svg)](https://github.com/writingdeveloper/Mini-Games/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
@@ -13,20 +13,24 @@
 
 ## 📸 스크린샷
 
-> _아래에 각 게임의 스크린샷/GIF를 추가하세요. 포트폴리오에서 가장 효과가 큰 부분입니다._
+![Mini Games Hub](docs/screenshots/hub.png)
 
-<!--
-| 메인 허브 | 도주 게임 | 서바이벌 | Sky Explorer |
-|---|---|---|---|
-| ![hub](docs/hub.png) | ![escape](docs/escape.png) | ![survival](docs/survival.png) | ![flight](docs/flight.png) |
--->
+| 🍬 JELLY CATCHER (실물리 인형뽑기) | 🍜 역전국수 (가락국수 서빙) |
+|:---:|:---:|
+| ![JELLY CATCHER](docs/screenshots/ppopgi.png) | ![역전국수](docs/screenshots/garak-play.png) |
+| **🏜️ Dust Drifter (사막 자유 주행)** | **💣 마키마 says (두 목소리 사이먼)** |
+| ![Dust Drifter](docs/screenshots/desert-play.png) | ![마키마 says](docs/screenshots/makima.png) |
+
+> 📱 **모바일 터치 조작** — 도주 게임은 화면 d-pad와 스와이프로 플레이할 수 있습니다.
+>
+> <img src="docs/screenshots/escape-mobile.png" alt="도주 게임 모바일 터치 조작" width="280">
 
 ---
 
 ## ✨ 주요 특징
 
-- **풀스택 실시간 멀티플레이어** — Socket.io 기반 룸 매칭/로비 시스템과 권위 서버(authoritative server) 구조
-- **5개 게임 · 4개의 독립 렌더링 엔진** — 2D Canvas, Babylon.js(3D), CesiumJS(실제 지구본), Three.js(로우폴리 3D / 물리 타워) 통합
+- **7개 게임 · 4개의 독립 렌더링 엔진** — 2D Canvas, Babylon.js(3D), CesiumJS(실제 지구본), Three.js + cannon-es(물리 인형뽑기 / 로우폴리 3D) 통합
+- **풀스택 실시간 멀티플레이어 구조** — Socket.io 기반 룸 매칭/로비 + 권위 서버(authoritative server) 구현 (도주·서바이벌·비행 넷코드는 `server/`·`public/shared/`에 구현. 현재 라이브 데모는 싱글플레이어로 서빙)
 - **모노레포 구조** — Next.js 앱과 게임 서버를 한 저장소에서 관리, 각각 독립 배포
 - **테스트 & CI** — Vitest 단위/통합 테스트 + Playwright E2E + GitHub Actions 자동화
 - **타입 안전성** — TypeScript, ESLint, Prettier 일관 적용
@@ -35,20 +39,41 @@
 
 ## 🕹️ 게임 목록
 
+### 🍬 JELLY CATCHER (인형뽑기)
+
+- Three.js 0.184 + cannon-es 기반 **실제 물리 인형뽑기** (일본 아케이드풍)
+- 스프링-그립 집게 물리 (진짜로 미끄러진다!) · 3종 기계(젤리 · 인형 · 공) 전환
+- 콤보 배율 · 마일스톤 · 결과/리플레이 · 동전/카드 결제 연출
+- 조작: 아날로그 조이스틱 · **터치 조작** · 휠/핀치 줌
+- 빌드 없는 자체완결형 ESM (importmap CDN 로드)
+
+### 💣 마키마 says (두 목소리 사이먼)
+
+- 마키마(복종) · 레제(거부) 두 악마의 **음성 명령** 사이먼-says 반응 게임
+- 화자별 글리프/링 색 이중 부호화 · 콤보 · 라운드별 난이도
+- 조작: `방향키` · **터치 조작**
+
+### 🍜 역전국수 (가락국수 서빙)
+
+- Three.js 기반 대전역 심야 플랫폼 가락국수 서빙 게임
+- 데치기 타이밍 · 손님 5 아키타입 · 증기→디젤→막차 5웨이브 · 콤보 스코어
+- 절차적 아트 · 시대별 기관차 · 웹오디오 효과음
+- 조작: `WASD` · **터치 조이스틱** 주방 서빙
+
 ### 🚗 도주 게임 (Escape)
 
-- HTML5 Canvas 기반 2D 게임
+- HTML5 Canvas 기반 2D 게임 (스네이크 변형)
 - 경찰차로부터 자동차를 조종해 도주
-- **2–4인 경쟁 멀티플레이어** (실시간)
-- 방향키 조작 · 점수 시스템
+- 조작: `방향키`/`WASD` · **터치 d-pad · 스와이프** (반응형 캔버스)
+- > _실시간 2–4인 경쟁 멀티플레이어 넷코드가 `server/`·`public/shared/`에 구현되어 있으며, 서버 연결 시 활성화됩니다(현재 라이브는 싱글플레이어)._
 
 ### 🌍 3D 서바이벌 (Survival)
 
 - Babylon.js 기반 3D 오픈 월드 + Havok 물리 엔진
 - 서바이벌 시스템 (체력 · 스태미나 · 배고픔 · 갈증)
 - 캐릭터 커스터마이징 · 낮/밤 사이클 · 탈것
-- **2–4인 협동 멀티플레이어** (실시간)
-- WASD 이동 · 마우스 시점
+- 조작: `WASD` 이동 · 마우스 시점 (PC 권장)
+- > _실시간 2–4인 협동 멀티플레이어 넷코드가 구현되어 있으며, 서버 연결 시 활성화됩니다(현재 라이브는 싱글플레이어)._
 
 ### ✈️ Sky Explorer (비행)
 
@@ -56,8 +81,7 @@
 - 6개 도시 시작 위치 (서울 · 뉴욕 · 파리 · 도쿄 · 두바이 · 시드니)
 - 3가지 모드 (자유 비행 · 체크포인트 레이스 · 서바이벌)
 - 리얼한 비행 물리 (양력 · 항력 · 스톨) + HUD (속도/고도/연료/나침반)
-- 조작: `W/S` 피치 · `A/D` 롤 · `Q/E` 요 · `Shift/Ctrl` 스로틀
-- > _현재 싱글플레이어. 멀티플레이어 넷코드는 소스(`public/flight-game/src/`)에 구현되어 있으며 런타임 통합은 로드맵 참고._
+- 조작: `W/S` 피치 · `A/D` 롤 · `Q/E` 요 · `Shift/Ctrl` 스로틀 (PC 권장)
 
 ### 🏜️ Dust Drifter (사막 자유 주행)
 
@@ -65,15 +89,7 @@
 - 자유 주행 + 신기루 탐험(7) + 빛나는 수집물(20) + 낮↔밤 순환
 - 먼지 파티클 드리프트 · 듄 빅에어 · 3인칭/하늘뷰 카메라
 - 빌드 없는 자체완결형 ESM (Three.js를 importmap CDN으로 로드)
-- 조작: `↑↓←→`/`WASD` 주행 · `Space` 드리프트 · `C` 카메라 · `R` 리셋
-
-### 🍟 Fryffel Tower (감자튀김 마천루)
-
-- 감자튀김을 쌓아 하늘에 닿는 마천루를 만드는 물리 타워 게임
-- 빌드 없는 자체완결형 ESM — Three.js 0.184 + cannon-es 물리 엔진 (importmap CDN 로드)
-- 실시간 **2인 멀티플레이어** (Socket.io 권위 서버, 베스트-오브 3 라운드 제) + 싱글플레이어 프리플레이
-- 방해 공작 시스템 (돌풍 · 갈매기 · 기름 · 케첩) · 콤보 차지 · 터치/모바일 완전 지원
-- 조작: `←→` / `A/D` 회전 · `Space` 투하 · `F` 방해 발사 (멀티플레이어)
+- 조작: `↑↓←→`/`WASD` 주행 · `Space` 드리프트 · `C` 카메라 · `R` 리셋 (PC 권장)
 
 ---
 
@@ -197,13 +213,17 @@ Mini-Games/
 │   ├── survival-game/page.tsx # 서바이벌 라우트 (모드 선택)
 │   ├── flight-game/page.tsx   # 비행 게임 라우트
 │   ├── desert-game/page.tsx   # Dust Drifter 라우트
-│   └── ppopgi/page.tsx        # JELLY CATCHER 뽑기(인형뽑기) 라우트
+│   ├── ppopgi/page.tsx        # JELLY CATCHER 뽑기(인형뽑기) 라우트
+│   ├── makima-says/page.tsx   # 마키마 says 라우트
+│   └── garak-guksu/page.tsx   # 역전국수 라우트
 ├── public/
 │   ├── escape-game/           # 2D Canvas 게임
 │   ├── survival-game/         # Babylon.js 3D (game-modular.js + src/)
 │   ├── flight-game/           # CesiumJS 3D (game.js + src/)
 │   ├── desert-game/           # Three.js 3D 로우폴리 (src/ ESM, importmap)
 │   ├── ppopgi/                # Three.js 0.184 + cannon-es 물리 인형뽑기 (src/ ESM, importmap)
+│   ├── makima-says/           # 마키마 says 두 목소리 사이먼 (src/ ESM)
+│   ├── garak-guksu/           # 역전국수 가락국수 서빙 (Three.js, src/ ESM)
 │   └── shared/                # 멀티플레이어 공유 클라이언트
 │       ├── networking/        # GameClient · State/InputBuffer · MessageTypes
 │       └── lobby/             # LobbyUI
@@ -225,9 +245,11 @@ Mini-Games/
 
 ## 🗺️ 로드맵
 
-- [ ] 비행 게임(Sky Explorer) 멀티플레이어 런타임 통합
+- [ ] 멀티플레이어 서버 재가동 (도주 · 서바이벌 · 비행 런타임 통합)
 - [ ] 게임별 스크린샷/GIF 추가
-- [ ] 모바일 터치 조작 지원
+- [x] 모바일 터치 조작 — 인형뽑기 · 마키마 · 역전국수 · 도주 지원
+- [ ] 모바일 터치 조작 — 서바이벌 · 비행 · 사막(3D 키보드 게임) 확장
+- [ ] 게임별 베스트 기록/도전과제 허브 통합
 
 ---
 

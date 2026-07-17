@@ -10,7 +10,8 @@
     <div class="container">
         <div id="startScreen" class="screen">
             <h1>🚗 도주 게임</h1>
-            <p>방향키로 자동차를 조종하세요</p>
+            <p>방향키(또는 <kbd>WASD</kbd>)로 자동차를 조종하세요</p>
+            <p class="touch-hint">📱 모바일은 화면 아래 방향 버튼 또는 스와이프로 조종</p>
             <p>행인을 치면 경찰차가 뒤쫓아옵니다!</p>
             <button id="startButton">게임 시작</button>
         </div>
@@ -21,6 +22,12 @@
                 <div class="speed">속도: <span id="speed">1</span>x</div>
             </div>
             <canvas id="gameCanvas" width="600" height="600"></canvas>
+            <div id="dpad" class="dpad" role="group" aria-label="방향 조작 패드">
+                <button class="dpad-btn up" data-dir="0,-1" type="button" aria-label="위로">▲</button>
+                <button class="dpad-btn left" data-dir="-1,0" type="button" aria-label="왼쪽">◀</button>
+                <button class="dpad-btn right" data-dir="1,0" type="button" aria-label="오른쪽">▶</button>
+                <button class="dpad-btn down" data-dir="0,1" type="button" aria-label="아래로">▼</button>
+            </div>
         </div>
 
         <div id="gameOverScreen" class="screen hidden">

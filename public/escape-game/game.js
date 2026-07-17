@@ -44,6 +44,8 @@ class EscapeGame {
 
     document.getElementById('startButton').addEventListener('click', () => this.startSinglePlayer());
     document.getElementById('restartButton').addEventListener('click', () => this.startSinglePlayer());
+
+    this._setupTouchControls();
   }
 
   // ---- Single Player ----
@@ -160,32 +162,59 @@ class EscapeGame {
   }
 
   _handleKeydown(e) {
-    let dir = null;
     switch (e.key) {
-      case 'ArrowUp':
-        if (this.direction.y === 0) dir = { x: 0, y: -1 };
-        e.preventDefault();
-        break;
-      case 'ArrowDown':
-        if (this.direction.y === 0) dir = { x: 0, y: 1 };
-        e.preventDefault();
-        break;
-      case 'ArrowLeft':
-        if (this.direction.x === 0) dir = { x: -1, y: 0 };
-        e.preventDefault();
-        break;
-      case 'ArrowRight':
-        if (this.direction.x === 0) dir = { x: 1, y: 0 };
-        e.preventDefault();
-        break;
+      case 'ArrowUp': case 'w': case 'W': this._turn(0, -1); e.preventDefault(); break;
+      case 'ArrowDown': case 's': case 'S': this._turn(0, 1); e.preventDefault(); break;
+      case 'ArrowLeft': case 'a': case 'A': this._turn(-1, 0); e.preventDefault(); break;
+      case 'ArrowRight': case 'd': case 'D': this._turn(1, 0); e.preventDefault(); break;
+    }
+  }
+
+  // Apply a turn request from any input source (keys, on-screen d-pad, swipe).
+  // Keeps the snake rule: can't reverse straight back onto the current axis.
+  _turn(dx, dy) {
+    let dir = null;
+    if (dy !== 0 && this.direction.y === 0) dir = { x: 0, y: dy };
+    else if (dx !== 0 && this.direction.x === 0) dir = { x: dx, y: 0 };
+    if (!dir) return;
+
+    this.nextDirection = dir;
+    if (this.isMultiplayer && this.networkClient) {
+      this.networkClient.sendInput({ direction: dir });
+    }
+  }
+
+  // Touch input for phones/tablets: an on-screen d-pad plus canvas swipe.
+  // Both feed the same _turn() as the arrow keys, so no logic diverges.
+  _setupTouchControls() {
+    const pad = document.getElementById('dpad');
+    if (pad) {
+      pad.querySelectorAll('[data-dir]').forEach((btn) => {
+        const [dx, dy] = btn.dataset.dir.split(',').map(Number);
+        // pointerdown = zero-latency on touch/mouse; keydown = keyboard/SR access.
+        btn.addEventListener('pointerdown', (e) => { e.preventDefault(); this._turn(dx, dy); });
+        btn.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._turn(dx, dy); }
+        });
+      });
     }
 
-    if (dir) {
-      this.nextDirection = dir;
-      if (this.isMultiplayer && this.networkClient) {
-        this.networkClient.sendInput({ direction: dir });
-      }
-    }
+    let sx = 0, sy = 0, swiping = false;
+    this.canvas.addEventListener('touchstart', (e) => {
+      const t = e.changedTouches[0];
+      sx = t.clientX; sy = t.clientY; swiping = true;
+      e.preventDefault();
+    }, { passive: false });
+    this.canvas.addEventListener('touchend', (e) => {
+      if (!swiping) return;
+      swiping = false;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return; // treat as a tap, not a swipe
+      if (Math.abs(dx) > Math.abs(dy)) this._turn(dx > 0 ? 1 : -1, 0);
+      else this._turn(0, dy > 0 ? 1 : -1);
+      e.preventDefault();
+    }, { passive: false });
   }
 
   _update() {
@@ -377,6 +406,9 @@ class EscapeGame {
 
 // ---- Initialize ----
 const game = new EscapeGame();
+
+// Debug/e2e hook (parity with the newer games' window.__<game> handles).
+if (typeof window !== 'undefined') window.__escape = game;
 
 // Check for multiplayer mode via URL params or lobby
 const urlParams = new URLSearchParams(window.location.search);

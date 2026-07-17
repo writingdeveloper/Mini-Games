@@ -88,6 +88,13 @@ button:active {
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
     display: block;
     margin: 0 auto;
+    /* Internal resolution stays 600×600 (the width/height attrs); CSS scales the
+       display so the board fits narrow phone screens instead of overflowing. */
+    width: min(600px, 90vw);
+    height: auto;
+    aspect-ratio: 1 / 1;
+    max-width: 100%;
+    touch-action: none;
 }
 
 .final-score {
@@ -110,4 +117,70 @@ button:active {
 
 .shake {
     animation: shake 0.3s ease-in-out;
+}
+
+kbd {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.9em;
+    font-family: inherit;
+}
+
+/* The mobile hint and d-pad only make sense on touch devices. */
+.touch-hint {
+    display: none;
+    color: #ffe08a;
+}
+
+.dpad {
+    display: none;
+    margin: 18px auto 0;
+    width: 190px;
+    height: 190px;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 8px;
+    touch-action: none;
+}
+
+.dpad-btn {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    font-size: 1.6rem;
+    line-height: 1;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.9);
+    color: #667eea;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
+}
+
+.dpad-btn:active {
+    background: #fff;
+    transform: scale(0.94);
+}
+
+.dpad .up { grid-column: 2; grid-row: 1; }
+.dpad .left { grid-column: 1; grid-row: 2; }
+.dpad .right { grid-column: 3; grid-row: 2; }
+.dpad .down { grid-column: 2; grid-row: 3; }
+
+@media (pointer: coarse) {
+    .touch-hint { display: block; }
+    .dpad { display: grid; }
+}
+
+@media (max-width: 640px) {
+    .screen { padding: 16px; }
+    #startScreen h1,
+    #gameOverScreen h1 { font-size: 2rem; }
+    #startScreen p,
+    #gameOverScreen p { font-size: 1rem; }
+    .score-board { font-size: 1.1rem; margin-bottom: 12px; }
+    .score, .speed { padding: 8px 14px; }
 }

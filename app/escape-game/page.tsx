@@ -7,7 +7,12 @@ import { LoadingOverlay } from "@/app/_components/LoadingOverlay";
 const GAME_SERVER_URL = process.env.NEXT_PUBLIC_GAME_SERVER_URL || '';
 
 export default function EscapeGame() {
-  const [mode, setMode] = useState<'select' | 'single' | 'multi'>('select');
+  // No multiplayer server configured → skip the mode picker entirely and boot
+  // straight into single-player, so first visitors never hit a dead "멀티" button
+  // or a developer-facing error message.
+  const [mode, setMode] = useState<'select' | 'single' | 'multi'>(
+    GAME_SERVER_URL ? 'select' : 'single',
+  );
   const [loading, setLoading] = useState(true);
 
   const iframeSrc = mode === 'multi' && GAME_SERVER_URL
@@ -64,12 +69,14 @@ export default function EscapeGame() {
           </svg>
           홈으로
         </Link>
-        <button
-          onClick={() => setMode('select')}
-          className="bg-black/70 hover:bg-black/90 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          모드 선택
-        </button>
+        {GAME_SERVER_URL && (
+          <button
+            onClick={() => setMode('select')}
+            className="bg-black/70 hover:bg-black/90 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            모드 선택
+          </button>
+        )}
       </div>
       {loading && <LoadingOverlay />}
       <iframe
